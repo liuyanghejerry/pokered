@@ -1,7 +1,9 @@
-pub mod species;
-pub mod types;
-pub mod moves;
+pub mod item_data;
 pub mod items;
-pub mod pokemon_data;
 pub mod move_data;
+pub mod moves;
+pub mod pokemon_data;
+pub mod species;
+pub mod trainer_data;
 pub mod type_chart;
+pub mod types;
