@@ -658,7 +658,7 @@ cargo test -p pokered-data  # 所有数据测试通过
   - [x] 充能招式 (SolarBeam, Fly, Dig)
   - [x] 束缚招式 (Wrap, Fire Spin)
   - [x] 替身、变身、模仿等特殊效果
-- [ ] **M2.5** 实现野生精灵遭遇和捕获系统
+- [x] **M2.5** 实现野生精灵遭遇和捕获系统 ✅ — wild.rs: 遭遇触发(encounter_rate vs hRandomAdd)、10槽位累积概率表(从ASM probabilities.asm精确提取)、驱虫喷雾判定(严格小于才阻止)。capture.rs: 完整Gen1捕获算法(大师球→rand1接受阈值→状态减算→W值计算→catch_rate判定→rand2判定→摇晃次数)，支持5种球、状态加成。29个新测试(wild:14 + capture:15)，总计208测试通过
 - [ ] **M2.6** 实现训练师 AI (3层活跃修正 + 1层空操作插槽，共4层架构)
 - [ ] **M2.7** 实现经验值计算和等级提升
 - [ ] **M2.8** 实现战后结算 (金钱、进化检查)

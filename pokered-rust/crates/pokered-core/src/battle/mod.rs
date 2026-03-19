@@ -1,4 +1,5 @@
 pub mod accuracy;
+pub mod capture;
 pub mod damage;
 pub mod effects;
 pub mod move_execution;
@@ -9,3 +10,4 @@ pub mod status_checks;
 pub mod turn;
 pub mod turn_order;
 pub mod types;
+pub mod wild;
