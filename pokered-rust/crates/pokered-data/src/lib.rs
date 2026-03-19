@@ -7,3 +7,4 @@ pub mod species;
 pub mod trainer_data;
 pub mod type_chart;
 pub mod types;
+pub mod wild_data;
