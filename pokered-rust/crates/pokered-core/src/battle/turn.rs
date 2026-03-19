@@ -158,6 +158,11 @@ mod tests {
             crit_roll: 255,
             accuracy_roll: 0,
             damage_roll: 255,
+            effect_randoms: crate::battle::effects::EffectRandoms {
+                side_effect_roll: 255,
+                duration_roll: 0,
+                multi_hit_roll: 0,
+            },
         }
     }
 

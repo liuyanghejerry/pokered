@@ -648,16 +648,16 @@ cargo test -p pokered-data  # 所有数据测试通过
 - [x] **M2.1** 实现伤害计算公式 (STAB、属性克制、暴击、随机) ✅ — 忠实ASM实现：顺序属性克制应用(floor(damage*mult/10))、暴击、STAB、随机化、能力值缩放(>255时/4)、反射/光幕、自爆减防、0伤害判定为miss
 - [x] **M2.2** 实现能力阶段系统 (-6 到 +6) ✅ — StatStages结构体+apply_stage+StatIndex，倍率表验证与ASM StatModifierRatios一致
 - [x] **M2.3** 实现回合执行流程 (先攻判定、招式执行、效果结算) ✅ — 分7个模块实现：state.rs(战斗状态/宝可梦/战斗者)、turn_order.rs(先攻判定：先制+速度+硬直)、status_checks.rs(9步状态检查：睡眠→冰冻→束缚→畏缩→蓄力→禁止→混乱→封印→麻痹)、accuracy.rs(命中判定：命中/闪避阶段+Swift/X命中绕过)、residual.rs(残余伤害：烧伤/中毒/剧毒/寄生种子)、move_execution.rs(单招执行管线：状态→PP→暴击→伤害→命中→替身)、turn.rs(回合编排器：排序→双方行动→残余→倒下检查)
-- [ ] **M2.4** 实现所有 86 种招式效果
-  - [ ] 直接伤害
-  - [ ] 状态异常 (中毒、烧伤、冰冻、麻痹、睡眠)
-  - [ ] 能力变化
-  - [ ] 吸血/反伤
-  - [ ] 多段攻击
-  - [ ] 一击必杀
-  - [ ] 充能招式 (SolarBeam, Fly, Dig)
-  - [ ] 束缚招式 (Wrap, Fire Spin)
-  - [ ] 替身、变身、模仿等特殊效果
+- [x] **M2.4** 实现所有 86 种招式效果 ✅ — 8个子模块实现全部86种效果，已集成至move_execution管线。102个效果专项测试（status_effects:11 + stat_effects:9 + damage_effects:14 + multi_hit:5 + multi_turn:11 + field_effects:15 + special_effects:17 + dispatcher覆盖），总计179测试通过
+  - [x] 直接伤害
+  - [x] 状态异常 (中毒、烧伤、冰冻、麻痹、睡眠)
+  - [x] 能力变化
+  - [x] 吸血/反伤
+  - [x] 多段攻击
+  - [x] 一击必杀
+  - [x] 充能招式 (SolarBeam, Fly, Dig)
+  - [x] 束缚招式 (Wrap, Fire Spin)
+  - [x] 替身、变身、模仿等特殊效果
 - [ ] **M2.5** 实现野生精灵遭遇和捕获系统
 - [ ] **M2.6** 实现训练师 AI (3层活跃修正 + 1层空操作插槽，共4层架构)
 - [ ] **M2.7** 实现经验值计算和等级提升

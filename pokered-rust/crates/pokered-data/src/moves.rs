@@ -192,6 +192,10 @@ pub enum MoveId {
 
 pub const NUM_MOVES: u8 = 165;
 
+pub fn move_id_from_u8(val: u8) -> MoveId {
+    <MoveId as num_traits::FromPrimitive>::from_u8(val).unwrap_or(MoveId::Pound)
+}
+
 #[derive(
     Debug,
     Clone,

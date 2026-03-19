@@ -4,15 +4,20 @@ use pokered_data::pokemon_data::get_base_stats;
 
 use super::accuracy::accuracy_check;
 use super::damage::{calculate_damage, crit_chance, is_high_crit_move, is_physical, DamageParams};
+use super::effects::{apply_move_effect, EffectRandoms, EffectResult};
 use super::state::{status2, status3, BattleState, Side};
 use super::status_checks::{check_status_conditions, CannotMoveReason, StatusCheckResult};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MoveOutcome {
-    Success { damage: u16 },
+    /// Damaging move hit successfully, with optional side-effect result.
+    Success { damage: u16, effect: EffectResult },
+    /// Move missed the accuracy check.
     Missed,
+    /// Attacker could not move due to status (sleep, freeze, paralysis, etc.)
     CannotMove(CannotMoveReason),
-    NoDamageMove,
+    /// Non-damaging move was used (power=0). Effect result inside.
+    NoDamageMove { effect: EffectResult },
 }
 
 pub struct MoveRandoms {
@@ -21,12 +26,13 @@ pub struct MoveRandoms {
     pub crit_roll: u8,
     pub accuracy_roll: u8,
     pub damage_roll: u8,
+    pub effect_randoms: EffectRandoms,
 }
 
 /// Execute a single move for the current attacker (state.whose_turn).
 ///
 /// ASM pipeline: CheckPlayerStatusConditions → DecrementPP → CriticalHitTest →
-///               CalcDamage → CalcHitChance → ApplyDamage
+///               CalcDamage → CalcHitChance → ApplyDamage → JumpMoveEffect
 ///
 /// Confusion self-hit uses attacker's own Attack vs own Defense, power=40, typeless.
 pub fn execute_move(
@@ -62,10 +68,30 @@ pub fn execute_move(
 
     decrement_pp(state);
 
+    // power=0 moves: accuracy check → effect dispatch (no damage calc)
     if move_data.power == 0 {
+        let hit = {
+            let attacker = state.attacker();
+            let defender = state.defender();
+            accuracy_check(
+                attacker,
+                defender,
+                move_data.accuracy,
+                move_data.effect,
+                randoms.accuracy_roll,
+            )
+        };
+
         state.attacker_mut().player_used_move = true;
         state.attacker_mut().last_move_used = move_data.id;
-        return MoveOutcome::NoDamageMove;
+
+        if !hit {
+            state.move_missed = true;
+            return MoveOutcome::Missed;
+        }
+
+        let effect = apply_move_effect(state, move_data, &randoms.effect_randoms, 0);
+        return MoveOutcome::NoDamageMove { effect };
     }
 
     let is_crit = test_critical_hit(state, move_data, randoms.crit_roll);
@@ -94,7 +120,9 @@ pub fn execute_move(
     state.attacker_mut().player_used_move = true;
     state.attacker_mut().last_move_used = move_data.id;
 
-    MoveOutcome::Success { damage }
+    let effect = apply_move_effect(state, move_data, &randoms.effect_randoms, damage);
+
+    MoveOutcome::Success { damage, effect }
 }
 
 fn split_battlers(
@@ -322,6 +350,11 @@ mod tests {
             crit_roll: 255,
             accuracy_roll: 0,
             damage_roll: 255,
+            effect_randoms: EffectRandoms {
+                side_effect_roll: 255,
+                duration_roll: 0,
+                multi_hit_roll: 0,
+            },
         }
     }
 
@@ -333,7 +366,7 @@ mod tests {
 
         let result = execute_move(&mut state, &move_data, &randoms);
         match result {
-            MoveOutcome::Success { damage } => {
+            MoveOutcome::Success { damage, .. } => {
                 assert!(damage > 0);
                 assert!(state.enemy.active_mon().hp < 200);
             }
@@ -369,6 +402,11 @@ mod tests {
             crit_roll: 255,
             accuracy_roll: 200,
             damage_roll: 255,
+            effect_randoms: EffectRandoms {
+                side_effect_roll: 255,
+                duration_roll: 0,
+                multi_hit_roll: 0,
+            },
         };
 
         let result = execute_move(&mut state, &move_data, &randoms);
@@ -400,6 +438,11 @@ mod tests {
             crit_roll: 255,
             accuracy_roll: 0,
             damage_roll: 255,
+            effect_randoms: EffectRandoms {
+                side_effect_roll: 255,
+                duration_roll: 0,
+                multi_hit_roll: 0,
+            },
         };
 
         let result = execute_move(&mut state, &move_data, &randoms);
@@ -424,7 +467,7 @@ mod tests {
         let randoms = always_hit_randoms();
 
         let result = execute_move(&mut state, &move_data, &randoms);
-        assert_eq!(result, MoveOutcome::NoDamageMove);
+        assert!(matches!(result, MoveOutcome::NoDamageMove { .. }));
     }
 
     #[test]
@@ -437,7 +480,7 @@ mod tests {
 
         let result = execute_move(&mut state, &move_data, &randoms);
         match result {
-            MoveOutcome::Success { damage } => {
+            MoveOutcome::Success { damage, .. } => {
                 assert!(damage > 0);
                 assert_eq!(state.enemy.active_mon().hp, 200);
                 assert!(state.enemy.substitute_hp < 100);
