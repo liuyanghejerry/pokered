@@ -1,0 +1,11 @@
+[package]
+name = "pokered-app"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+pokered-core = { path = "../pokered-core" }
+pokered-renderer = { path = "../pokered-renderer" }
+pokered-audio = { path = "../pokered-audio" }
+anyhow = { workspace = true }
+tracing = { workspace = true }

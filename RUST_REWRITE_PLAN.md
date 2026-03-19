@@ -619,11 +619,16 @@ impl SaveData {
 
 **目标：** 建立项目骨架，实现数据定义和加载
 
-- [ ] **M1.1** 初始化 Cargo Workspace 和项目结构
-- [ ] **M1.2** 定义所有枚举类型 (Species, MoveId, ItemId, Type, MapId 等)
-- [ ] **M1.3** 实现 151 只精灵的基础数据 (`BaseStats`)
-- [ ] **M1.4** 实现 165 个招式数据 (`MoveData`)
-- [ ] **M1.5** 实现属性克制表 (`TypeChart`)
+- [x] **M1.1** 初始化 Cargo Workspace 和项目结构 ✅
+- [x] **M1.2** 定义所有枚举类型 (Species, MoveId, ItemId, Type 等) ✅
+  - `species.rs`: Species(152变体) + GrowthRate(6)
+  - `types.rs`: PokemonType(15类型，含hex repr) + Effectiveness
+  - `moves.rs`: MoveId(166变体) + MoveEffect(87，含gap)
+  - `items.rs`: ItemId(84) + HmId(5) + TmId(50) + TM/HM→Move映射
+- [x] **M1.3** 实现 165 个招式数据 (`MoveData`) ✅ — 从 ASM 自动生成
+- [x] **M1.4** 实现属性克制表 (`TypeChart`) ✅ — 82条克制表 + lookup函数
+- [x] **M1.5** 实现 `BaseStats` 结构定义 ✅ — 结构体已定义，151只数据待填充
+- [ ] **M1.5b** 填充 151 只精灵的基础数据 (`BaseStats`)
 - [ ] **M1.6** 实现 83 个物品数据 (`ItemData`，不含 TM/HM，TM01-TM50 + HM01-HM05 单独管理)
 - [ ] **M1.7** 实现训练师队伍数据
 - [ ] **M1.8** 实现野生遭遇表

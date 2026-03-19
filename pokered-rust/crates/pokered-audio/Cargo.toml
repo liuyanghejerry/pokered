@@ -1,0 +1,7 @@
+[package]
+name = "pokered-audio"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+pokered-data = { path = "../pokered-data" }

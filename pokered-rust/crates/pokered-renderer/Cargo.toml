@@ -1,0 +1,7 @@
+[package]
+name = "pokered-renderer"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+pokered-data = { path = "../pokered-data" }
