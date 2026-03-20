@@ -25,6 +25,7 @@ fn make_pokemon(species: Species, level: u8, moves: [MoveId; 4]) -> Pokemon {
         type2: PokemonType::Poison,
         moves,
         pp,
+        pp_ups: [0; 4],
         status: StatusCondition::None,
         dv_bytes: [0xFF, 0xFF],
         stat_exp: [0; 5],

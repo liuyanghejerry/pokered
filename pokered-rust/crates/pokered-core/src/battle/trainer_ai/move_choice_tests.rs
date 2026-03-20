@@ -26,6 +26,7 @@ mod tests {
             type2,
             moves,
             pp: [10, 10, 10, 10],
+            pp_ups: [0; 4],
             status,
             dv_bytes: [0xFF, 0xFF],
             stat_exp: [0; 5],

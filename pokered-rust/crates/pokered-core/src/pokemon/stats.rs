@@ -58,6 +58,7 @@ pub fn create_pokemon(species: Species, level: u8, dv_bytes: [u8; 2]) -> Option<
             super::move_learning::get_move_max_pp(base.initial_moves[2]),
             super::move_learning::get_move_max_pp(base.initial_moves[3]),
         ],
+        pp_ups: [0; 4],
         status: StatusCondition::None,
         dv_bytes,
         stat_exp: [0; 5],

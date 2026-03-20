@@ -18,6 +18,7 @@ fn make_pokemon(species: Species, level: u8) -> Pokemon {
         type2: PokemonType::Normal,
         moves: [MoveId::Tackle, MoveId::None, MoveId::None, MoveId::None],
         pp: [35, 0, 0, 0],
+            pp_ups: [0; 4],
         status: StatusCondition::None,
         dv_bytes: [0xAA, 0xAA],
         stat_exp: [0; 5],

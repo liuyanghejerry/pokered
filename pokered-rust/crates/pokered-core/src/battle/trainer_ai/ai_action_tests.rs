@@ -21,6 +21,7 @@ mod tests {
             type2: PokemonType::Normal,
             moves: [MoveId::Tackle, MoveId::None, MoveId::None, MoveId::None],
             pp: [10, 0, 0, 0],
+            pp_ups: [0; 4],
             status,
             dv_bytes: [0xFF, 0xFF],
             stat_exp: [0; 5],

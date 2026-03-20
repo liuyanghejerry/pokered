@@ -36,6 +36,7 @@ pub fn make_pokemon(
         type2,
         moves,
         pp,
+        pp_ups: [0; 4],
         status: StatusCondition::None,
         dv_bytes: [0xFF, 0xFF],
         stat_exp: [0; 5],

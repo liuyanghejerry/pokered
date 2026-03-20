@@ -97,6 +97,8 @@ pub struct Pokemon {
     pub type2: PokemonType,
     pub moves: [MoveId; 4],
     pub pp: [u8; 4],
+    /// Number of PP Ups applied to each move slot (0-3 each).
+    pub pp_ups: [u8; 4],
     pub status: StatusCondition,
     /// Gen1 DV bytes: [atk_def, spd_spc]. Each byte packs two 4-bit IVs.
     /// High nybble = Atk/Spd IV, Low nybble = Def/Spc IV.
@@ -336,6 +338,7 @@ mod tests {
                 MoveId::None,
             ],
             pp: [30, 30, 20, 0],
+            pp_ups: [0; 4],
             status: StatusCondition::None,
             dv_bytes: [0xFF, 0xFF],
             stat_exp: [0; 5],

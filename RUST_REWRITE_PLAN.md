@@ -680,13 +680,15 @@ cargo test -p pokered-core -- battle  # 战斗测试通过
 - [x] **M3.3** 实现进化系统 (等级进化、道具进化、交换进化) ✅ 已完成 — 统一EvolutionTrigger API, 14个单元测试, 429总测试
 - [x] **M3.4** 实现招式学习/遗忘 ✅ 已完成 — move_learning模块: try_learn_move/teach_tm/teach_hm/forget_move/process_level_up_moves, tm_hm_flags位域兼容检查, 36个单元测试, 465总测试
 - [x] **M3.5** 实现能力值计算 (基础值 + 个体值 + 努力值) ✅ 已完成 — stats模块: recalculate_stats(HP差值补正)、create_pokemon/create_pokemon_with_moves(一站式创建含正确stats/types/moves/PP/exp)、stat_summary(IV提取)、StatSummary结构体, 14个单元测试, 479总测试
-- [ ] **M3.6** 实现物品使用效果
-  - [ ] 回复类 (药水、解药)
-  - [ ] 精灵球 (捕获率计算)
-  - [ ] 进化石
-  - [ ] 战斗道具 (X攻击等)
-  - [ ] TM/HM
-  - [ ] 关键道具 (自行车、钓竿等)
+- [x] **M3.6** 实现物品使用效果 ✅ 已完成 — items模块: healing(药水10种)、status_cure(状态治疗6种)、pp_restore(PP恢复5种+PP Up)、vitamins(营养剂5种+神奇糖果)、battle_items(战斗道具8种); Pokemon结构体新增pp_ups字段; 74个单元测试, 623总测试
+  - [x] 回复类 (药水、解药)
+  - [x] 战斗道具 (X攻击等)
+  - [x] PP恢复 (以太/万灵药/PP提升)
+  - [x] 营养剂 (HP提升/蛋白质/钙质等) + 神奇糖果(升级+进化+招式学习)
+  - [ ] 精灵球 (捕获率计算) — 已在battle/capture.rs实现
+  - [ ] 进化石 — 已在pokemon/evolution.rs实现
+  - [ ] TM/HM — 已在pokemon/move_learning.rs实现
+  - [ ] 关键道具 (自行车、钓竿等) — 属于大地图阶段
 - [ ] **M3.7** 实现背包/PC物品管理
 - [ ] **M3.8** 实现图鉴系统
 
