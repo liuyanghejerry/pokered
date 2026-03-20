@@ -83,7 +83,7 @@ pub mod status3 {
     pub const TRANSFORMED: u8 = 1 << 3;
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Pokemon {
     pub species: Species,
     pub level: u8,
