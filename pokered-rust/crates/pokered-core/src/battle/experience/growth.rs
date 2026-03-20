@@ -14,17 +14,53 @@ struct GrowthCoeffs {
 
 const GROWTH_TABLE: [GrowthCoeffs; 6] = [
     // MediumFast (index 0): n^3
-    GrowthCoeffs { coeff_num: 1, coeff_den: 1, quad: 0, linear: 0, sub: 0 },
+    GrowthCoeffs {
+        coeff_num: 1,
+        coeff_den: 1,
+        quad: 0,
+        linear: 0,
+        sub: 0,
+    },
     // SlightlyFast (index 1): 3/4 * n^3 + 10*n^2 - 30
-    GrowthCoeffs { coeff_num: 3, coeff_den: 4, quad: 10, linear: 0, sub: 30 },
+    GrowthCoeffs {
+        coeff_num: 3,
+        coeff_den: 4,
+        quad: 10,
+        linear: 0,
+        sub: 30,
+    },
     // SlightlySlow (index 2): 3/4 * n^3 + 20*n^2 - 70
-    GrowthCoeffs { coeff_num: 3, coeff_den: 4, quad: 20, linear: 0, sub: 70 },
+    GrowthCoeffs {
+        coeff_num: 3,
+        coeff_den: 4,
+        quad: 20,
+        linear: 0,
+        sub: 70,
+    },
     // MediumSlow (index 3): 6/5 * n^3 - 15*n^2 + 100*n - 140
-    GrowthCoeffs { coeff_num: 6, coeff_den: 5, quad: -15, linear: 100, sub: 140 },
+    GrowthCoeffs {
+        coeff_num: 6,
+        coeff_den: 5,
+        quad: -15,
+        linear: 100,
+        sub: 140,
+    },
     // Fast (index 4): 4/5 * n^3
-    GrowthCoeffs { coeff_num: 4, coeff_den: 5, quad: 0, linear: 0, sub: 0 },
+    GrowthCoeffs {
+        coeff_num: 4,
+        coeff_den: 5,
+        quad: 0,
+        linear: 0,
+        sub: 0,
+    },
     // Slow (index 5): 5/4 * n^3
-    GrowthCoeffs { coeff_num: 5, coeff_den: 4, quad: 0, linear: 0, sub: 0 },
+    GrowthCoeffs {
+        coeff_num: 5,
+        coeff_den: 4,
+        quad: 0,
+        linear: 0,
+        sub: 0,
+    },
 ];
 
 pub fn exp_for_level(growth_rate: GrowthRate, level: u8) -> u32 {

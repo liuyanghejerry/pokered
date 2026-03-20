@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use pokered_data::species::GrowthRate;
     use super::super::growth::*;
+    use pokered_data::species::GrowthRate;
 
     #[test]
     fn medium_fast_is_n_cubed() {

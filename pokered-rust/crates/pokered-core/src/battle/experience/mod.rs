@@ -4,10 +4,10 @@ pub mod level_up;
 pub mod stats;
 
 #[cfg(test)]
-mod growth_tests;
-#[cfg(test)]
-mod stats_tests;
-#[cfg(test)]
 mod gain_tests;
 #[cfg(test)]
+mod growth_tests;
+#[cfg(test)]
 mod level_up_tests;
+#[cfg(test)]
+mod stats_tests;

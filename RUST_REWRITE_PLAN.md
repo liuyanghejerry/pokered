@@ -641,7 +641,7 @@ impl SaveData {
 cargo test -p pokered-data  # 所有数据测试通过
 ```
 
-### 第二阶段：核心战斗逻辑 (预计 6-8 周)
+### 第二阶段：核心战斗逻辑 ✅ 已完成
 
 **目标：** 实现完整的战斗系统
 
@@ -663,7 +663,7 @@ cargo test -p pokered-data  # 所有数据测试通过
 - [x] **M2.7** 实现经验值计算和等级提升 ✅ — experience/模块(4个子模块+4个测试文件)。growth.rs: 6种成长曲线三次多项式(exp_for_level/level_from_exp/max_exp)，精确匹配data/growth_rates.asm系数。stats.rs: Gen1 DV字节解包(atk_def/spd_spc双字节→5项IV)、HP IV位拼接、calc_stat公式(base+iv)*2+ev_term)*level/100+bonus)、ceil(sqrt(stat_exp))/4的EV贡献。gain.rs: calc_exp_gain(base_exp*level/7)、traded/trainer各1.5x可叠加、add_stat_exp(累加敌方基础值，saturating)、gain_experience主流程(EXP ALL双遍历：半值fighters+半值全队)。level_up.rs: process_level_up(检测新等级→重算5项能力值→HP差值补正→遍历learnset学新招→满槽替换末位)。Pokemon结构体扩展: dv_bytes/stat_exp/total_exp/is_traded。33个新测试(growth:10 + stats:8 + gain:8 + level_up:6 + 1 extra)，总计300测试通过
 - [x] **M2.8** 实现战后结算 (金钱、进化检查) ✅ — settlement/模块(4个子模块+3个测试文件)。money.rs: calc_prize_money(base_money×level)、calc_blackout_penalty(money/2)、calc_total_winnings(prize+payday封顶999,999)。evolution.rs: check_level_evolution/check_trade_evolution/check_item_evolution(从evos_moves_data查表)、apply_evolution(更新species/type1/type2、重算全能力值、HP差值补正)。settle.rs: settle_battle编排器(Win=奖金+PayDay+进化、Loss=金钱减半、Escaped/Captured=仅进化检查)。BattleOutcome枚举(Win/Loss/Draw/Escaped/Captured)、BattleSettlement结构体。trainer_data.rs新增get_base_money()含47职业基础奖金。28个新测试(money:10 + evolution:9 + settle:9)，总计328测试通过
 - [x] **M2.9** 实现逃跑机制 ✅ — escape/模块(mod.rs+tests.rs)。try_run_from_battle: 训练师战→禁止逃跑、野生战→速度比较(player≥enemy必逃)+概率公式(player_speed×32÷((enemy_speed÷4)%256)+30×attempts vs random)、溢出/除数为0特殊情况处理。try_escape_move: Teleport/Whirlwind/Roar的SwitchAndTeleportEffect(训练师战必败、野生战按等级比较+概率判定rand[0,c)≥target_lvl÷4)。RunResult/TeleportResult/EscapeMove枚举。17个新测试，总计345测试通过
-- [ ] **M2.10** 战斗系统集成测试
+- [x] **M2.10** 战斗系统集成测试 ✅ — 6个集成测试文件(helpers.rs共享工具+5个场景文件)。wild_battle_flow(2测试: 野生战遭遇→战斗→KO→经验→结算、削弱→捕获)、trainer_battle_flow(3测试: 多回合KO→经验→奖金、战败→惩罚、PayDay奖金)、escape_flow(6测试: 失败→重试→成功、训练师战禁逃、高速必逃、瞬移成功/失败、尝试次数累积)、status_across_turns(5测试: 烧伤/中毒/剧毒逐回合伤害、睡眠回合递减、冰冻阻止行动)、edge_cases(7测试: 多宝可梦经验分配、EXP ALL、交换奖励、进化触发、濒死不进化、PP追踪、奖金上限)。共23个集成测试全部通过，总计368测试(345单元+23集成)零失败
 
 **验收标准：**
 ```bash

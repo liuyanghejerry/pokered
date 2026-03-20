@@ -1,11 +1,11 @@
-pub mod money;
 pub mod evolution;
+pub mod money;
 pub mod settle;
 
 #[cfg(test)]
-mod money_tests;
-#[cfg(test)]
 mod evolution_tests;
+#[cfg(test)]
+mod money_tests;
 #[cfg(test)]
 mod settle_tests;
 

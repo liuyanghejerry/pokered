@@ -43,10 +43,40 @@ pub fn calc_all_stats(
     stat_exp: &[u16; 5],
     level: u8,
 ) -> (u16, u16, u16, u16, u16) {
-    let hp = calc_stat(base_stats.hp, extract_hp_iv(dv_bytes), stat_exp[0], level, true);
-    let atk = calc_stat(base_stats.attack, extract_atk_iv(dv_bytes), stat_exp[1], level, false);
-    let def = calc_stat(base_stats.defense, extract_def_iv(dv_bytes), stat_exp[2], level, false);
-    let spd = calc_stat(base_stats.speed, extract_spd_iv(dv_bytes), stat_exp[3], level, false);
-    let spc = calc_stat(base_stats.special, extract_spc_iv(dv_bytes), stat_exp[4], level, false);
+    let hp = calc_stat(
+        base_stats.hp,
+        extract_hp_iv(dv_bytes),
+        stat_exp[0],
+        level,
+        true,
+    );
+    let atk = calc_stat(
+        base_stats.attack,
+        extract_atk_iv(dv_bytes),
+        stat_exp[1],
+        level,
+        false,
+    );
+    let def = calc_stat(
+        base_stats.defense,
+        extract_def_iv(dv_bytes),
+        stat_exp[2],
+        level,
+        false,
+    );
+    let spd = calc_stat(
+        base_stats.speed,
+        extract_spd_iv(dv_bytes),
+        stat_exp[3],
+        level,
+        false,
+    );
+    let spc = calc_stat(
+        base_stats.special,
+        extract_spc_iv(dv_bytes),
+        stat_exp[4],
+        level,
+        false,
+    );
     (hp, atk, def, spd, spc)
 }
