@@ -7,6 +7,7 @@ pub mod residual;
 pub mod stat_stages;
 pub mod state;
 pub mod status_checks;
+pub mod trainer_ai;
 pub mod turn;
 pub mod turn_order;
 pub mod types;
