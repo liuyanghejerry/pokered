@@ -98,6 +98,14 @@ pub struct Pokemon {
     pub moves: [MoveId; 4],
     pub pp: [u8; 4],
     pub status: StatusCondition,
+    /// Gen1 DV bytes: [atk_def, spd_spc]. Each byte packs two 4-bit IVs.
+    /// High nybble = Atk/Spd IV, Low nybble = Def/Spc IV.
+    /// HP IV is derived: bit3=Atk&1, bit2=Def&1, bit1=Spd&1, bit0=Spc&1.
+    pub dv_bytes: [u8; 2],
+    /// Stat experience (EVs) accumulated. [hp, atk, def, spd, spc].
+    pub stat_exp: [u16; 5],
+    pub total_exp: u32,
+    pub is_traded: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -329,6 +337,10 @@ mod tests {
             ],
             pp: [30, 30, 20, 0],
             status: StatusCondition::None,
+            dv_bytes: [0xFF, 0xFF],
+            stat_exp: [0; 5],
+            total_exp: 0,
+            is_traded: false,
         }
     }
 

@@ -2,6 +2,7 @@ pub mod accuracy;
 pub mod capture;
 pub mod damage;
 pub mod effects;
+pub mod experience;
 pub mod move_execution;
 pub mod residual;
 pub mod stat_stages;

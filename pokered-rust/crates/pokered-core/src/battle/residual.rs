@@ -141,6 +141,10 @@ mod tests {
             ],
             pp: [30, 0, 0, 0],
             status,
+            dv_bytes: [0xFF, 0xFF],
+            stat_exp: [0; 5],
+            total_exp: 0,
+            is_traded: false,
         }
     }
 

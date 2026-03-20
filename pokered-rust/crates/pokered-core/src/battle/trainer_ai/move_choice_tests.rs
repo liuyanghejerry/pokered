@@ -27,6 +27,10 @@ mod tests {
             moves,
             pp: [10, 10, 10, 10],
             status,
+            dv_bytes: [0xFF, 0xFF],
+            stat_exp: [0; 5],
+            total_exp: 0,
+            is_traded: false,
         }
     }
 

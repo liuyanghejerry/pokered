@@ -126,6 +126,10 @@ mod tests {
             ],
             pp: [30, 0, 0, 0],
             status: StatusCondition::None,
+            dv_bytes: [0xFF, 0xFF],
+            stat_exp: [0; 5],
+            total_exp: 0,
+            is_traded: false,
         }
     }
 
@@ -222,6 +226,10 @@ mod tests {
             ],
             pp: [30, 0, 0, 0],
             status: StatusCondition::None,
+            dv_bytes: [0xFF, 0xFF],
+            stat_exp: [0; 5],
+            total_exp: 0,
+            is_traded: false,
         };
         let e = vec![e_mon];
         let mut state = new_battle_state(BattleType::Wild, p, e);
