@@ -678,7 +678,7 @@ cargo test -p pokered-core -- battle  # 战斗测试通过
 - [x] **M3.1** 实现队伍管理 (添加/移除/交换) ✅ 已完成 — Party struct, 24个单元测试, 393总测试
 - [x] **M3.2** 实现精灵存储箱系统 (12个箱子, 每个20只) ✅ 已完成 — PcBox/PcStorage, 23个单元测试, 415总测试
 - [x] **M3.3** 实现进化系统 (等级进化、道具进化、交换进化) ✅ 已完成 — 统一EvolutionTrigger API, 14个单元测试, 429总测试
-- [ ] **M3.4** 实现招式学习/遗忘
+- [x] **M3.4** 实现招式学习/遗忘 ✅ 已完成 — move_learning模块: try_learn_move/teach_tm/teach_hm/forget_move/process_level_up_moves, tm_hm_flags位域兼容检查, 36个单元测试, 465总测试
 - [ ] **M3.5** 实现能力值计算 (基础值 + 个体值 + 努力值)
 - [ ] **M3.6** 实现物品使用效果
   - [ ] 回复类 (药水、解药)
