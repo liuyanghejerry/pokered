@@ -2,6 +2,7 @@ pub mod evolution;
 pub mod move_learning;
 pub mod party;
 pub mod pc_box;
+pub mod stats;
 
 #[cfg(test)]
 mod evolution_tests;
@@ -11,3 +12,5 @@ mod move_learning_tests;
 mod party_tests;
 #[cfg(test)]
 mod pc_box_tests;
+#[cfg(test)]
+mod stats_tests;
