@@ -1,5 +1,6 @@
 pub mod battle_items;
 pub mod healing;
+pub mod inventory;
 pub mod pp_restore;
 pub mod status_cure;
 pub mod vitamins;
@@ -8,6 +9,8 @@ pub mod vitamins;
 mod battle_items_tests;
 #[cfg(test)]
 mod healing_tests;
+#[cfg(test)]
+mod inventory_tests;
 #[cfg(test)]
 mod pp_restore_tests;
 #[cfg(test)]
