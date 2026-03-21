@@ -1,4 +1,5 @@
 pub mod collision;
+pub mod event_flags;
 pub mod evos_moves;
 pub mod item_data;
 pub mod items;
@@ -17,6 +18,7 @@ pub mod sprites;
 pub mod tileset_data;
 pub mod tilesets;
 pub mod trainer_data;
+pub mod trainer_headers;
 pub mod type_chart;
 pub mod types;
 pub mod wild_data;

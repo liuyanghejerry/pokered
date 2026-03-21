@@ -6,11 +6,15 @@
 //! the game's overworld map system.
 
 pub mod collision;
+pub mod event_flags;
 pub mod map_loading;
+pub mod map_scripts;
 pub mod map_transitions;
 pub mod npc_interaction;
 pub mod npc_movement;
 pub mod player_movement;
+pub mod script_engine;
+pub mod trainer_engine;
 
 #[cfg(test)]
 mod tests;
@@ -22,6 +26,8 @@ mod tests_connections;
 mod tests_movement;
 #[cfg(test)]
 mod tests_npc;
+#[cfg(test)]
+mod tests_scripts;
 
 use pokered_data::maps::MapId;
 use pokered_data::music::MusicId;

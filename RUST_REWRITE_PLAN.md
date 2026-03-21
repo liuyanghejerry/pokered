@@ -700,7 +700,7 @@ cargo test -p pokered-core -- battle  # 战斗测试通过
 - [x] **M4.2** 实现玩家移动和碰撞检测 ✅
 - [x] **M4.3** 实现地图连接和传送点 (包括双向无缝地图加载: 东西南北四方向连接) ✅
 - [x] **M4.4** 实现 NPC 移动和交互 ✅ — parse_npcs.py解析223个ASM文件生成918个NPC和201个标牌数据(含OPP_前缀训练师/野生精灵遭遇区分); npc_movement.rs: NpcRuntimeState状态机(Stationary/Wander/FacePlayer/FixedPath)、load_map_npcs、update_npc_movement(范围限制+碰撞)、位置查询; npc_interaction.rs: try_interact(Talk/TrainerBattle/ItemPickup/AlreadyDefeated)、check_trainer_line_of_sight(视线范围检测)、collect_item/mark_trainer_defeated、check_sign_interaction; 45个新测试(数据完整性+移动+交互+训练师视线+标牌)，总计853测试通过
-- [ ] **M4.5** 实现脚本/事件系统 (224个地图脚本，含事件标志位检测/设置、多步骤脚本流程)
+- [x] **M4.5** 实现脚本/事件系统 ✅ — parse_event_flags.py解析507个事件标志(最大bit 0x9DA, 316字节存储); parse_trainer_headers.py解析322个训练师头(跨69张地图); event_flags.rs: EventFlags位数组(set/check/reset/raw/count/clear/save-load); script_engine.rs: ScriptAction(23种动作)、ScriptPhase状态机、MapScriptState(动作队列+信号机制)、CoordEvent坐标触发、execute_next_action; trainer_engine.rs: TrainerBattleState(7态状态机)、can_trainer_see_player(方向+距离视线检测)、check_all_trainers; map_scripts.rs: MapScriptContext(整合脚本+坐标事件+训练师遭遇)、MapScriptType分类(StorySequence/TrainerMap/SimpleTextOnly/NoScripts); 68个新测试，总计921测试通过
 - [ ] **M4.6** 实现野生遭遇触发
 - [ ] **M4.7** 实现秘传技效果 (Cut, Surf, Fly, Strength, Flash)
 - [ ] **M4.8** 实现特殊地形 (草地、水面、暗洞)
