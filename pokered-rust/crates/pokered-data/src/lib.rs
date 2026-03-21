@@ -1,3 +1,4 @@
+pub mod collision;
 pub mod evos_moves;
 pub mod item_data;
 pub mod items;
@@ -9,6 +10,7 @@ pub mod music;
 pub mod pokemon_data;
 pub mod species;
 pub mod sprites;
+pub mod tileset_data;
 pub mod tilesets;
 pub mod trainer_data;
 pub mod type_chart;

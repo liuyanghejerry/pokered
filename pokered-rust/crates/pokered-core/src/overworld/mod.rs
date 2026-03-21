@@ -1,13 +1,20 @@
-//! Overworld system — map loading, player state, and map connections.
+//! Overworld system — map loading, player movement, collision, and map connections.
 //!
-//! Implements M4.1 (地图加载和瓦片渲染) of the Rust rewrite plan.
-//! This module provides the core data types and loading functions for
+//! Implements M4.1 (地图加载和瓦片渲染) and M4.2 (玩家移动和碰撞检测)
+//! of the Rust rewrite plan. This module provides the core data types,
+//! loading functions, collision detection, and player movement for
 //! the game's overworld map system.
 
+pub mod collision;
 pub mod map_loading;
+pub mod player_movement;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_collision;
+#[cfg(test)]
+mod tests_movement;
 
 use pokered_data::maps::MapId;
 use pokered_data::music::MusicId;
