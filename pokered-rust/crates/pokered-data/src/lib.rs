@@ -1,10 +1,15 @@
 pub mod evos_moves;
 pub mod item_data;
 pub mod items;
+pub mod map_data;
+pub mod maps;
 pub mod move_data;
 pub mod moves;
+pub mod music;
 pub mod pokemon_data;
 pub mod species;
+pub mod sprites;
+pub mod tilesets;
 pub mod trainer_data;
 pub mod type_chart;
 pub mod types;
