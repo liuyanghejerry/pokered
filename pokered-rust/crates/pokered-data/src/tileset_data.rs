@@ -130,3 +130,96 @@ pub fn has_water_animation(tileset: TilesetId) -> bool {
         TileAnimation::Water | TileAnimation::WaterFlower
     )
 }
+
+// ── Cut Tree Block Swaps ─────────────────────────────────────────────
+
+/// Cut tree tile block swaps: (original_block, replacement_block).
+/// When a tree is cut, the block containing the tree is replaced.
+/// From data/tilesets/cut_tree_blocks.asm.
+pub const CUT_TREE_BLOCK_SWAPS: &[(u8, u8)] = &[
+    (0x32, 0x6D),
+    (0x33, 0x6C),
+    (0x34, 0x6F),
+    (0x35, 0x4C),
+    (0x60, 0x6E),
+    (0x0B, 0x0A),
+    (0x3C, 0x35),
+    (0x3F, 0x35),
+    (0x3D, 0x36),
+];
+
+/// Look up the replacement block for a cut tree.
+/// Returns the block ID that should replace the original after cutting.
+pub fn cut_tree_replacement(original_block: u8) -> Option<u8> {
+    CUT_TREE_BLOCK_SWAPS
+        .iter()
+        .find(|(orig, _)| *orig == original_block)
+        .map(|(_, repl)| *repl)
+}
+
+// ── Cut Tile Constants ───────────────────────────────────────────────
+
+/// Overworld cuttable tree tile.
+pub const CUT_TREE_TILE_OVERWORLD: u8 = 0x3D;
+/// Gym cuttable tree tile.
+pub const CUT_TREE_TILE_GYM: u8 = 0x50;
+/// Cuttable grass tile (on overworld).
+pub const CUT_GRASS_TILE: u8 = 0x52;
+
+// ── Dungeon Tilesets ─────────────────────────────────────────────────
+
+/// Tilesets that are considered "dungeons" (indoors/caves where Dig/Escape Rope work).
+/// From data/tilesets/dungeon_tilesets.asm.
+pub const DUNGEON_TILESETS: &[TilesetId] = &[
+    TilesetId::Forest,
+    TilesetId::Museum,
+    TilesetId::Ship,
+    TilesetId::Cavern,
+    TilesetId::Lobby,
+    TilesetId::Mansion,
+    TilesetId::Gate,
+    TilesetId::Lab,
+    TilesetId::Facility,
+    TilesetId::Cemetery,
+    TilesetId::Gym,
+];
+
+/// Check if a tileset is a dungeon tileset.
+pub fn is_dungeon_tileset(tileset: TilesetId) -> bool {
+    DUNGEON_TILESETS.contains(&tileset)
+}
+
+// ── Water Tilesets ───────────────────────────────────────────────────
+
+/// Tilesets that contain water tiles (where Surf can be used).
+/// From data/tilesets/water_tilesets.asm.
+pub const WATER_TILESETS: &[TilesetId] = &[
+    TilesetId::Overworld,
+    TilesetId::Forest,
+    TilesetId::Dojo,
+    TilesetId::Gym,
+    TilesetId::Ship,
+    TilesetId::ShipPort,
+    TilesetId::Cavern,
+    TilesetId::Facility,
+    TilesetId::Plateau,
+];
+
+/// Check if a tileset has water tiles (and thus supports Surf).
+pub fn is_water_tileset(tileset: TilesetId) -> bool {
+    WATER_TILESETS.contains(&tileset)
+}
+
+// ── Outside Map Check ────────────────────────────────────────────────
+
+/// Check if a tileset represents an "outside" map (town or route).
+/// Outside maps use OVERWORLD or PLATEAU tilesets.
+/// From home/overworld.asm CheckIfInOutsideMap.
+pub fn is_outside_tileset(tileset: TilesetId) -> bool {
+    matches!(tileset, TilesetId::Overworld | TilesetId::Plateau)
+}
+
+// ── Boulder Constants ────────────────────────────────────────────────
+
+/// The movement byte2 value that identifies a sprite as a pushable boulder.
+pub const BOULDER_MOVEMENT_BYTE_2: u8 = 0x10;

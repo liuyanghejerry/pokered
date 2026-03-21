@@ -15,6 +15,7 @@ pub mod npc_movement;
 pub mod player_movement;
 pub mod script_engine;
 pub mod trainer_engine;
+pub mod hm_effects;
 pub mod wild_encounters;
 
 #[cfg(test)]
@@ -23,6 +24,8 @@ mod tests;
 mod tests_collision;
 #[cfg(test)]
 mod tests_connections;
+#[cfg(test)]
+mod tests_hm_effects;
 #[cfg(test)]
 mod tests_movement;
 #[cfg(test)]
