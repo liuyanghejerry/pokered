@@ -1,6 +1,8 @@
 pub mod collision;
+pub mod elevator_data;
 pub mod event_flags;
 pub mod evos_moves;
+pub mod fly_warp_data;
 pub mod item_data;
 pub mod items;
 pub mod map_connections;

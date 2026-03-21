@@ -6,6 +6,7 @@
 //! the game's overworld map system.
 
 pub mod collision;
+pub mod doors_elevators;
 pub mod event_flags;
 pub mod hm_effects;
 pub mod map_loading;
@@ -25,6 +26,8 @@ mod tests;
 mod tests_collision;
 #[cfg(test)]
 mod tests_connections;
+#[cfg(test)]
+mod tests_doors_elevators;
 #[cfg(test)]
 mod tests_hm_effects;
 #[cfg(test)]

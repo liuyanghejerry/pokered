@@ -704,7 +704,7 @@ cargo test -p pokered-core -- battle  # 战斗测试通过
 - [x] **M4.6** 实现野生遭遇触发 ✅ — wild_encounters.rs: TileEncounterType(Grass/Water/IndoorCave/None)、determine_encounter_type(草地/水面/洞穴判定)、should_check_encounter(传送/NPC脚本/冷却前置检查)、check_wild_encounter(整合地形+概率+驱虫+等级判定); wild_data.rs: wild_data_name_for_map(50+地图映射)、wild_data_for_map(MapId→MapWildData桥接); 特殊处理: 森林图鉴需草地砖块、洞穴室内地图全砖触发、Route19/20共享SeaRoutes数据; 53个新测试，总计975测试通过
 - [x] **M4.7** 实现秘传技效果 (Cut, Surf, Fly, Strength, Flash) ✅ — hm_effects.rs: 5枚徽章位检查(BoulderBadge=0~SoulBadge=4)、CutResult(树砍伐+草清除，Overworld树$3D/草$52、Gym树$50，9组方块替换表)、FlyResult(ThunderBadge+室外地图限制，13个飞行目的地含Route4/Route10)、SurfResult(SoulBadge+水面朝向+SeafoamB4F双石特殊阻挡+自行车道限制)、StrengthResult(RainbowBadge+二次推动机制)、FlashResult(BoulderBadge+暗洞照明); try_push_boulder/try_push_boulder_with_direction(力量激活+灰尘状态+精灵检测+方向匹配+碰撞); tileset_data.rs新增: cut_tree_replacement、is_dungeon_tileset(11种)、is_water_tileset(9种)、is_outside_tileset; 56个新测试，总计1031测试通过
 - [x] **M4.8** 实现特殊地形 (草地、水面、暗洞)
-- [ ] **M4.9** 实现门、电梯、传送门
+- [x] **M4.9** 实现门、电梯、传送门 ✅ — elevator_data.rs: ElevatorFloor(14层)/ElevatorId(3部电梯)/elevator_data(层→MapId映射)/elevator_for_map; fly_warp_data.rs: FlyWarpCoords/FLY_DESTINATIONS(13目的地)/DUNGEON_WARPS(12入口)/NEW_GAME_WARP/LinkWarpType/TELEPORT_SPIN_ORDER; tileset_data.rs: is_door_tile(13种tileset门砖判定); doors_elevators.rs: is_standing_on_door/get_elevator_for_map/select_elevator_floor/resolve_fly_destination/teleport_spin_direction/resolve_dungeon_warp/new_game_warp/resolve_link_warp/elevator_shake_params; 62个新测试，总计1046测试通过
 - [ ] **M4.10** 实现所有 248 张地图数据
 - [ ] **M4.11** 实现文本引擎/命令处理器 (控制码: `<LINE>`, `<PAGE>`, `<DONE>`, `<PLAYER>`, `<RIVAL>` 等，逐字渲染，文本框管理)
 - [ ] **M4.12** 实现精灵/OAM 系统 (精灵碰撞、OAM DMA、精灵叠加优先级)

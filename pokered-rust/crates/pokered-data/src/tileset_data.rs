@@ -412,6 +412,29 @@ pub fn spinner_next_facing(
     }
 }
 
+// ── Door Tile IDs ────────────────────────────────────────────────────
+
+/// Door tile IDs per tileset, from data/tilesets/door_tile_ids.asm.
+/// Used by IsPlayerStandingOnDoorTile in engine/overworld/doors.asm.
+/// Returns true if `standing_tile` is a door tile for the given tileset.
+pub fn is_door_tile(tileset: TilesetId, standing_tile: u8) -> bool {
+    let door_tiles: &[u8] = match tileset {
+        TilesetId::Overworld => &[0x1B, 0x58],
+        TilesetId::Forest => &[0x3A],
+        TilesetId::Mart => &[0x5E],
+        TilesetId::House => &[0x54],
+        TilesetId::ForestGate | TilesetId::Museum | TilesetId::Gate => &[0x3B],
+        TilesetId::Ship => &[0x1E],
+        TilesetId::Lobby => &[0x1C, 0x38, 0x1A],
+        TilesetId::Mansion => &[0x1A, 0x1C, 0x53],
+        TilesetId::Lab => &[0x34],
+        TilesetId::Facility => &[0x43, 0x58, 0x1B],
+        TilesetId::Plateau => &[0x3B, 0x1B],
+        _ => return false,
+    };
+    door_tiles.contains(&standing_tile)
+}
+
 // ── Dark Cave Constants ──────────────────────────────────────────────
 
 /// The palette offset value for Rock Tunnel (dark cave).
