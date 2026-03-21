@@ -706,7 +706,7 @@ cargo test -p pokered-core -- battle  # 战斗测试通过
 - [x] **M4.8** 实现特殊地形 (草地、水面、暗洞)
 - [x] **M4.9** 实现门、电梯、传送门 ✅ — elevator_data.rs: ElevatorFloor(14层)/ElevatorId(3部电梯)/elevator_data(层→MapId映射)/elevator_for_map; fly_warp_data.rs: FlyWarpCoords/FLY_DESTINATIONS(13目的地)/DUNGEON_WARPS(12入口)/NEW_GAME_WARP/LinkWarpType/TELEPORT_SPIN_ORDER; tileset_data.rs: is_door_tile(13种tileset门砖判定); doors_elevators.rs: is_standing_on_door/get_elevator_for_map/select_elevator_floor/resolve_fly_destination/teleport_spin_direction/resolve_dungeon_warp/new_game_warp/resolve_link_warp/elevator_shake_params; 62个新测试，总计1046测试通过
 - [x] **M4.10** 实现所有 248 张地图数据
-- [ ] **M4.11** 实现文本引擎/命令处理器 (控制码: `<LINE>`, `<PAGE>`, `<DONE>`, `<PLAYER>`, `<RIVAL>` 等，逐字渲染，文本框管理)
+- [x] **M4.11** 实现文本引擎/命令处理器 (控制码: `<LINE>`, `<PAGE>`, `<DONE>`, `<PLAYER>`, `<RIVAL>` 等，逐字渲染，文本框管理)
 - [ ] **M4.12** 实现精灵/OAM 系统 (精灵碰撞、OAM DMA、精灵叠加优先级)
 - [ ] **M4.13** 实现老虎机迷你游戏 (engine/slots/ 完整子系统)
 

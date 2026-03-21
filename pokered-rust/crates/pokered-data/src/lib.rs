@@ -1,3 +1,4 @@
+pub mod charmap;
 pub mod collision;
 pub mod elevator_data;
 pub mod event_flags;
@@ -20,6 +21,8 @@ pub mod sign_data;
 pub mod species;
 pub mod sprite_set_data;
 pub mod sprites;
+pub mod text_commands;
+pub mod text_scripts;
 pub mod tileset_data;
 pub mod tilesets;
 pub mod toggleable_objects;

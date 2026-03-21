@@ -4,3 +4,4 @@ pub mod battle;
 pub mod items;
 pub mod overworld;
 pub mod pokemon;
+pub mod text;
