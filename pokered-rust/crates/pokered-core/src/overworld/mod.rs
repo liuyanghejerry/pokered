@@ -17,6 +17,7 @@ pub mod npc_movement;
 pub mod player_movement;
 pub mod script_engine;
 pub mod special_terrain;
+pub mod sprites;
 pub mod trainer_engine;
 pub mod wild_encounters;
 
