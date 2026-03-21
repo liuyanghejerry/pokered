@@ -7,6 +7,7 @@
 
 pub mod collision;
 pub mod event_flags;
+pub mod hm_effects;
 pub mod map_loading;
 pub mod map_scripts;
 pub mod map_transitions;
@@ -14,8 +15,8 @@ pub mod npc_interaction;
 pub mod npc_movement;
 pub mod player_movement;
 pub mod script_engine;
+pub mod special_terrain;
 pub mod trainer_engine;
-pub mod hm_effects;
 pub mod wild_encounters;
 
 #[cfg(test)]
@@ -32,6 +33,8 @@ mod tests_movement;
 mod tests_npc;
 #[cfg(test)]
 mod tests_scripts;
+#[cfg(test)]
+mod tests_special_terrain;
 #[cfg(test)]
 mod tests_wild_encounters;
 

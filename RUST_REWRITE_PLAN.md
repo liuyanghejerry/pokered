@@ -703,7 +703,7 @@ cargo test -p pokered-core -- battle  # 战斗测试通过
 - [x] **M4.5** 实现脚本/事件系统 ✅ — parse_event_flags.py解析507个事件标志(最大bit 0x9DA, 316字节存储); parse_trainer_headers.py解析322个训练师头(跨69张地图); event_flags.rs: EventFlags位数组(set/check/reset/raw/count/clear/save-load); script_engine.rs: ScriptAction(23种动作)、ScriptPhase状态机、MapScriptState(动作队列+信号机制)、CoordEvent坐标触发、execute_next_action; trainer_engine.rs: TrainerBattleState(7态状态机)、can_trainer_see_player(方向+距离视线检测)、check_all_trainers; map_scripts.rs: MapScriptContext(整合脚本+坐标事件+训练师遭遇)、MapScriptType分类(StorySequence/TrainerMap/SimpleTextOnly/NoScripts); 68个新测试，总计921测试通过
 - [x] **M4.6** 实现野生遭遇触发 ✅ — wild_encounters.rs: TileEncounterType(Grass/Water/IndoorCave/None)、determine_encounter_type(草地/水面/洞穴判定)、should_check_encounter(传送/NPC脚本/冷却前置检查)、check_wild_encounter(整合地形+概率+驱虫+等级判定); wild_data.rs: wild_data_name_for_map(50+地图映射)、wild_data_for_map(MapId→MapWildData桥接); 特殊处理: 森林图鉴需草地砖块、洞穴室内地图全砖触发、Route19/20共享SeaRoutes数据; 53个新测试，总计975测试通过
 - [x] **M4.7** 实现秘传技效果 (Cut, Surf, Fly, Strength, Flash) ✅ — hm_effects.rs: 5枚徽章位检查(BoulderBadge=0~SoulBadge=4)、CutResult(树砍伐+草清除，Overworld树$3D/草$52、Gym树$50，9组方块替换表)、FlyResult(ThunderBadge+室外地图限制，13个飞行目的地含Route4/Route10)、SurfResult(SoulBadge+水面朝向+SeafoamB4F双石特殊阻挡+自行车道限制)、StrengthResult(RainbowBadge+二次推动机制)、FlashResult(BoulderBadge+暗洞照明); try_push_boulder/try_push_boulder_with_direction(力量激活+灰尘状态+精灵检测+方向匹配+碰撞); tileset_data.rs新增: cut_tree_replacement、is_dungeon_tileset(11种)、is_water_tileset(9种)、is_outside_tileset; 56个新测试，总计1031测试通过
-- [ ] **M4.8** 实现特殊地形 (草地、水面、暗洞)
+- [x] **M4.8** 实现特殊地形 (草地、水面、暗洞)
 - [ ] **M4.9** 实现门、电梯、传送门
 - [ ] **M4.10** 实现所有 248 张地图数据
 - [ ] **M4.11** 实现文本引擎/命令处理器 (控制码: `<LINE>`, `<PAGE>`, `<DONE>`, `<PLAYER>`, `<RIVAL>` 等，逐字渲染，文本框管理)

@@ -223,3 +223,197 @@ pub fn is_outside_tileset(tileset: TilesetId) -> bool {
 
 /// The movement byte2 value that identifies a sprite as a pushable boulder.
 pub const BOULDER_MOVEMENT_BYTE_2: u8 = 0x10;
+
+// ── Ledge Tiles ──────────────────────────────────────────────────────
+
+/// Represents a joypad input direction for ledge jumping.
+/// These match the Game Boy PAD constants used in ledge_tiles.asm.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PadInput {
+    Down,
+    Left,
+    Right,
+}
+
+/// Sprite facing direction constants matching the ASM values.
+/// SPRITE_FACING_DOWN = 0, SPRITE_FACING_UP = 4, SPRITE_FACING_LEFT = 8, SPRITE_FACING_RIGHT = 12.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SpriteFacing {
+    Down = 0,
+    Up = 4,
+    Left = 8,
+    Right = 12,
+}
+
+/// A single ledge tile entry.
+/// Ledge jumping only works on the OVERWORLD tileset.
+/// From data/tilesets/ledge_tiles.asm.
+#[derive(Debug, Clone, Copy)]
+pub struct LedgeTileEntry {
+    /// Direction the player must be facing.
+    pub facing: SpriteFacing,
+    /// Tile the player is standing on.
+    pub standing_tile: u8,
+    /// Tile in front of the player (the ledge).
+    pub ledge_tile: u8,
+    /// Joypad input required (must be held).
+    pub required_input: PadInput,
+}
+
+/// All 8 ledge tile entries from data/tilesets/ledge_tiles.asm.
+/// Ledge jumping is only active on the OVERWORLD tileset (id 0).
+pub const LEDGE_TILES: &[LedgeTileEntry] = &[
+    LedgeTileEntry {
+        facing: SpriteFacing::Down,
+        standing_tile: 0x2C,
+        ledge_tile: 0x37,
+        required_input: PadInput::Down,
+    },
+    LedgeTileEntry {
+        facing: SpriteFacing::Down,
+        standing_tile: 0x39,
+        ledge_tile: 0x36,
+        required_input: PadInput::Down,
+    },
+    LedgeTileEntry {
+        facing: SpriteFacing::Down,
+        standing_tile: 0x39,
+        ledge_tile: 0x37,
+        required_input: PadInput::Down,
+    },
+    LedgeTileEntry {
+        facing: SpriteFacing::Left,
+        standing_tile: 0x2C,
+        ledge_tile: 0x27,
+        required_input: PadInput::Left,
+    },
+    LedgeTileEntry {
+        facing: SpriteFacing::Left,
+        standing_tile: 0x39,
+        ledge_tile: 0x27,
+        required_input: PadInput::Left,
+    },
+    LedgeTileEntry {
+        facing: SpriteFacing::Right,
+        standing_tile: 0x2C,
+        ledge_tile: 0x0D,
+        required_input: PadInput::Right,
+    },
+    LedgeTileEntry {
+        facing: SpriteFacing::Right,
+        standing_tile: 0x2C,
+        ledge_tile: 0x1D,
+        required_input: PadInput::Right,
+    },
+    LedgeTileEntry {
+        facing: SpriteFacing::Right,
+        standing_tile: 0x39,
+        ledge_tile: 0x0D,
+        required_input: PadInput::Right,
+    },
+];
+
+// ── Warp Pad and Hole Data ───────────────────────────────────────────
+
+/// Type of special warp tile the player is standing on.
+/// From data/tilesets/warp_pad_hole_tile_ids.asm.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WarpPadOrHoleType {
+    /// Not standing on a warp pad or hole.
+    None,
+    /// Standing on a warp pad (teleport spin animation).
+    WarpPad,
+    /// Standing on a hole (fall-through animation).
+    Hole,
+}
+
+/// A single warp pad/hole data entry.
+#[derive(Debug, Clone, Copy)]
+pub struct WarpPadHoleEntry {
+    pub tileset: TilesetId,
+    pub tile_id: u8,
+    pub warp_type: WarpPadOrHoleType,
+}
+
+/// Warp pad and hole tile data from data/tilesets/warp_pad_hole_tile_ids.asm.
+pub const WARP_PAD_HOLE_DATA: &[WarpPadHoleEntry] = &[
+    WarpPadHoleEntry {
+        tileset: TilesetId::Facility,
+        tile_id: 0x20,
+        warp_type: WarpPadOrHoleType::WarpPad,
+    },
+    WarpPadHoleEntry {
+        tileset: TilesetId::Facility,
+        tile_id: 0x11,
+        warp_type: WarpPadOrHoleType::Hole,
+    },
+    WarpPadHoleEntry {
+        tileset: TilesetId::Cavern,
+        tile_id: 0x22,
+        warp_type: WarpPadOrHoleType::Hole,
+    },
+    WarpPadHoleEntry {
+        tileset: TilesetId::Interior,
+        tile_id: 0x55,
+        warp_type: WarpPadOrHoleType::WarpPad,
+    },
+];
+
+/// Check if the player is standing on a warp pad or hole.
+/// Matches tileset + tile ID against the warp pad/hole data table.
+/// From engine/overworld/player_animations.asm IsPlayerStandingOnWarpPadOrHole.
+pub fn check_warp_pad_or_hole(tileset: TilesetId, standing_tile: u8) -> WarpPadOrHoleType {
+    for entry in WARP_PAD_HOLE_DATA {
+        if entry.tileset == tileset && entry.tile_id == standing_tile {
+            return entry.warp_type;
+        }
+    }
+    WarpPadOrHoleType::None
+}
+
+// ── Spinner Facing Cycle ─────────────────────────────────────────────
+
+/// Spinner rotation cycle: each direction maps to the next direction.
+/// From engine/overworld/spinners.asm SpinnerPlayerFacingDirections.
+/// Spinners only exist in Facility and Gym tilesets.
+///
+/// Cycle: Down → Left → Up → Right → Down ...
+/// The array is indexed by SpriteFacing value / 4:
+///   0 (Down) → Left, 1 (Up) → Right, 2 (Left) → Up, 3 (Right) → Down
+pub const SPINNER_FACING_CYCLE: [SpriteFacing; 4] = [
+    SpriteFacing::Left,  // Down (0) -> Left
+    SpriteFacing::Right, // Up (1) -> Right
+    SpriteFacing::Up,    // Left (2) -> Up
+    SpriteFacing::Down,  // Right (3) -> Down
+];
+
+/// Tilesets that can have spinner tiles.
+pub const SPINNER_TILESETS: &[TilesetId] = &[TilesetId::Facility, TilesetId::Gym];
+
+/// Check if a tileset supports spinner tiles.
+pub fn has_spinner_tiles(tileset: TilesetId) -> bool {
+    SPINNER_TILESETS.contains(&tileset)
+}
+
+/// Get the next facing direction after a spinner rotation.
+/// Returns None if the tileset doesn't support spinners.
+pub fn spinner_next_facing(
+    tileset: TilesetId,
+    current_facing: SpriteFacing,
+) -> Option<SpriteFacing> {
+    if !has_spinner_tiles(tileset) {
+        return None;
+    }
+    let index = (current_facing as u8 / 4) as usize;
+    if index < SPINNER_FACING_CYCLE.len() {
+        Some(SPINNER_FACING_CYCLE[index])
+    } else {
+        None
+    }
+}
+
+// ── Dark Cave Constants ──────────────────────────────────────────────
+
+/// The palette offset value for Rock Tunnel (dark cave).
+/// From home/overworld.asm: `ld a, $06` / `ld [wMapPalOffset], a`
+pub const DARK_CAVE_PAL_OFFSET: u8 = 0x06;
