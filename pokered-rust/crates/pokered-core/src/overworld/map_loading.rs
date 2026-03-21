@@ -6,9 +6,12 @@
 use pokered_data::map_data::{
     MapHeaderData, CONN_EAST, CONN_NORTH, CONN_SOUTH, CONN_WEST, MAP_HEADER_DATA,
 };
+use pokered_data::map_flags;
+use pokered_data::map_names::{self, MapNameId};
 use pokered_data::maps::{MapId, NUM_MAPS};
 use pokered_data::music::MusicId;
 use pokered_data::tilesets::TilesetId;
+use pokered_data::toggleable_objects::{self, ToggleEntry};
 
 /// Get the static header data for a map (tileset, music, connection flags).
 pub fn get_map_header(map: MapId) -> &'static MapHeaderData {
@@ -97,4 +100,42 @@ pub fn connected_outdoor_maps() -> Vec<MapId> {
             }
         })
         .collect()
+}
+
+// ── M4.10: Map names, flags, and toggleable objects ────────────────
+
+/// Get the display name for a map (e.g. "PALLET TOWN").
+pub fn get_map_name(map: MapId) -> &'static str {
+    map_names::map_name_for_map(map)
+}
+
+/// Get the MapNameId for a map.
+pub fn get_map_name_id(map: MapId) -> MapNameId {
+    map_names::map_to_name_id(map)
+}
+
+/// Check if a map is a dungeon (Rock Tunnel, Seafoam, etc.)
+/// Dungeon maps display the map name on entry.
+pub fn is_dungeon_map(map: MapId) -> bool {
+    map_flags::is_dungeon_map(map)
+}
+
+/// Check if a tile position forces biking or surfing (cycling road, etc.)
+pub fn check_force_bike_surf(map: MapId, x: u8, y: u8) -> bool {
+    map_flags::check_force_bike_surf(map, x, y)
+}
+
+/// Check if a map is a Safari Zone rest house.
+pub fn is_safari_rest_house(map: MapId) -> bool {
+    map_flags::is_safari_rest_house(map)
+}
+
+/// Get the badge bit for a gym map, if any.
+pub fn badge_for_gym(map: MapId) -> Option<u8> {
+    map_flags::badge_for_gym(map)
+}
+
+/// Get the toggleable objects for a map (NPCs/items that can be shown/hidden).
+pub fn get_toggleable_objects(map: MapId) -> &'static [ToggleEntry] {
+    toggleable_objects::toggleable_objects_for_map(map)
 }
