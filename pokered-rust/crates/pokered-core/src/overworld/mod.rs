@@ -15,6 +15,7 @@ pub mod npc_movement;
 pub mod player_movement;
 pub mod script_engine;
 pub mod trainer_engine;
+pub mod wild_encounters;
 
 #[cfg(test)]
 mod tests;
@@ -28,6 +29,8 @@ mod tests_movement;
 mod tests_npc;
 #[cfg(test)]
 mod tests_scripts;
+#[cfg(test)]
+mod tests_wild_encounters;
 
 use pokered_data::maps::MapId;
 use pokered_data::music::MusicId;

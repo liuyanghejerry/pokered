@@ -1,6 +1,7 @@
 //! Wild encounter data for all maps.
 //! Auto-generated from data/wild/*.asm — do not edit manually.
 
+use crate::maps::MapId;
 use crate::species::Species;
 use serde::{Deserialize, Serialize};
 
@@ -6291,4 +6292,114 @@ pub fn super_rod_map_entries() -> Vec<SuperRodMapEntry> {
             group_index: 8,
         },
     ]
+}
+
+/// Map a MapId to the wild data name string used in the encounter tables.
+///
+/// Based on data/wild/grass_water.asm WildDataPointers table.
+/// Returns None if the map has no wild encounters.
+///
+/// Notable mappings:
+/// - Route19 and Route20 both map to "SeaRoutes" (shared data)
+/// - PokemonTower1F and PokemonTower2F have no encounters (not in table)
+/// - Cities and most indoor buildings have no encounters
+pub fn wild_data_name_for_map(map_id: MapId) -> Option<&'static str> {
+    match map_id {
+        // Routes with wild encounters
+        MapId::Route1 => Some("Route1"),
+        MapId::Route2 => Some("Route2"),
+        MapId::Route3 => Some("Route3"),
+        MapId::Route4 => Some("Route4"),
+        MapId::Route5 => Some("Route5"),
+        MapId::Route6 => Some("Route6"),
+        MapId::Route7 => Some("Route7"),
+        MapId::Route8 => Some("Route8"),
+        MapId::Route9 => Some("Route9"),
+        MapId::Route10 => Some("Route10"),
+        MapId::Route11 => Some("Route11"),
+        MapId::Route12 => Some("Route12"),
+        MapId::Route13 => Some("Route13"),
+        MapId::Route14 => Some("Route14"),
+        MapId::Route15 => Some("Route15"),
+        MapId::Route16 => Some("Route16"),
+        MapId::Route17 => Some("Route17"),
+        MapId::Route18 => Some("Route18"),
+        MapId::Route19 => Some("SeaRoutes"), // Route19 and Route20 share "SeaRoutes"
+        MapId::Route20 => Some("SeaRoutes"), // Route19 and Route20 share "SeaRoutes"
+        MapId::Route21 => Some("Route21"),
+        MapId::Route22 => Some("Route22"),
+        MapId::Route23 => Some("Route23"),
+        MapId::Route24 => Some("Route24"),
+        MapId::Route25 => Some("Route25"),
+
+        // Dungeons and special areas
+        MapId::ViridianForest => Some("ViridianForest"),
+        MapId::MtMoon1F => Some("MtMoon1F"),
+        MapId::MtMoonB1F => Some("MtMoonB1F"),
+        MapId::MtMoonB2F => Some("MtMoonB2F"),
+        MapId::RockTunnel1F => Some("RockTunnel1F"),
+        MapId::RockTunnelB1F => Some("RockTunnelB1F"),
+        MapId::PowerPlant => Some("PowerPlant"),
+        MapId::DiglettsCave => Some("DiglettsCave"),
+        MapId::VictoryRoad1F => Some("VictoryRoad1F"),
+        MapId::VictoryRoad2F => Some("VictoryRoad2F"),
+        MapId::VictoryRoad3F => Some("VictoryRoad3F"),
+
+        // Pokemon Tower (floors 3-7 only; 1F and 2F have no encounters)
+        MapId::PokemonTower3F => Some("PokemonTower3F"),
+        MapId::PokemonTower4F => Some("PokemonTower4F"),
+        MapId::PokemonTower5F => Some("PokemonTower5F"),
+        MapId::PokemonTower6F => Some("PokemonTower6F"),
+        MapId::PokemonTower7F => Some("PokemonTower7F"),
+
+        // Seafoam Islands
+        MapId::SeafoamIslands1F => Some("SeafoamIslands1F"),
+        MapId::SeafoamIslandsB1F => Some("SeafoamIslandsB1F"),
+        MapId::SeafoamIslandsB2F => Some("SeafoamIslandsB2F"),
+        MapId::SeafoamIslandsB3F => Some("SeafoamIslandsB3F"),
+        MapId::SeafoamIslandsB4F => Some("SeafoamIslandsB4F"),
+
+        // Pokemon Mansion
+        MapId::PokemonMansion1F => Some("PokemonMansion1F"),
+        MapId::PokemonMansion2F => Some("PokemonMansion2F"),
+        MapId::PokemonMansion3F => Some("PokemonMansion3F"),
+        MapId::PokemonMansionB1F => Some("PokemonMansionB1F"),
+
+        // Safari Zone
+        MapId::SafariZoneEast => Some("SafariZoneEast"),
+        MapId::SafariZoneNorth => Some("SafariZoneNorth"),
+        MapId::SafariZoneWest => Some("SafariZoneWest"),
+        MapId::SafariZoneCenter => Some("SafariZoneCenter"),
+
+        // Cerulean Cave
+        MapId::CeruleanCave1F => Some("CeruleanCave1F"),
+        MapId::CeruleanCave2F => Some("CeruleanCave2F"),
+        MapId::CeruleanCaveB1F => Some("CeruleanCaveB1F"),
+
+        // All other maps have no wild encounters
+        _ => None,
+    }
+}
+
+/// Look up wild encounter data for a specific map and game version.
+///
+/// Returns None if the map has no wild encounters.
+/// This bridges the MapId enum with the string-keyed wild data tables.
+///
+/// # Example
+/// ```
+/// use pokered_data::maps::MapId;
+/// use pokered_data::wild_data::{wild_data_for_map, GameVersion};
+///
+/// let data = wild_data_for_map(MapId::Route1, GameVersion::Red);
+/// assert!(data.is_some());
+/// assert_eq!(data.unwrap().name, "Route1");
+///
+/// let no_data = wild_data_for_map(MapId::PalletTown, GameVersion::Red);
+/// assert!(no_data.is_none());
+/// ```
+pub fn wild_data_for_map(map_id: MapId, version: GameVersion) -> Option<MapWildData> {
+    let name = wild_data_name_for_map(map_id)?;
+    let all_data = wild_data(version);
+    all_data.into_iter().find(|d| d.name == name)
 }
