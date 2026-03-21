@@ -7,12 +7,15 @@
 
 pub mod collision;
 pub mod map_loading;
+pub mod map_transitions;
 pub mod player_movement;
 
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
 mod tests_collision;
+#[cfg(test)]
+mod tests_connections;
 #[cfg(test)]
 mod tests_movement;
 
