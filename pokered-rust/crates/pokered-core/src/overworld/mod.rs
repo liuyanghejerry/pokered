@@ -8,6 +8,8 @@
 pub mod collision;
 pub mod map_loading;
 pub mod map_transitions;
+pub mod npc_interaction;
+pub mod npc_movement;
 pub mod player_movement;
 
 #[cfg(test)]
@@ -18,6 +20,8 @@ mod tests_collision;
 mod tests_connections;
 #[cfg(test)]
 mod tests_movement;
+#[cfg(test)]
+mod tests_npc;
 
 use pokered_data::maps::MapId;
 use pokered_data::music::MusicId;

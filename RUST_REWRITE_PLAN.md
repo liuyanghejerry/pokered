@@ -699,7 +699,7 @@ cargo test -p pokered-core -- battle  # 战斗测试通过
 - [x] **M4.1** 实现地图加载和瓦片渲染 ✅
 - [x] **M4.2** 实现玩家移动和碰撞检测 ✅
 - [x] **M4.3** 实现地图连接和传送点 (包括双向无缝地图加载: 东西南北四方向连接) ✅
-- [ ] **M4.4** 实现 NPC 移动和交互 (NPC 状态机: 固定/随机行走/面朝玩家等模式)
+- [x] **M4.4** 实现 NPC 移动和交互 ✅ — parse_npcs.py解析223个ASM文件生成918个NPC和201个标牌数据(含OPP_前缀训练师/野生精灵遭遇区分); npc_movement.rs: NpcRuntimeState状态机(Stationary/Wander/FacePlayer/FixedPath)、load_map_npcs、update_npc_movement(范围限制+碰撞)、位置查询; npc_interaction.rs: try_interact(Talk/TrainerBattle/ItemPickup/AlreadyDefeated)、check_trainer_line_of_sight(视线范围检测)、collect_item/mark_trainer_defeated、check_sign_interaction; 45个新测试(数据完整性+移动+交互+训练师视线+标牌)，总计853测试通过
 - [ ] **M4.5** 实现脚本/事件系统 (224个地图脚本，含事件标志位检测/设置、多步骤脚本流程)
 - [ ] **M4.6** 实现野生遭遇触发
 - [ ] **M4.7** 实现秘传技效果 (Cut, Surf, Fly, Strength, Flash)
