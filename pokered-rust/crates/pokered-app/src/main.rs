@@ -16,7 +16,7 @@ use pokered_core::overworld::{OverworldInput, OverworldScreen};
 use pokered_core::save_menu::{SaveMenuResult, SaveMenuState, SaveScreenInfo, YesNoInput};
 use pokered_core::start_menu::{StartMenuAction, StartMenuInput, StartMenuState};
 use pokered_core::title_screen::TitleScreenState;
-use pokered_renderer::embedded_font::draw_text;
+use pokered_renderer::embedded_font::{box_tiles, draw_glyph, draw_text, fill_tile};
 use pokered_renderer::input::{GbButton, InputState};
 use pokered_renderer::palette::{Palette, GRAYSCALE_PALETTE};
 use pokered_renderer::resource::{AssetCategory, AssetRoot, ResourceManager};
@@ -402,39 +402,58 @@ fn blit_tileset(
 }
 
 fn draw_text_box(fb: &mut FrameBuffer, bx: u32, by: u32, bw: u32, bh: u32, color: Rgba) {
-    let px_w = (bw + 2) * TILE_SIZE;
-    let px_h = (bh + 2) * TILE_SIZE;
+    let bg = Rgba::WHITE;
+    let t = TILE_SIZE;
 
-    for x in bx..bx + px_w {
-        if x < SCREEN_WIDTH && by < SCREEN_HEIGHT {
-            fb.set_pixel(x, by, color);
-        }
+    draw_glyph(&box_tiles::TOP_LEFT, bx, by, color, bg, fb);
+    for col in 0..bw {
+        draw_glyph(
+            &box_tiles::HORIZONTAL,
+            bx + (1 + col) * t,
+            by,
+            color,
+            bg,
+            fb,
+        );
     }
-    let bot = by + px_h - 1;
-    for x in bx..bx + px_w {
-        if x < SCREEN_WIDTH && bot < SCREEN_HEIGHT {
-            fb.set_pixel(x, bot, color);
+    draw_glyph(&box_tiles::TOP_RIGHT, bx + (1 + bw) * t, by, color, bg, fb);
+
+    for row in 0..bh {
+        let y = by + (1 + row) * t;
+        draw_glyph(&box_tiles::VERTICAL_LEFT, bx, y, color, bg, fb);
+        for col in 0..bw {
+            fill_tile(bx + (1 + col) * t, y, bg, fb);
         }
-    }
-    for y in by..by + px_h {
-        if bx < SCREEN_WIDTH && y < SCREEN_HEIGHT {
-            fb.set_pixel(bx, y, color);
-        }
-    }
-    let right = bx + px_w - 1;
-    for y in by..by + px_h {
-        if right < SCREEN_WIDTH && y < SCREEN_HEIGHT {
-            fb.set_pixel(right, y, color);
-        }
+        draw_glyph(
+            &box_tiles::VERTICAL_RIGHT,
+            bx + (1 + bw) * t,
+            y,
+            color,
+            bg,
+            fb,
+        );
     }
 
-    for y in (by + 1)..(by + px_h - 1) {
-        for x in (bx + 1)..(bx + px_w - 1) {
-            if x < SCREEN_WIDTH && y < SCREEN_HEIGHT {
-                fb.set_pixel(x, y, Rgba::WHITE);
-            }
-        }
+    let bot_y = by + (1 + bh) * t;
+    draw_glyph(&box_tiles::BOTTOM_LEFT, bx, bot_y, color, bg, fb);
+    for col in 0..bw {
+        draw_glyph(
+            &box_tiles::HORIZONTAL_BOTTOM,
+            bx + (1 + col) * t,
+            bot_y,
+            color,
+            bg,
+            fb,
+        );
     }
+    draw_glyph(
+        &box_tiles::BOTTOM_RIGHT,
+        bx + (1 + bw) * t,
+        bot_y,
+        color,
+        bg,
+        fb,
+    );
 }
 
 fn draw_centered_sprite(

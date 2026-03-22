@@ -238,6 +238,87 @@ pub fn draw_char(ch: char, x: u32, y: u32, color: Rgba, fb: &mut FrameBuffer) {
     }
 }
 
+/// 8×8 bitmap tiles for Game Boy-style text box borders (rounded corners, 1px lines).
+pub mod box_tiles {
+    /// ┌
+    pub const TOP_LEFT: [u8; 8] = [
+        0b00000000, 0b00001111, 0b00011111, 0b00110000, 0b00100000, 0b01100000, 0b01000000,
+        0b01000000,
+    ];
+    /// ┐
+    pub const TOP_RIGHT: [u8; 8] = [
+        0b00000000, 0b11110000, 0b11111000, 0b00001100, 0b00000100, 0b00000110, 0b00000010,
+        0b00000010,
+    ];
+    /// └
+    pub const BOTTOM_LEFT: [u8; 8] = [
+        0b01000000, 0b01000000, 0b01100000, 0b00100000, 0b00110000, 0b00011111, 0b00001111,
+        0b00000000,
+    ];
+    /// ┘
+    pub const BOTTOM_RIGHT: [u8; 8] = [
+        0b00000010, 0b00000010, 0b00000110, 0b00000100, 0b00001100, 0b11111000, 0b11110000,
+        0b00000000,
+    ];
+    /// ─ (top edge)
+    pub const HORIZONTAL: [u8; 8] = [
+        0b00000000, 0b11111111, 0b11111111, 0b00000000, 0b00000000, 0b00000000, 0b00000000,
+        0b00000000,
+    ];
+    /// ─ (bottom edge)
+    pub const HORIZONTAL_BOTTOM: [u8; 8] = [
+        0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b11111111, 0b11111111,
+        0b00000000,
+    ];
+    /// │ (left edge)
+    pub const VERTICAL_LEFT: [u8; 8] = [
+        0b01100000, 0b01100000, 0b01100000, 0b01100000, 0b01100000, 0b01100000, 0b01100000,
+        0b01100000,
+    ];
+    /// │ (right edge)
+    pub const VERTICAL_RIGHT: [u8; 8] = [
+        0b00000110, 0b00000110, 0b00000110, 0b00000110, 0b00000110, 0b00000110, 0b00000110,
+        0b00000110,
+    ];
+}
+
+pub fn draw_glyph(glyph: &[u8; 8], x: u32, y: u32, color: Rgba, bg: Rgba, fb: &mut FrameBuffer) {
+    for row in 0..8u32 {
+        let py = y + row;
+        if py >= SCREEN_HEIGHT {
+            break;
+        }
+        let byte = glyph[row as usize];
+        for col in 0..8u32 {
+            let px = x + col;
+            if px >= SCREEN_WIDTH {
+                break;
+            }
+            if byte & (0x80 >> col) != 0 {
+                fb.set_pixel(px, py, color);
+            } else {
+                fb.set_pixel(px, py, bg);
+            }
+        }
+    }
+}
+
+pub fn fill_tile(x: u32, y: u32, color: Rgba, fb: &mut FrameBuffer) {
+    for row in 0..8u32 {
+        let py = y + row;
+        if py >= SCREEN_HEIGHT {
+            break;
+        }
+        for col in 0..8u32 {
+            let px = x + col;
+            if px >= SCREEN_WIDTH {
+                break;
+            }
+            fb.set_pixel(px, py, color);
+        }
+    }
+}
+
 pub fn draw_text(text: &str, x: u32, y: u32, color: Rgba, fb: &mut FrameBuffer) {
     let char_width = GLYPH_SIZE as u32;
     for (i, ch) in text.chars().enumerate() {
