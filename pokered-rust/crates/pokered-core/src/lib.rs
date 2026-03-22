@@ -4,6 +4,7 @@ pub mod battle;
 pub mod game_state;
 pub mod items;
 pub mod main_menu;
+pub mod naming_screen;
 pub mod overworld;
 pub mod pokemon;
 pub mod slots;
@@ -13,6 +14,9 @@ pub mod title_screen;
 
 #[cfg(test)]
 mod main_menu_tests;
+
+#[cfg(test)]
+mod naming_screen_tests;
 
 #[cfg(test)]
 mod start_menu_tests;

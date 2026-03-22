@@ -18,9 +18,9 @@ use crate::game_state::{GameScreen, ScreenAction};
 
 /// Pokémon shown on the Red version title screen.
 pub const TITLE_MONS_RED: [Species; 16] = [
-    Species::Charmander,  // STARTER1
-    Species::Squirtle,    // STARTER2
-    Species::Bulbasaur,   // STARTER3
+    Species::Charmander, // STARTER1
+    Species::Squirtle,   // STARTER2
+    Species::Bulbasaur,  // STARTER3
     Species::Weedle,
     Species::NidoranM,
     Species::Scyther,
@@ -38,9 +38,9 @@ pub const TITLE_MONS_RED: [Species; 16] = [
 
 /// Pokémon shown on the Blue version title screen.
 pub const TITLE_MONS_BLUE: [Species; 16] = [
-    Species::Squirtle,    // STARTER2
-    Species::Charmander,  // STARTER1
-    Species::Bulbasaur,   // STARTER3
+    Species::Squirtle,   // STARTER2
+    Species::Charmander, // STARTER1
+    Species::Bulbasaur,  // STARTER3
     Species::Mankey,
     Species::Hitmonlee,
     Species::Vulpix,
@@ -79,15 +79,8 @@ pub enum TitlePhase {
 
 /// Logo bounce data: (scroll_delta, repeat_count) pairs.
 /// Matches .TitleScreenPokemonLogoYScrolls from title.asm
-pub const LOGO_BOUNCE_TABLE: &[(i8, u8)] = &[
-    (-4, 16),
-    (3, 4),
-    (-3, 4),
-    (2, 2),
-    (-2, 2),
-    (1, 2),
-    (-1, 2),
-];
+pub const LOGO_BOUNCE_TABLE: &[(i8, u8)] =
+    &[(-4, 16), (3, 4), (-3, 4), (2, 2), (-2, 2), (1, 2), (-1, 2)];
 
 /// Total frames the logo bounce takes.
 pub const LOGO_BOUNCE_TOTAL_FRAMES: u32 = {

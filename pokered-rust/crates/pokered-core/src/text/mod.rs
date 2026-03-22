@@ -38,14 +38,14 @@ impl TileCoord {
 
 // ── Text Box ──────────────────────────────────────────────────────
 
-pub const TILE_TOP_LEFT: u8 = 0x79;     // ┌
-pub const TILE_TOP_RIGHT: u8 = 0x7B;    // ┐
-pub const TILE_BOTTOM_LEFT: u8 = 0x7C;  // └
+pub const TILE_TOP_LEFT: u8 = 0x79; // ┌
+pub const TILE_TOP_RIGHT: u8 = 0x7B; // ┐
+pub const TILE_BOTTOM_LEFT: u8 = 0x7C; // └
 pub const TILE_BOTTOM_RIGHT: u8 = 0x7E; // ┘
-pub const TILE_HORIZONTAL: u8 = 0x7A;   // ─
-pub const TILE_VERTICAL: u8 = 0x7F;     // │
+pub const TILE_HORIZONTAL: u8 = 0x7A; // ─
+pub const TILE_VERTICAL: u8 = 0x7F; // │
 pub const TILE_SPACE: u8 = 0x7F;
-pub const TILE_DOWN_ARROW: u8 = 0xED;   // ▼
+pub const TILE_DOWN_ARROW: u8 = 0xED; // ▼
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TextBox {
@@ -56,7 +56,11 @@ pub struct TextBox {
 
 impl TextBox {
     pub fn new(origin: TileCoord, width: u8, height: u8) -> Self {
-        Self { origin, width, height }
+        Self {
+            origin,
+            width,
+            height,
+        }
     }
 
     pub fn standard_dialog() -> Self {
@@ -76,7 +80,10 @@ impl TextBox {
     }
 
     pub fn arrow_coord(&self) -> TileCoord {
-        TileCoord::new(self.origin.x + self.width - 2, self.origin.y + self.height - 2)
+        TileCoord::new(
+            self.origin.x + self.width - 2,
+            self.origin.y + self.height - 2,
+        )
     }
 }
 
@@ -91,7 +98,9 @@ pub struct TilemapBuffer {
 
 impl Default for TilemapBuffer {
     fn default() -> Self {
-        Self { tiles: [charmap::CHAR_SPACE; TILEMAP_SIZE] }
+        Self {
+            tiles: [charmap::CHAR_SPACE; TILEMAP_SIZE],
+        }
     }
 }
 
@@ -255,7 +264,10 @@ impl TextEngine {
     }
 
     pub fn tick_pause(&mut self) -> bool {
-        if let TextState::Paused { ref mut frames_remaining } = self.state {
+        if let TextState::Paused {
+            ref mut frames_remaining,
+        } = self.state
+        {
             if *frames_remaining > 0 {
                 *frames_remaining -= 1;
                 if *frames_remaining == 0 {

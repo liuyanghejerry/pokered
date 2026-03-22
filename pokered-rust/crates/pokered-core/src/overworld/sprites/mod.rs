@@ -1,13 +1,11 @@
-pub mod oam;
 pub mod collision;
+pub mod oam;
 pub mod update;
 
 #[cfg(test)]
 mod tests;
 
-use pokered_data::oam_constants::{
-    NUM_SPRITESTATEDATA_STRUCTS, OAM_COUNT, SPRITESTATEDATA_LENGTH,
-};
+use pokered_data::oam_constants::{NUM_SPRITESTATEDATA_STRUCTS, OAM_COUNT, SPRITESTATEDATA_LENGTH};
 use pokered_data::sprite_state_constants::{
     self as sc, MovementStatus, GRASS_PRIORITY, IMAGE_INDEX_OFFSCREEN,
 };
