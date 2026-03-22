@@ -2,6 +2,7 @@ pub mod evolution;
 pub mod move_learning;
 pub mod party;
 pub mod pc_box;
+pub mod pc_menu;
 pub mod pokedex;
 pub mod stats;
 
@@ -13,6 +14,8 @@ mod move_learning_tests;
 mod party_tests;
 #[cfg(test)]
 mod pc_box_tests;
+#[cfg(test)]
+mod pc_menu_tests;
 #[cfg(test)]
 mod pokedex_tests;
 #[cfg(test)]
