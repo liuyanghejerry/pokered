@@ -8,3 +8,18 @@ pokered-data = { path = "../pokered-data" }
 serde = { workspace = true }
 thiserror = { workspace = true }
 rand = { workspace = true }
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "battle_bench"
+harness = false
+
+[[bench]]
+name = "overworld_bench"
+harness = false
+
+[[bench]]
+name = "data_bench"
+harness = false
