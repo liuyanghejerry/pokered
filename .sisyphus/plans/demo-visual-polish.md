@@ -15,15 +15,9 @@
 **已完成**: draw_overworld重写 — blit_single_tile()瓦片渲染+demo_overworld_tile()32×32示例地图+视口以玩家为中心(20×18可见)+玩家精灵正确提取16×16帧(Direction)+地图名称弹窗居中显示
 **提交**: 待提交
 
-## 里程碑 D3: 战斗画面动态数据
-**目标**: 战斗画面目前用硬编码的宝可梦名字/HP，应从BattleScreen状态读取
-**任务**:
-- 从state.enemy_pokemon/player_pokemon读取名字、等级、HP
-- HP条按实际HP比例绘制（不同颜色：绿/黄/红）
-- 显示正确的宝可梦精灵（根据species加载对应front/back sprite）
-**文件**: `pokered-rust/crates/pokered-app/src/main.rs` (draw_battle函数)
-**参考**: `pokered-core/src/battle/mod.rs` (BattleScreen结构)
-**验收**: 截图显示实际宝可梦数据、HP条颜色正确
+## 里程碑 D3: 战斗画面动态数据 ✅ 已完成
+**已完成**: BattleScreen新增enemy/player的species+level+hp+max_hp字段 → draw_battle使用动态数据渲染名字/等级/HP + HP条按比例填充(绿>50%/黄25-50%/红<25%) + species_to_sprite_name加载对应精灵 + 战斗文字使用动态名称
+**提交**: 待提交
 
 ## 里程碑 D4: WASM构建同步更新
 **目标**: pokered-web的main.rs可能还是旧版渲染代码，需要同步更新

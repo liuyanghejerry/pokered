@@ -24,6 +24,7 @@ mod menu_tests;
 
 use crate::game_state::{GameScreen, ScreenAction};
 use menu::{BattleMenuAction, BattleMenuInput, BattleMenuState};
+use pokered_data::species::Species;
 
 /// High-level battle phase (frame-loop granularity).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -72,6 +73,14 @@ pub struct BattleScreen {
     pub phase: BattlePhase,
     pub battle_menu: BattleMenuState,
     pub is_wild: bool,
+    pub enemy_species: Species,
+    pub enemy_level: u8,
+    pub enemy_hp: u16,
+    pub enemy_max_hp: u16,
+    pub player_species: Species,
+    pub player_level: u8,
+    pub player_hp: u16,
+    pub player_max_hp: u16,
 }
 
 impl BattleScreen {
@@ -80,6 +89,14 @@ impl BattleScreen {
             phase: BattlePhase::Intro { wait_frames: 90 },
             battle_menu: BattleMenuState::new(),
             is_wild,
+            enemy_species: Species::Pikachu,
+            enemy_level: 25,
+            enemy_hp: 55,
+            enemy_max_hp: 55,
+            player_species: Species::Charmander,
+            player_level: 5,
+            player_hp: 19,
+            player_max_hp: 20,
         }
     }
 

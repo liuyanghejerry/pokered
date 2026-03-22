@@ -867,64 +867,99 @@ fn demo_overworld_tile(world_x: i32, world_y: i32, max_tiles: usize) -> usize {
     tile_idx.min(max_tiles.saturating_sub(1))
 }
 
+fn species_to_sprite_name(species_display: &str) -> String {
+    species_display.to_lowercase()
+}
+
+fn hp_bar_color(hp: u16, max_hp: u16) -> Rgba {
+    if max_hp == 0 {
+        return Rgba::new(0, 0, 0, 255);
+    }
+    let ratio = (hp as u32 * 100) / max_hp as u32;
+    if ratio > 50 {
+        Rgba::new(0, 200, 0, 255)
+    } else if ratio > 25 {
+        Rgba::new(200, 200, 0, 255)
+    } else {
+        Rgba::new(200, 0, 0, 255)
+    }
+}
+
+fn draw_hp_bar(fb: &mut FrameBuffer, x: u32, y: u32, width: u32, hp: u16, max_hp: u16) {
+    let hp_bar_h = 4_u32;
+    let filled_w = if max_hp > 0 {
+        (hp as u32 * width) / max_hp as u32
+    } else {
+        0
+    };
+    let color = hp_bar_color(hp, max_hp);
+    let bg = Rgba::new(60, 60, 60, 255);
+
+    for dy in 0..hp_bar_h {
+        for dx in 0..width {
+            let px = x + dx;
+            let py = y + dy;
+            if px < SCREEN_WIDTH && py < SCREEN_HEIGHT {
+                let c = if dx < filled_w { color } else { bg };
+                fb.set_pixel(px, py, c);
+            }
+        }
+    }
+}
+
 fn draw_battle(screen: &BattleScreen, res: &mut Option<ResourceManager>, fb: &mut FrameBuffer) {
     fb.clear(Rgba::WHITE);
     let pal = &GRAYSCALE_PALETTE;
 
-    // Enemy sprite: top-right area. ASM places at roughly tile (12, 0).
+    let enemy_name = format!("{}", screen.enemy_species).to_uppercase();
+    let player_name = format!("{}", screen.player_species).to_uppercase();
+    let enemy_sprite = species_to_sprite_name(&format!("{}", screen.enemy_species));
+    let player_sprite = species_to_sprite_name(&format!("{}", screen.player_species));
+
     if let Some(ref mut rm) = res {
-        if let Ok(cached) = rm.load_pokemon_front("pikachu") {
+        if let Ok(cached) = rm.load_pokemon_front(&enemy_sprite) {
             let ts = cached.tileset.clone();
             let tpr = cached.source_size.0 / TILE_SIZE;
             blit_tileset(fb, &ts, 12 * TILE_SIZE, 0, tpr, pal);
         }
 
-        // Player sprite: bottom-left area. ASM places at roughly tile (1, 5).
-        if let Ok(cached) = rm.load_pokemon_back("charmander") {
+        if let Ok(cached) = rm.load_pokemon_back(&player_sprite) {
             let ts = cached.tileset.clone();
             let tpr = cached.source_size.0 / TILE_SIZE;
             blit_tileset(fb, &ts, 1 * TILE_SIZE, 5 * TILE_SIZE, tpr, pal);
         }
     }
 
-    // Enemy HUD: hlcoord 0,0 / clear area lb bc, 4, 12
-    // Name at hlcoord 1,0, level/status at hlcoord 4,1, HP bar at row 2-3
     draw_text_box(fb, 0, 0, 12, 3, Rgba::BLACK);
-    draw_text("PIKACHU", 1 * TILE_SIZE, 1 * TILE_SIZE, Rgba::BLACK, fb);
-    draw_text("Lv25", 8 * TILE_SIZE, 1 * TILE_SIZE, Rgba::BLACK, fb);
+    draw_text(&enemy_name, 1 * TILE_SIZE, 1 * TILE_SIZE, Rgba::BLACK, fb);
+    let enemy_lv = format!("Lv{}", screen.enemy_level);
+    draw_text(&enemy_lv, 8 * TILE_SIZE, 1 * TILE_SIZE, Rgba::BLACK, fb);
     draw_text("HP:", 1 * TILE_SIZE, 2 * TILE_SIZE, Rgba::BLACK, fb);
-    // HP bar placeholder (filled rectangle)
-    let hp_bar_x = 4 * TILE_SIZE;
-    let hp_bar_y = 2 * TILE_SIZE + 2;
-    let hp_bar_w = 8 * TILE_SIZE;
-    let hp_bar_h = 4;
-    for y in hp_bar_y..hp_bar_y + hp_bar_h {
-        for x in hp_bar_x..hp_bar_x + hp_bar_w {
-            if x < SCREEN_WIDTH && y < SCREEN_HEIGHT {
-                fb.set_pixel(x, y, Rgba::BLACK);
-            }
-        }
-    }
+    draw_hp_bar(
+        fb,
+        4 * TILE_SIZE,
+        2 * TILE_SIZE + 2,
+        8 * TILE_SIZE,
+        screen.enemy_hp,
+        screen.enemy_max_hp,
+    );
 
-    // Player HUD: hlcoord 9,7 / clear area lb bc, 5, 11
-    // Name at hlcoord 10,7, HP at hlcoord 10,9
     draw_text_box(fb, 9 * TILE_SIZE, 7 * TILE_SIZE, 10, 4, Rgba::BLACK);
-    draw_text("CHARMANDER", 10 * TILE_SIZE, 8 * TILE_SIZE, Rgba::BLACK, fb);
-    draw_text("Lv5", 17 * TILE_SIZE, 8 * TILE_SIZE, Rgba::BLACK, fb);
+    draw_text(&player_name, 10 * TILE_SIZE, 8 * TILE_SIZE, Rgba::BLACK, fb);
+    let player_lv = format!("Lv{}", screen.player_level);
+    draw_text(&player_lv, 17 * TILE_SIZE, 8 * TILE_SIZE, Rgba::BLACK, fb);
     draw_text("HP:", 10 * TILE_SIZE, 9 * TILE_SIZE, Rgba::BLACK, fb);
-    let php_bar_x = 13 * TILE_SIZE;
-    let php_bar_y = 9 * TILE_SIZE + 2;
-    for y in php_bar_y..php_bar_y + hp_bar_h {
-        for x in php_bar_x..php_bar_x + 6 * TILE_SIZE {
-            if x < SCREEN_WIDTH && y < SCREEN_HEIGHT {
-                fb.set_pixel(x, y, Rgba::BLACK);
-            }
-        }
-    }
-    draw_text("35/ 39", 12 * TILE_SIZE, 10 * TILE_SIZE, Rgba::BLACK, fb);
+    draw_hp_bar(
+        fb,
+        13 * TILE_SIZE,
+        9 * TILE_SIZE + 2,
+        6 * TILE_SIZE,
+        screen.player_hp,
+        screen.player_max_hp,
+    );
+    let hp_text = format!("{:>3}/{:>3}", screen.player_hp, screen.player_max_hp);
+    draw_text(&hp_text, 12 * TILE_SIZE, 10 * TILE_SIZE, Rgba::BLACK, fb);
 
-    // Battle menu: text_box at tile (8,12) to (19,17) → inner 10 wide, 4 tall
-    // "FIGHT PkMn / ITEM  RUN" at tile (10, 14)/(10,16)
     draw_text_box(fb, 8 * TILE_SIZE, 12 * TILE_SIZE, 10, 4, Rgba::BLACK);
 
     if matches!(screen.phase, BattlePhase::PlayerMenu) {
@@ -940,43 +975,22 @@ fn draw_battle(screen: &BattleScreen, res: &mut Option<ResourceManager>, fb: &mu
             draw_text(">", (cx - 1) * TILE_SIZE, cy * TILE_SIZE, Rgba::BLACK, fb);
         }
     } else {
-        // Text area for non-menu phases
-        let phase_text = match &screen.phase {
-            BattlePhase::Intro { .. } => "Wild PIKACHU appeared!",
-            BattlePhase::TurnExecution { .. } => "CHARMANDER used SCRATCH!",
-            BattlePhase::FaintCheck { .. } => "Enemy PIKACHU fainted!",
-            BattlePhase::Finished { won, .. } => {
-                if *won {
-                    "You won!"
-                } else {
-                    "You lost..."
-                }
-            }
-            _ => "",
-        };
-        if !phase_text.is_empty() {
-            draw_text(phase_text, 1 * TILE_SIZE, 14 * TILE_SIZE, Rgba::BLACK, fb);
-        }
-    }
-
-    // Message text box at bottom-left (when not in menu) — tile (0, 12) to (8, 17)
-    if !matches!(screen.phase, BattlePhase::PlayerMenu) {
         draw_text_box(fb, 0, 12 * TILE_SIZE, 18, 4, Rgba::BLACK);
         let phase_text = match &screen.phase {
-            BattlePhase::Intro { .. } => "Wild PIKACHU appeared!",
-            BattlePhase::TurnExecution { .. } => "CHARMANDER used SCRATCH!",
-            BattlePhase::FaintCheck { .. } => "Enemy PIKACHU fainted!",
+            BattlePhase::Intro { .. } => format!("Wild {} appeared!", enemy_name),
+            BattlePhase::TurnExecution { .. } => format!("{} used SCRATCH!", player_name),
+            BattlePhase::FaintCheck { .. } => format!("Enemy {} fainted!", enemy_name),
             BattlePhase::Finished { won, .. } => {
                 if *won {
-                    "You won!"
+                    "You won!".to_string()
                 } else {
-                    "You lost..."
+                    "You lost...".to_string()
                 }
             }
-            _ => "",
+            _ => String::new(),
         };
         if !phase_text.is_empty() {
-            draw_text(phase_text, 1 * TILE_SIZE, 14 * TILE_SIZE, Rgba::BLACK, fb);
+            draw_text(&phase_text, 1 * TILE_SIZE, 14 * TILE_SIZE, Rgba::BLACK, fb);
         }
     }
 }
