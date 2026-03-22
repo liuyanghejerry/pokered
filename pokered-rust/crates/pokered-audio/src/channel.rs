@@ -118,7 +118,11 @@ impl VolumeEnvelope {
     /// Read back as NRx2 value.
     pub fn read_nrx2(&self) -> u8 {
         (self.initial_volume << 4)
-            | if self.direction == EnvelopeDirection::Increase { 0x08 } else { 0x00 }
+            | if self.direction == EnvelopeDirection::Increase {
+                0x08
+            } else {
+                0x00
+            }
             | self.period
     }
 }
@@ -235,7 +239,11 @@ impl FrequencySweep {
     /// Read back as NR10 value.
     pub fn read_nr10(&self) -> u8 {
         (self.period << 4)
-            | if self.direction == SweepDirection::Decrease { 0x08 } else { 0x00 }
+            | if self.direction == SweepDirection::Decrease {
+                0x08
+            } else {
+                0x00
+            }
             | self.shift
     }
 }

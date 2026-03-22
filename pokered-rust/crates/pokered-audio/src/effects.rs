@@ -35,7 +35,9 @@ pub fn apply_vibrato(channel: &mut ChannelState) -> Option<u16> {
     }
 
     // Reload rate counter
-    channel.vibrato.set_rate_counter(channel.vibrato.rate_reload());
+    channel
+        .vibrato
+        .set_rate_counter(channel.vibrato.rate_reload());
 
     // Determine the vibrato amount based on direction
     let amount = if channel.flags1.contains(ChannelFlags1::VIBRATO_DOWN) {

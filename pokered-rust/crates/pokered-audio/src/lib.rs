@@ -9,10 +9,11 @@
 //! The audio engine (sequencer) that reads music/SFX commands is in a separate
 //! module; this crate provides the low-level sample generation.
 
-pub mod channel;
 pub mod apu;
+pub mod channel;
 pub mod commands;
 pub mod effects;
+pub mod music_data;
 pub mod sequencer;
 
 #[cfg(test)]
@@ -20,6 +21,9 @@ mod tests;
 
 #[cfg(test)]
 mod sequencer_tests;
+
+#[cfg(test)]
+mod music_data_tests;
 
 // ── Constants ────────────────────────────────────────────────────────────
 
@@ -99,18 +103,18 @@ impl Default for DutyCycle {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum NoteName {
-    C  = 0,
-    Cs = 1,  // C#
-    D  = 2,
-    Ds = 3,  // D#
-    E  = 4,
-    F  = 5,
-    Fs = 6,  // F#
-    G  = 7,
-    Gs = 8,  // G#
-    A  = 9,
+    C = 0,
+    Cs = 1, // C#
+    D = 2,
+    Ds = 3, // D#
+    E = 4,
+    F = 5,
+    Fs = 6, // F#
+    G = 7,
+    Gs = 8, // G#
+    A = 9,
     As = 10, // A#
-    B  = 11,
+    B = 11,
 }
 
 /// Frequency register values for base octave notes.
@@ -152,18 +156,36 @@ pub const WAVE_SAMPLES_PER_INSTRUMENT: usize = 32;
 /// These represent the waveform loaded into FF30-FF3F.
 pub const WAVE_INSTRUMENTS: [[u8; WAVE_RAM_SIZE]; NUM_WAVE_INSTRUMENTS] = [
     // wave0: sawtooth-like
-    pack_wave([0,2,4,6,8,10,12,14,15,15,15,14,14,13,13,12,12,11,10,9,8,7,6,5,4,4,3,3,2,2,1,1]),
+    pack_wave([
+        0, 2, 4, 6, 8, 10, 12, 14, 15, 15, 15, 14, 14, 13, 13, 12, 12, 11, 10, 9, 8, 7, 6, 5, 4, 4,
+        3, 3, 2, 2, 1, 1,
+    ]),
     // wave1: slightly different sawtooth
-    pack_wave([0,2,4,6,8,10,12,14,14,15,15,15,15,14,14,14,13,13,12,11,10,9,8,7,6,5,4,3,2,2,1,1]),
+    pack_wave([
+        0, 2, 4, 6, 8, 10, 12, 14, 14, 15, 15, 15, 15, 14, 14, 14, 13, 13, 12, 11, 10, 9, 8, 7, 6,
+        5, 4, 3, 2, 2, 1, 1,
+    ]),
     // wave2: triangle-like
-    pack_wave([1,3,6,9,11,13,14,14,14,14,15,15,15,15,14,13,13,14,15,15,15,15,14,14,14,14,13,11,9,6,3,1]),
+    pack_wave([
+        1, 3, 6, 9, 11, 13, 14, 14, 14, 14, 15, 15, 15, 15, 14, 13, 13, 14, 15, 15, 15, 15, 14, 14,
+        14, 14, 13, 11, 9, 6, 3, 1,
+    ]),
     // wave3: modified sawtooth
-    pack_wave([0,2,4,6,8,10,12,13,14,15,15,14,13,14,15,15,14,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0]),
+    pack_wave([
+        0, 2, 4, 6, 8, 10, 12, 13, 14, 15, 15, 14, 13, 14, 15, 15, 14, 14, 13, 12, 11, 10, 9, 8, 7,
+        6, 5, 4, 3, 2, 1, 0,
+    ]),
     // wave4: complex wave
-    pack_wave([0,1,2,3,4,5,6,7,8,10,12,13,14,14,15,7,7,15,14,14,13,12,10,8,7,6,5,4,3,2,1,0]),
+    pack_wave([
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 13, 14, 14, 15, 7, 7, 15, 14, 14, 13, 12, 10, 8, 7, 6,
+        5, 4, 3, 2, 1, 0,
+    ]),
     // wave5: used in Lavender Town / Pokemon Tower themes (actual data is from sfx stream)
     // The base definition; actual data varies by audio engine context.
-    pack_wave([2,1,14,2,3,3,2,8,14,1,2,2,15,15,14,10,1,0,1,4,13,12,1,0,14,3,4,1,5,1,7,3]),
+    pack_wave([
+        2, 1, 14, 2, 3, 3, 2, 8, 14, 1, 2, 2, 15, 15, 14, 10, 1, 0, 1, 4, 13, 12, 1, 0, 14, 3, 4,
+        1, 5, 1, 7, 3,
+    ]),
 ];
 
 /// Pack 32 nibbles into 16 bytes (2 nibbles per byte, high nibble first).
@@ -197,8 +219,8 @@ pub const fn unpack_wave(packed: &[u8; 16]) -> [u8; 32] {
 pub enum HwChannel {
     Pulse1 = 0,
     Pulse2 = 1,
-    Wave   = 2,
-    Noise  = 3,
+    Wave = 2,
+    Noise = 3,
 }
 
 impl HwChannel {
@@ -218,8 +240,8 @@ impl HwChannel {
         match self {
             HwChannel::Pulse1 => 0x11, // bit 0 + bit 4
             HwChannel::Pulse2 => 0x22, // bit 1 + bit 5
-            HwChannel::Wave   => 0x44, // bit 2 + bit 6
-            HwChannel::Noise  => 0x88, // bit 3 + bit 7
+            HwChannel::Wave => 0x44,   // bit 2 + bit 6
+            HwChannel::Noise => 0x88,  // bit 3 + bit 7
         }
     }
 

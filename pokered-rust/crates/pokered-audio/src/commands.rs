@@ -42,7 +42,10 @@ pub enum Command {
 
     /// Initiate pitch slide.
     /// length_modifier = duration adjustment, octave_pitch = packed (octave<<4 | pitch).
-    PitchSlide { length_modifier: u8, octave_pitch: u8 },
+    PitchSlide {
+        length_modifier: u8,
+        octave_pitch: u8,
+    },
 
     /// Set duty cycle (0-3).
     DutyCycle(u8),

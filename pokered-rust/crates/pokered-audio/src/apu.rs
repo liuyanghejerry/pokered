@@ -155,15 +155,31 @@ impl Apu {
         let mut right: i16 = 0;
 
         // NR51 panning
-        if self.nr51 & 0x10 != 0 { left += ch1_out; }
-        if self.nr51 & 0x20 != 0 { left += ch2_out; }
-        if self.nr51 & 0x40 != 0 { left += ch3_out; }
-        if self.nr51 & 0x80 != 0 { left += ch4_out; }
+        if self.nr51 & 0x10 != 0 {
+            left += ch1_out;
+        }
+        if self.nr51 & 0x20 != 0 {
+            left += ch2_out;
+        }
+        if self.nr51 & 0x40 != 0 {
+            left += ch3_out;
+        }
+        if self.nr51 & 0x80 != 0 {
+            left += ch4_out;
+        }
 
-        if self.nr51 & 0x01 != 0 { right += ch1_out; }
-        if self.nr51 & 0x02 != 0 { right += ch2_out; }
-        if self.nr51 & 0x04 != 0 { right += ch3_out; }
-        if self.nr51 & 0x08 != 0 { right += ch4_out; }
+        if self.nr51 & 0x01 != 0 {
+            right += ch1_out;
+        }
+        if self.nr51 & 0x02 != 0 {
+            right += ch2_out;
+        }
+        if self.nr51 & 0x04 != 0 {
+            right += ch3_out;
+        }
+        if self.nr51 & 0x08 != 0 {
+            right += ch4_out;
+        }
 
         // Apply master volume (NR50)
         let left_vol = ((self.nr50 >> 4) & 0x07) as i16 + 1;
@@ -254,7 +270,11 @@ impl Apu {
             0xFF12 => self.ch1.envelope.read_nrx2(),
             0xFF13 => 0xFF, // write-only
             0xFF14 => {
-                if self.ch1.length.enabled { 0xBF | 0x40 } else { 0xBF }
+                if self.ch1.length.enabled {
+                    0xBF | 0x40
+                } else {
+                    0xBF
+                }
             }
 
             // ── Channel 2 ──
@@ -263,18 +283,30 @@ impl Apu {
             0xFF17 => self.ch2.envelope.read_nrx2(),
             0xFF18 => 0xFF,
             0xFF19 => {
-                if self.ch2.length.enabled { 0xBF | 0x40 } else { 0xBF }
+                if self.ch2.length.enabled {
+                    0xBF | 0x40
+                } else {
+                    0xBF
+                }
             }
 
             // ── Channel 3 ──
             0xFF1A => {
-                if self.ch3.dac_enabled { 0x7F | 0x80 } else { 0x7F }
+                if self.ch3.dac_enabled {
+                    0x7F | 0x80
+                } else {
+                    0x7F
+                }
             }
             0xFF1B => 0xFF, // write-only
             0xFF1C => (self.ch3.volume_code << 5) | 0x9F,
             0xFF1D => 0xFF,
             0xFF1E => {
-                if self.ch3.length.enabled { 0xBF | 0x40 } else { 0xBF }
+                if self.ch3.length.enabled {
+                    0xBF | 0x40
+                } else {
+                    0xBF
+                }
             }
 
             // ── Channel 4 ──
@@ -287,7 +319,11 @@ impl Apu {
                     | self.ch4.divisor_code
             }
             0xFF23 => {
-                if self.ch4.length.enabled { 0xBF | 0x40 } else { 0xBF }
+                if self.ch4.length.enabled {
+                    0xBF | 0x40
+                } else {
+                    0xBF
+                }
             }
 
             // ── Master control ──
@@ -295,11 +331,21 @@ impl Apu {
             0xFF25 => self.nr51,
             0xFF26 => {
                 let mut val = 0x70; // bits 6-4 always read 1
-                if self.power { val |= 0x80; }
-                if self.ch1.enabled { val |= 0x01; }
-                if self.ch2.enabled { val |= 0x02; }
-                if self.ch3.enabled { val |= 0x04; }
-                if self.ch4.enabled { val |= 0x08; }
+                if self.power {
+                    val |= 0x80;
+                }
+                if self.ch1.enabled {
+                    val |= 0x01;
+                }
+                if self.ch2.enabled {
+                    val |= 0x02;
+                }
+                if self.ch3.enabled {
+                    val |= 0x04;
+                }
+                if self.ch4.enabled {
+                    val |= 0x08;
+                }
                 val
             }
 
