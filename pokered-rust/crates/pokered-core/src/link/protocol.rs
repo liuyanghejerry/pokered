@@ -1,3 +1,4 @@
+use crate::battle::state::Pokemon;
 use crate::pokemon::party::Party;
 use serde::{Deserialize, Serialize};
 
@@ -53,6 +54,14 @@ pub enum NetworkMessage {
     PartyData(PartyExchangeData),
 
     TurnAction(LinkAction),
+
+    RequestTrade,
+    AcceptTrade,
+    DeclineTrade,
+    SelectMon(u8),
+    ConfirmTrade,
+    CancelTrade,
+    TradeComplete(Pokemon),
 
     Disconnect,
 }

@@ -1,9 +1,12 @@
 pub mod link_battle;
+pub mod link_trade;
 pub mod protocol;
 pub mod transport;
 
 #[cfg(test)]
 mod link_battle_tests;
+#[cfg(test)]
+mod link_trade_tests;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LinkState {
