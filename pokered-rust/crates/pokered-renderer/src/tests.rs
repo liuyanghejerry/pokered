@@ -1287,3 +1287,574 @@ fn screen_tile_constants() {
     assert_eq!(SCREEN_TILES_Y, 18);
     assert_eq!(SCREEN_TILE_COUNT, 360);
 }
+
+// ===== M5.5 Menu Rendering Tests =====
+use crate::menu::*;
+
+#[test]
+fn menu_cursor_new_defaults() {
+    let c = MenuCursor::new(5, 3);
+    assert_eq!(c.x, 5);
+    assert_eq!(c.y, 3);
+    assert_eq!(c.tile_behind, TILE_SPACE);
+    assert!(!c.visible);
+}
+
+#[test]
+fn menu_cursor_place_saves_tile() {
+    let mut buf = ScreenTileBuffer::new();
+    buf.set(2, 4, 0x42);
+    let mut c = MenuCursor::new(2, 4);
+    c.place(&mut buf);
+    assert_eq!(c.tile_behind, 0x42);
+    assert_eq!(buf.get(2, 4), TILE_CURSOR_FILLED);
+    assert!(c.visible);
+}
+
+#[test]
+fn menu_cursor_place_does_not_save_cursor_tile() {
+    let mut buf = ScreenTileBuffer::new();
+    buf.set(2, 4, TILE_CURSOR_FILLED);
+    let mut c = MenuCursor::new(2, 4);
+    c.place(&mut buf);
+    assert_eq!(c.tile_behind, TILE_SPACE);
+}
+
+#[test]
+fn menu_cursor_erase_writes_space() {
+    let mut buf = ScreenTileBuffer::new();
+    let mut c = MenuCursor::new(3, 5);
+    c.place(&mut buf);
+    c.erase(&mut buf);
+    assert_eq!(buf.get(3, 5), TILE_SPACE);
+}
+
+#[test]
+fn menu_cursor_place_unfilled() {
+    let mut buf = ScreenTileBuffer::new();
+    let c = MenuCursor::new(1, 1);
+    c.place_unfilled(&mut buf);
+    assert_eq!(buf.get(1, 1), TILE_CURSOR_UNFILLED);
+}
+
+#[test]
+fn menu_cursor_restore() {
+    let mut buf = ScreenTileBuffer::new();
+    buf.set(4, 6, 0xAA);
+    let mut c = MenuCursor::new(4, 6);
+    c.place(&mut buf);
+    assert_eq!(buf.get(4, 6), TILE_CURSOR_FILLED);
+    c.restore(&mut buf);
+    assert_eq!(buf.get(4, 6), 0xAA);
+}
+
+#[test]
+fn menu_cursor_move_to() {
+    let mut buf = ScreenTileBuffer::new();
+    buf.set(2, 3, 0x11);
+    buf.set(5, 7, 0x22);
+    let mut c = MenuCursor::new(2, 3);
+    c.place(&mut buf);
+    c.move_to(&mut buf, 5, 7);
+    assert_eq!(buf.get(2, 3), 0x11);
+    assert_eq!(buf.get(5, 7), TILE_CURSOR_FILLED);
+    assert_eq!(c.tile_behind, 0x22);
+}
+
+#[test]
+fn menu_layout_new_defaults() {
+    let frame = TextBoxFrame::new(10, 0, 10, 16);
+    let ml = MenuLayout::new(frame, 12, 2, 7);
+    assert_eq!(ml.item_count, 7);
+    assert!(ml.double_spaced);
+    assert_eq!(ml.current_item, 0);
+    assert!(!ml.wrapping);
+}
+
+#[test]
+fn menu_layout_cursor_positions() {
+    let frame = TextBoxFrame::new(10, 0, 10, 16);
+    let ml = MenuLayout::new(frame, 12, 2, 7);
+    assert_eq!(ml.cursor_x(), 11);
+    assert_eq!(ml.cursor_y_for_item(0), 2);
+    assert_eq!(ml.cursor_y_for_item(1), 4);
+    assert_eq!(ml.cursor_y_for_item(2), 6);
+    assert_eq!(ml.cursor_y_for_item(3), 8);
+}
+
+#[test]
+fn menu_layout_single_spaced() {
+    let frame = TextBoxFrame::new(0, 0, 10, 10);
+    let mut ml = MenuLayout::new(frame, 2, 1, 5);
+    ml.double_spaced = false;
+    assert_eq!(ml.cursor_y_for_item(0), 1);
+    assert_eq!(ml.cursor_y_for_item(1), 2);
+    assert_eq!(ml.cursor_y_for_item(4), 5);
+}
+
+#[test]
+fn menu_layout_item_position() {
+    let frame = TextBoxFrame::new(10, 0, 10, 16);
+    let ml = MenuLayout::new(frame, 12, 2, 7);
+    assert_eq!(ml.item_position(0), (12, 2));
+    assert_eq!(ml.item_position(3), (12, 8));
+}
+
+#[test]
+fn menu_layout_place_cursor() {
+    let frame = TextBoxFrame::new(10, 0, 10, 16);
+    let ml = MenuLayout::new(frame, 12, 2, 7);
+    let mut buf = ScreenTileBuffer::new();
+    let cursor = ml.place_cursor(&mut buf);
+    assert_eq!(buf.get(11, 2), TILE_CURSOR_FILLED);
+    assert!(cursor.visible);
+}
+
+#[test]
+fn menu_layout_move_cursor_down_up() {
+    let frame = TextBoxFrame::new(10, 0, 10, 16);
+    let mut ml = MenuLayout::new(frame, 12, 2, 3);
+    assert!(ml.move_cursor_down());
+    assert_eq!(ml.current_item, 1);
+    assert!(ml.move_cursor_down());
+    assert_eq!(ml.current_item, 2);
+    assert!(!ml.move_cursor_down());
+    assert_eq!(ml.current_item, 2);
+    assert!(ml.move_cursor_up());
+    assert_eq!(ml.current_item, 1);
+    assert!(ml.move_cursor_up());
+    assert_eq!(ml.current_item, 0);
+    assert!(!ml.move_cursor_up());
+    assert_eq!(ml.current_item, 0);
+}
+
+#[test]
+fn menu_layout_wrapping() {
+    let frame = TextBoxFrame::new(0, 0, 10, 10);
+    let mut ml = MenuLayout::new(frame, 2, 1, 3);
+    ml.wrapping = true;
+    ml.current_item = 0;
+    assert!(ml.move_cursor_up());
+    assert_eq!(ml.current_item, 2);
+    assert!(ml.move_cursor_down());
+    assert_eq!(ml.current_item, 0);
+    ml.current_item = 2;
+    assert!(ml.move_cursor_down());
+    assert_eq!(ml.current_item, 0);
+}
+
+#[test]
+fn menu_layout_place_item_text() {
+    let frame = TextBoxFrame::new(10, 0, 10, 16);
+    let ml = MenuLayout::new(frame, 12, 2, 7);
+    let mut buf = ScreenTileBuffer::new();
+    let tiles = encode_menu_str("ITEM");
+    ml.place_item_text(&mut buf, 0, &tiles);
+    assert_eq!(buf.get(12, 2), tiles[0]);
+    assert_eq!(buf.get(13, 2), tiles[1]);
+    assert_eq!(buf.get(14, 2), tiles[2]);
+    assert_eq!(buf.get(15, 2), tiles[3]);
+}
+
+#[test]
+fn start_menu_draw_with_pokedex() {
+    let mut buf = ScreenTileBuffer::new();
+    let ml = StartMenuRenderer::draw(&mut buf, true);
+    assert_eq!(ml.frame.x, 10);
+    assert_eq!(ml.frame.y, 0);
+    assert_eq!(ml.frame.width, 10);
+    assert_eq!(ml.frame.height, 16);
+    assert_eq!(ml.item_count, 7);
+    assert_eq!(ml.top_item_x, 12);
+    assert_eq!(ml.top_item_y, 2);
+    assert_eq!(buf.get(10, 0), TILE_TOP_LEFT);
+    assert_eq!(buf.get(19, 0), TILE_TOP_RIGHT);
+    let pokedex_tiles = encode_menu_str("POK");
+    assert_eq!(buf.get(12, 2), pokedex_tiles[0]);
+}
+
+#[test]
+fn start_menu_draw_without_pokedex() {
+    let mut buf = ScreenTileBuffer::new();
+    let ml = StartMenuRenderer::draw(&mut buf, false);
+    assert_eq!(ml.frame.height, 14);
+    assert_eq!(ml.item_count, 6);
+    let pokemon_tiles = encode_menu_str("POK");
+    assert_eq!(buf.get(12, 2), pokemon_tiles[0]);
+}
+
+#[test]
+fn start_menu_draw_with_player_name() {
+    let mut buf = ScreenTileBuffer::new();
+    let name = encode_menu_str("RED");
+    let ml = StartMenuRenderer::draw_with_player_name(&mut buf, true, &name, false);
+    assert_eq!(ml.frame.height, 16);
+    assert_eq!(ml.item_count, 7);
+    assert_eq!(buf.get(12, 8), name[0]);
+    assert_eq!(buf.get(13, 8), name[1]);
+    assert_eq!(buf.get(14, 8), name[2]);
+}
+
+#[test]
+fn start_menu_link_mode_shows_reset() {
+    let mut buf = ScreenTileBuffer::new();
+    let name = encode_menu_str("ASH");
+    StartMenuRenderer::draw_with_player_name(&mut buf, true, &name, true);
+    let reset_tiles = encode_menu_str("RESET");
+    assert_eq!(buf.get(12, 10), reset_tiles[0]);
+}
+
+#[test]
+fn encode_menu_str_basic() {
+    let tiles = encode_menu_str("ABC");
+    assert_eq!(tiles.len(), 3);
+    assert_eq!(tiles[0], 0x80);
+    assert_eq!(tiles[1], 0x81);
+    assert_eq!(tiles[2], 0x82);
+}
+
+#[test]
+fn textbox_template_message_box_coords() {
+    let (x1, y1, x2, y2) = TextBoxTemplateId::MessageBox.coords();
+    assert_eq!((x1, y1, x2, y2), (0, 12, 19, 17));
+}
+
+#[test]
+fn textbox_template_to_frame() {
+    let f = TextBoxTemplateId::MessageBox.to_frame();
+    assert_eq!(f.x, 0);
+    assert_eq!(f.y, 12);
+    assert_eq!(f.width, 20);
+    assert_eq!(f.height, 6);
+}
+
+#[test]
+fn textbox_template_battle_menu_draw_with_text() {
+    let mut buf = ScreenTileBuffer::new();
+    TextBoxTemplateId::BattleMenu.draw_with_text(&mut buf);
+    assert_eq!(buf.get(8, 12), TILE_TOP_LEFT);
+    assert_eq!(buf.get(19, 17), TILE_BOTTOM_RIGHT);
+    let fight = encode_menu_str("FIGHT");
+    assert_eq!(buf.get(10, 14), fight[0]);
+    let run = encode_menu_str("RUN");
+    assert_eq!(buf.get(16, 16), run[0]);
+}
+
+#[test]
+fn textbox_template_buy_sell_quit() {
+    let mut buf = ScreenTileBuffer::new();
+    TextBoxTemplateId::BuySellQuitMenu.draw_with_text(&mut buf);
+    assert_eq!(buf.get(0, 0), TILE_TOP_LEFT);
+    assert_eq!(buf.get(10, 6), TILE_BOTTOM_RIGHT);
+    let buy = encode_menu_str("BUY");
+    assert_eq!(buf.get(2, 1), buy[0]);
+    let sell = encode_menu_str("SELL");
+    assert_eq!(buf.get(2, 3), sell[0]);
+    let quit = encode_menu_str("QUIT");
+    assert_eq!(buf.get(2, 5), quit[0]);
+}
+
+#[test]
+fn textbox_template_list_menu_box() {
+    let f = TextBoxTemplateId::ListMenuBox.to_frame();
+    assert_eq!(f.x, 4);
+    assert_eq!(f.y, 2);
+    assert_eq!(f.width, 16);
+    assert_eq!(f.height, 11);
+}
+
+#[test]
+fn textbox_template_money_box() {
+    let mut buf = ScreenTileBuffer::new();
+    TextBoxTemplateId::MoneyBox.draw_with_text(&mut buf);
+    let money = encode_menu_str("MONEY");
+    assert_eq!(buf.get(13, 0), money[0]);
+}
+
+#[test]
+fn two_option_menu_yes_no() {
+    let m = TwoOptionMenu::yes_no(10, 5);
+    assert_eq!(m.frame.x, 10);
+    assert_eq!(m.frame.y, 5);
+    assert_eq!(m.frame.width, 6);
+    assert_eq!(m.frame.height, 5);
+    assert_eq!(m.text_x, 12);
+    assert_eq!(m.text_y, 6);
+    assert_eq!(m.current_item, 0);
+}
+
+#[test]
+fn two_option_menu_draw() {
+    let m = TwoOptionMenu::yes_no(10, 5);
+    let mut buf = ScreenTileBuffer::new();
+    m.draw(&mut buf);
+    assert_eq!(buf.get(10, 5), TILE_TOP_LEFT);
+    assert_eq!(buf.get(15, 9), TILE_BOTTOM_RIGHT);
+    let yes = encode_menu_str("YES");
+    assert_eq!(buf.get(12, 6), yes[0]);
+    let no = encode_menu_str("NO");
+    assert_eq!(buf.get(12, 8), no[0]);
+}
+
+#[test]
+fn two_option_menu_cursor_position() {
+    let mut m = TwoOptionMenu::yes_no(10, 5);
+    assert_eq!(m.cursor_position(), (11, 6));
+    m.current_item = 1;
+    assert_eq!(m.cursor_position(), (11, 8));
+}
+
+#[test]
+fn two_option_menu_save_restore_area() {
+    let mut buf = ScreenTileBuffer::new();
+    for y in 5..10 {
+        for x in 10..16 {
+            buf.set(x, y, (x + y * 20) as u8);
+        }
+    }
+    let mut m = TwoOptionMenu::yes_no(10, 5);
+    m.save_area(&buf);
+    m.draw(&mut buf);
+    assert_eq!(buf.get(10, 5), TILE_TOP_LEFT);
+    m.restore_area(&mut buf);
+    assert_eq!(buf.get(10, 5), (10 + 5 * 20) as u8);
+    assert_eq!(buf.get(15, 9), (15 + 9 * 20) as u8);
+}
+
+#[test]
+fn two_option_menu_custom() {
+    let frame = TextBoxFrame::new(5, 3, 8, 5);
+    let m = TwoOptionMenu::custom(frame, "TRADE", "CANCEL");
+    assert_eq!(m.text_x, 7);
+    assert_eq!(m.text_y, 4);
+    let trade = encode_menu_str("TRADE");
+    assert_eq!(m.option1_tiles, trade);
+    let cancel = encode_menu_str("CANCEL");
+    assert_eq!(m.option2_tiles, cancel);
+}
+
+#[test]
+fn list_menu_renderer_new() {
+    let lr = ListMenuRenderer::new(10);
+    assert_eq!(lr.frame.x, 4);
+    assert_eq!(lr.frame.y, 2);
+    assert_eq!(lr.frame.width, 16);
+    assert_eq!(lr.frame.height, 11);
+    assert_eq!(lr.visible_count, 4);
+    assert_eq!(lr.scroll_offset, 0);
+    assert_eq!(lr.total_count, 10);
+    assert_eq!(lr.current_item, 0);
+    assert_eq!(lr.item_x, 6);
+    assert_eq!(lr.item_start_y, 4);
+    assert_eq!(lr.row_spacing, 2);
+}
+
+#[test]
+fn list_menu_draw_frame() {
+    let lr = ListMenuRenderer::new(5);
+    let mut buf = ScreenTileBuffer::new();
+    lr.draw_frame(&mut buf);
+    assert_eq!(buf.get(4, 2), TILE_TOP_LEFT);
+    assert_eq!(buf.get(19, 12), TILE_BOTTOM_RIGHT);
+}
+
+#[test]
+fn list_menu_draw_item() {
+    let lr = ListMenuRenderer::new(5);
+    let mut buf = ScreenTileBuffer::new();
+    let item_tiles = encode_menu_str("POTION");
+    lr.draw_item(&mut buf, 0, &item_tiles);
+    assert_eq!(buf.get(6, 4), item_tiles[0]);
+    assert_eq!(buf.get(7, 4), item_tiles[1]);
+}
+
+#[test]
+fn list_menu_draw_cancel() {
+    let lr = ListMenuRenderer::new(3);
+    let mut buf = ScreenTileBuffer::new();
+    lr.draw_cancel(&mut buf, 3);
+    let cancel = encode_menu_str("CANCEL");
+    assert_eq!(buf.get(6, 10), cancel[0]);
+}
+
+#[test]
+fn list_menu_scroll_indicator() {
+    let lr = ListMenuRenderer::new(10);
+    let mut buf = ScreenTileBuffer::new();
+    lr.draw_scroll_indicator(&mut buf);
+    let y = 4 + (4 - 1) * 2 + 1;
+    let x = 4 + 16 - 2;
+    assert_eq!(buf.get(x, y), TILE_SCROLL_INDICATOR);
+}
+
+#[test]
+fn list_menu_no_scroll_indicator_when_all_visible() {
+    let lr = ListMenuRenderer::new(3);
+    let mut buf = ScreenTileBuffer::new();
+    buf.fill(0x00);
+    lr.draw_scroll_indicator(&mut buf);
+    let y = 4 + (4 - 1) * 2 + 1;
+    let x = 4 + 16 - 2;
+    assert_eq!(buf.get(x, y), 0x00);
+}
+
+#[test]
+fn list_menu_cursor_position() {
+    let mut lr = ListMenuRenderer::new(10);
+    assert_eq!(lr.cursor_position(), (5, 4));
+    lr.current_item = 2;
+    assert_eq!(lr.cursor_position(), (5, 8));
+}
+
+#[test]
+fn list_menu_scroll_down_up() {
+    let mut lr = ListMenuRenderer::new(10);
+    assert!(lr.scroll_down());
+    assert_eq!(lr.scroll_offset, 1);
+    assert!(lr.scroll_up());
+    assert_eq!(lr.scroll_offset, 0);
+    assert!(!lr.scroll_up());
+    assert_eq!(lr.scroll_offset, 0);
+}
+
+#[test]
+fn list_menu_draw_item_quantity() {
+    let lr = ListMenuRenderer::new(5);
+    let mut buf = ScreenTileBuffer::new();
+    buf.fill(0x00);
+    lr.draw_item_quantity(&mut buf, 0, 15);
+    let y = 4 + 0 * 2 + 1;
+    let x = 6 + 8;
+    assert_eq!(buf.get(x, y), 0xF1);
+    assert_eq!(buf.get(x + 1, y), 0xF6 + 1);
+    assert_eq!(buf.get(x + 2, y), 0xF6 + 5);
+}
+
+#[test]
+fn party_menu_draw_mon_entry() {
+    let mut buf = ScreenTileBuffer::new();
+    let name = encode_menu_str("PIKACHU");
+    PartyMenuRenderer::draw_mon_entry(&mut buf, 0, &name);
+    assert_eq!(buf.get(3, 0), name[0]);
+    assert_eq!(buf.get(4, 0), name[1]);
+}
+
+#[test]
+fn party_menu_draw_mon_entry_second_slot() {
+    let mut buf = ScreenTileBuffer::new();
+    let name = encode_menu_str("CHARIZARD");
+    PartyMenuRenderer::draw_mon_entry(&mut buf, 2, &name);
+    assert_eq!(buf.get(3, 4), name[0]);
+}
+
+#[test]
+fn party_menu_draw_level_single_digit() {
+    let mut buf = ScreenTileBuffer::new();
+    buf.fill(0x00);
+    PartyMenuRenderer::draw_level(&mut buf, 0, 5);
+    assert_eq!(buf.get(13, 0), 0x6E);
+    assert_eq!(buf.get(14, 0), 0xF6 + 5);
+    assert_eq!(buf.get(15, 0), 0x00);
+}
+
+#[test]
+fn party_menu_draw_level_two_digits() {
+    let mut buf = ScreenTileBuffer::new();
+    PartyMenuRenderer::draw_level(&mut buf, 0, 42);
+    assert_eq!(buf.get(13, 0), 0x6E);
+    assert_eq!(buf.get(14, 0), 0xF6 + 4);
+    assert_eq!(buf.get(15, 0), 0xF6 + 2);
+}
+
+#[test]
+fn party_menu_draw_level_100() {
+    let mut buf = ScreenTileBuffer::new();
+    PartyMenuRenderer::draw_level(&mut buf, 0, 100);
+    assert_eq!(buf.get(13, 0), 0x6E);
+    assert_eq!(buf.get(14, 0), 0xF6 + 1);
+    assert_eq!(buf.get(15, 0), 0xF6 + 0);
+    assert_eq!(buf.get(16, 0), 0xF6 + 0);
+}
+
+#[test]
+fn party_menu_draw_status() {
+    let mut buf = ScreenTileBuffer::new();
+    let status = encode_menu_str("PSN");
+    PartyMenuRenderer::draw_status(&mut buf, 1, &status);
+    assert_eq!(buf.get(17, 2), status[0]);
+    assert_eq!(buf.get(18, 2), status[1]);
+    assert_eq!(buf.get(19, 2), status[2]);
+}
+
+#[test]
+fn party_menu_hp_bar_position() {
+    let (x, y) = PartyMenuRenderer::hp_bar_position(0);
+    assert_eq!(x, 7);
+    assert_eq!(y, 1);
+    let (x2, y2) = PartyMenuRenderer::hp_bar_position(2);
+    assert_eq!(x2, 7);
+    assert_eq!(y2, 5);
+}
+
+#[test]
+fn party_menu_draw_hp_bar_full() {
+    let mut buf = ScreenTileBuffer::new();
+    PartyMenuRenderer::draw_hp_bar(&mut buf, 0, 100, 100, 6);
+    let (x, y) = PartyMenuRenderer::hp_bar_position(0);
+    assert_eq!(buf.get(x, y), 0x71);
+    for i in 0..6 {
+        assert_eq!(buf.get(x + 1 + i, y), 0x72);
+    }
+    assert_eq!(buf.get(x + 7, y), 0x6D);
+}
+
+#[test]
+fn party_menu_draw_hp_bar_empty() {
+    let mut buf = ScreenTileBuffer::new();
+    PartyMenuRenderer::draw_hp_bar(&mut buf, 0, 0, 100, 6);
+    let (x, y) = PartyMenuRenderer::hp_bar_position(0);
+    assert_eq!(buf.get(x, y), 0x71);
+    for i in 0..6 {
+        assert_eq!(buf.get(x + 1 + i, y), 0x73);
+    }
+    assert_eq!(buf.get(x + 7, y), 0x6D);
+}
+
+#[test]
+fn party_menu_draw_hp_bar_half() {
+    let mut buf = ScreenTileBuffer::new();
+    PartyMenuRenderer::draw_hp_bar(&mut buf, 0, 50, 100, 6);
+    let (x, y) = PartyMenuRenderer::hp_bar_position(0);
+    assert_eq!(buf.get(x, y), 0x71);
+    let filled = 3u32;
+    for i in 0..filled {
+        assert_eq!(buf.get(x + 1 + i, y), 0x72, "filled at {i}");
+    }
+    for i in filled..6 {
+        assert_eq!(buf.get(x + 1 + i, y), 0x73, "empty at {i}");
+    }
+}
+
+#[test]
+fn party_menu_draw_hp_text() {
+    let mut buf = ScreenTileBuffer::new();
+    buf.fill(0x00);
+    PartyMenuRenderer::draw_hp_text(&mut buf, 0, 45, 120, 6);
+    let (x, y) = PartyMenuRenderer::hp_bar_position(0);
+    let text_x = x + 2 + 6;
+    assert_ne!(buf.get(text_x, y), 0x00);
+}
+
+#[test]
+fn party_menu_draw_unfilled_arrow() {
+    let mut buf = ScreenTileBuffer::new();
+    PartyMenuRenderer::draw_unfilled_arrow(&mut buf, 1);
+    assert_eq!(buf.get(0, 2), TILE_CURSOR_UNFILLED);
+}
+
+#[test]
+fn party_menu_cursor_position() {
+    assert_eq!(PartyMenuRenderer::cursor_position(0), (0, 0));
+    assert_eq!(PartyMenuRenderer::cursor_position(1), (0, 2));
+    assert_eq!(PartyMenuRenderer::cursor_position(5), (0, 10));
+}

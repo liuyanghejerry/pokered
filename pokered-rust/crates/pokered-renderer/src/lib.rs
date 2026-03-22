@@ -5,6 +5,7 @@
 // it via a scaled window using the `pixels` crate.
 
 pub mod input;
+pub mod menu;
 pub mod palette;
 pub mod sprite;
 pub mod text_renderer;
