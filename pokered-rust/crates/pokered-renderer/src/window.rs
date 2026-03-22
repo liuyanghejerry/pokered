@@ -121,8 +121,8 @@ pub fn run<G: GameLoop + 'static>(
             _ => {}
         },
         Event::AboutToWait => {
-            input.begin_frame();
             game.update(&input);
+            input.begin_frame();
             if game.should_exit() {
                 elwt.exit();
                 return;

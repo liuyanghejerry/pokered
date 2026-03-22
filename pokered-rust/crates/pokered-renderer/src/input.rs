@@ -110,16 +110,16 @@ impl Default for InputState {
 
 pub fn keycode_to_gb_button(keycode: KeyCode) -> Option<GbButton> {
     match keycode {
-        // Arrow keys → D-pad
-        KeyCode::ArrowUp => Some(GbButton::Up),
-        KeyCode::ArrowDown => Some(GbButton::Down),
-        KeyCode::ArrowLeft => Some(GbButton::Left),
-        KeyCode::ArrowRight => Some(GbButton::Right),
+        // Arrow keys / WASD → D-pad
+        KeyCode::ArrowUp | KeyCode::KeyW => Some(GbButton::Up),
+        KeyCode::ArrowDown | KeyCode::KeyS => Some(GbButton::Down),
+        KeyCode::ArrowLeft | KeyCode::KeyA => Some(GbButton::Left),
+        KeyCode::ArrowRight | KeyCode::KeyD => Some(GbButton::Right),
         // Z → A button, X → B button
         KeyCode::KeyZ => Some(GbButton::A),
         KeyCode::KeyX => Some(GbButton::B),
-        // Enter → Start, Backspace/RightShift → Select
-        KeyCode::Enter => Some(GbButton::Start),
+        // Enter/Space → Start, Backspace/RightShift → Select
+        KeyCode::Enter | KeyCode::Space => Some(GbButton::Start),
         KeyCode::Backspace | KeyCode::ShiftRight => Some(GbButton::Select),
         _ => None,
     }

@@ -8,18 +8,15 @@ use pokered_data::wild_data::GameVersion;
 /// Top-level game screen.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GameScreen {
-    /// Copyright / splash screen (shown briefly at startup).
     CopyrightSplash,
-    /// Title screen with Pokémon logo, version text, cycling Pokémon.
     TitleScreen,
-    /// Main menu: CONTINUE / NEW GAME / OPTION.
     MainMenu,
-    /// Professor Oak's introduction speech + player/rival naming.
     OakSpeech,
-    /// The overworld map screen (walking, talking to NPCs, etc.).
     Overworld,
-    /// Battle screen (wild or trainer).
     Battle,
+    StartMenu,
+    OptionsMenu,
+    SaveMenu,
 }
 
 /// Result of a single frame update for any screen.

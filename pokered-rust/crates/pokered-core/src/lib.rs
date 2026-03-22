@@ -6,6 +6,7 @@ pub mod items;
 pub mod link;
 pub mod main_menu;
 pub mod naming_screen;
+pub mod oak_speech;
 pub mod options_menu;
 pub mod overworld;
 pub mod pokemon;

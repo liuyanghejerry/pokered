@@ -249,3 +249,98 @@ impl OverworldState {
         }
     }
 }
+
+// ── Overworld Screen (frame-loop adapter) ─────────────────────────
+
+use crate::game_state::ScreenAction;
+
+#[derive(Debug, Clone, Copy)]
+pub struct OverworldInput {
+    pub up: bool,
+    pub down: bool,
+    pub left: bool,
+    pub right: bool,
+    pub a: bool,
+    pub b: bool,
+    pub start: bool,
+    pub select: bool,
+}
+
+impl OverworldInput {
+    pub fn none() -> Self {
+        Self {
+            up: false,
+            down: false,
+            left: false,
+            right: false,
+            a: false,
+            b: false,
+            start: false,
+            select: false,
+        }
+    }
+}
+
+use crate::game_state::GameScreen;
+use player_movement::{InputState as MovementInput, MoveResult};
+
+pub struct OverworldScreen {
+    pub state: OverworldState,
+    pub map_data: Option<MapData>,
+}
+
+impl OverworldScreen {
+    pub fn new(start_map: MapId) -> Self {
+        Self {
+            state: OverworldState::new(start_map),
+            map_data: None,
+        }
+    }
+
+    pub fn update_frame(&mut self, input: OverworldInput) -> ScreenAction {
+        if input.start {
+            return ScreenAction::Transition(GameScreen::StartMenu);
+        }
+
+        let movement_input = MovementInput {
+            up: input.up,
+            down: input.down,
+            left: input.left,
+            right: input.right,
+            a_button: input.a,
+            b_button: input.b,
+            start: input.start,
+            select: input.select,
+        };
+
+        if let Some(map) = &self.map_data {
+            let standing_tile = 0x00;
+            let target_tile = 0x00;
+            let npc_positions: Vec<collision::SpritePosition> = Vec::new();
+
+            let result = player_movement::process_frame(
+                &mut self.state,
+                &movement_input,
+                map,
+                standing_tile,
+                target_tile,
+                &npc_positions,
+            );
+
+            match result {
+                MoveResult::Warped { .. } => {}
+                MoveResult::ReachedMapEdge => {}
+                _ => {}
+            }
+        } else {
+            if let Some(dir) = movement_input.direction_pressed() {
+                self.state.player.facing = dir;
+                let (dx, dy) = player_movement::direction_delta(dir);
+                self.state.player.x = (self.state.player.x as i32 + dx as i32).max(0) as u16;
+                self.state.player.y = (self.state.player.y as i32 + dy as i32).max(0) as u16;
+            }
+        }
+
+        ScreenAction::Continue
+    }
+}

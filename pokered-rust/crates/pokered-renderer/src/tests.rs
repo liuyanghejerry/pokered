@@ -320,7 +320,12 @@ fn input_keycode_mapping() {
         keycode_to_gb_button(KeyCode::ShiftRight),
         Some(GbButton::Select)
     );
-    assert_eq!(keycode_to_gb_button(KeyCode::KeyA), None);
+    assert_eq!(keycode_to_gb_button(KeyCode::KeyW), Some(GbButton::Up));
+    assert_eq!(keycode_to_gb_button(KeyCode::KeyS), Some(GbButton::Down));
+    assert_eq!(keycode_to_gb_button(KeyCode::KeyA), Some(GbButton::Left));
+    assert_eq!(keycode_to_gb_button(KeyCode::KeyD), Some(GbButton::Right));
+    assert_eq!(keycode_to_gb_button(KeyCode::Space), Some(GbButton::Start));
+    assert_eq!(keycode_to_gb_button(KeyCode::KeyQ), None);
 }
 
 #[test]
