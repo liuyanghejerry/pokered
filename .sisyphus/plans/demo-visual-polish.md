@@ -19,10 +19,9 @@
 **已完成**: BattleScreen新增enemy/player的species+level+hp+max_hp字段 → draw_battle使用动态数据渲染名字/等级/HP + HP条按比例填充(绿>50%/黄25-50%/红<25%) + species_to_sprite_name加载对应精灵 + 战斗文字使用动态名称
 **提交**: 待提交
 
-## 里程碑 D4: WASM构建同步更新
-**目标**: pokered-web的main.rs可能还是旧版渲染代码，需要同步更新
-**文件**: `pokered-rust/crates/pokered-web/src/main.rs`
-**验收**: `cargo build -p pokered-web --target wasm32-unknown-unknown` 通过
+## 里程碑 D4: WASM构建同步更新 ✅ 已完成
+**已完成**: WASM构建验证通过 — pokered-web编译正常(BattleScreen新字段兼容,new()签名不变)
+**验证**: `cargo build -p pokered-web --target wasm32-unknown-unknown` 通过
 
 ## 里程碑 D5: 音频播放接入
 **目标**: 连接pokered-audio到主循环，播放BGM和音效
