@@ -4,9 +4,13 @@
 // rendering API that draws into a 160×144 pixel framebuffer and displays
 // it via a scaled window using the `pixels` crate.
 
-pub mod palette;
 pub mod input;
+pub mod palette;
+pub mod tile;
+pub mod tilemap;
+pub mod viewport;
 pub mod window;
+pub mod window_layer;
 
 /// Game Boy screen width in pixels
 pub const SCREEN_WIDTH: u32 = 160;
@@ -23,7 +27,8 @@ pub const SCREEN_HEIGHT_TILES: u32 = SCREEN_HEIGHT / TILE_SIZE;
 /// Bytes per pixel in the RGBA framebuffer
 pub const BYTES_PER_PIXEL: usize = 4;
 /// Total framebuffer size in bytes (160 * 144 * 4)
-pub const FRAMEBUFFER_SIZE: usize = (SCREEN_WIDTH as usize) * (SCREEN_HEIGHT as usize) * BYTES_PER_PIXEL;
+pub const FRAMEBUFFER_SIZE: usize =
+    (SCREEN_WIDTH as usize) * (SCREEN_HEIGHT as usize) * BYTES_PER_PIXEL;
 
 /// An RGBA color (red, green, blue, alpha).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

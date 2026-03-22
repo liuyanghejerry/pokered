@@ -375,3 +375,437 @@ fn obp0_default_makes_color0_transparent() {
     assert_eq!(pal.colors[2], Rgba::rgb(0xAA, 0xAA, 0xAA));
     assert_eq!(pal.colors[3], Rgba::rgb(0x00, 0x00, 0x00));
 }
+
+// =====================================================
+// M5.2 — Tile, TileMap, Viewport, WindowLayer tests
+// =====================================================
+
+use crate::tile::{decode_2bpp_row, Tile, TileSet, BYTES_PER_TILE, TILE_PIXELS};
+use crate::tilemap::{BgLayer, TileMap, BG_MAP_HEIGHT, BG_MAP_SIZE, BG_MAP_WIDTH};
+use crate::viewport::{ScrollState, Viewport};
+use crate::window_layer::WindowLayer;
+
+// --- Tile tests ---
+
+#[test]
+fn tile_blank() {
+    let t = Tile::blank();
+    for row in 0..TILE_PIXELS {
+        for col in 0..TILE_PIXELS {
+            assert_eq!(t.get(row, col), 0);
+        }
+    }
+}
+
+#[test]
+fn tile_decode_2bpp_all_zeros() {
+    let data = [0u8; BYTES_PER_TILE];
+    let t = Tile::from_2bpp(&data);
+    for row in 0..TILE_PIXELS {
+        for col in 0..TILE_PIXELS {
+            assert_eq!(t.get(row, col), 0, "Expected 0 at ({row}, {col})");
+        }
+    }
+}
+
+#[test]
+fn tile_decode_2bpp_all_ones() {
+    // lo=0xFF, hi=0xFF for each row → all pixels = color 3
+    let data = [0xFF; BYTES_PER_TILE];
+    let t = Tile::from_2bpp(&data);
+    for row in 0..TILE_PIXELS {
+        for col in 0..TILE_PIXELS {
+            assert_eq!(t.get(row, col), 3);
+        }
+    }
+}
+
+#[test]
+fn tile_decode_2bpp_mixed() {
+    // Row 0: lo=0b10000000, hi=0b00000000 → pixel 0 = color 1, rest = 0
+    let mut data = [0u8; BYTES_PER_TILE];
+    data[0] = 0b10000000; // lo byte, row 0
+    data[1] = 0b00000000; // hi byte, row 0
+    let t = Tile::from_2bpp(&data);
+    assert_eq!(t.get(0, 0), 1); // lo=1, hi=0 → color 1
+    assert_eq!(t.get(0, 1), 0);
+    assert_eq!(t.get(0, 7), 0);
+}
+
+#[test]
+fn tile_decode_2bpp_hi_bit() {
+    // Row 0: lo=0, hi=0b10000000 → pixel 0 = color 2
+    let mut data = [0u8; BYTES_PER_TILE];
+    data[0] = 0b00000000;
+    data[1] = 0b10000000;
+    let t = Tile::from_2bpp(&data);
+    assert_eq!(t.get(0, 0), 2); // lo=0, hi=1 → color 2
+}
+
+#[test]
+fn tile_decode_2bpp_both_bits() {
+    // Row 0: lo=0b10000000, hi=0b10000000 → pixel 0 = color 3
+    let mut data = [0u8; BYTES_PER_TILE];
+    data[0] = 0b10000000;
+    data[1] = 0b10000000;
+    let t = Tile::from_2bpp(&data);
+    assert_eq!(t.get(0, 0), 3);
+}
+
+#[test]
+fn tile_decode_alternating_pattern() {
+    // lo=0b10101010, hi=0b01010101 for row 0
+    // bit7: lo=1,hi=0 → 1 | bit6: lo=0,hi=1 → 2 | bit5: lo=1,hi=0 → 1 | ...
+    let mut data = [0u8; BYTES_PER_TILE];
+    data[0] = 0b10101010;
+    data[1] = 0b01010101;
+    let t = Tile::from_2bpp(&data);
+    assert_eq!(t.get(0, 0), 1); // bit7: lo=1,hi=0
+    assert_eq!(t.get(0, 1), 2); // bit6: lo=0,hi=1
+    assert_eq!(t.get(0, 2), 1);
+    assert_eq!(t.get(0, 3), 2);
+    assert_eq!(t.get(0, 4), 1);
+    assert_eq!(t.get(0, 5), 2);
+    assert_eq!(t.get(0, 6), 1);
+    assert_eq!(t.get(0, 7), 2);
+}
+
+#[test]
+fn tile_flip_x() {
+    let mut data = [0u8; BYTES_PER_TILE];
+    data[0] = 0b10000000; // only pixel 0 has lo=1
+    let t = Tile::from_2bpp(&data);
+    let flipped = t.flip_x();
+    assert_eq!(flipped.get(0, 7), 1); // pixel 0 → pixel 7
+    assert_eq!(flipped.get(0, 0), 0);
+}
+
+#[test]
+fn tile_flip_y() {
+    let mut data = [0u8; BYTES_PER_TILE];
+    data[0] = 0xFF; // row 0: all lo=1
+    data[1] = 0x00;
+    let t = Tile::from_2bpp(&data);
+    assert_eq!(t.get(0, 0), 1);
+    assert_eq!(t.get(7, 0), 0);
+    let flipped = t.flip_y();
+    assert_eq!(flipped.get(7, 0), 1); // row 0 → row 7
+    assert_eq!(flipped.get(0, 0), 0);
+}
+
+#[test]
+fn tile_render_row() {
+    let mut data = [0u8; BYTES_PER_TILE];
+    data[0] = 0xFF; // lo=all 1s for row 0
+    data[1] = 0x00; // hi=all 0s → all pixels = color 1
+    let t = Tile::from_2bpp(&data);
+    let row = t.render_row(0, &GRAYSCALE_PALETTE);
+    for pixel in &row {
+        assert_eq!(*pixel, Rgba::rgb(0xAA, 0xAA, 0xAA)); // LightGray
+    }
+}
+
+#[test]
+fn decode_2bpp_row_function() {
+    let result = decode_2bpp_row(0b11001100, 0b10101010);
+    // bit7: lo=1,hi=1 → 3
+    // bit6: lo=1,hi=0 → 1
+    // bit5: lo=0,hi=1 → 2
+    // bit4: lo=0,hi=0 → 0
+    // bit3: lo=1,hi=1 → 3
+    // bit2: lo=1,hi=0 → 1
+    // bit1: lo=0,hi=1 → 2
+    // bit0: lo=0,hi=0 → 0
+    assert_eq!(result, [3, 1, 2, 0, 3, 1, 2, 0]);
+}
+
+// --- TileSet tests ---
+
+#[test]
+fn tileset_from_2bpp() {
+    // 2 tiles worth of data
+    let data = [0u8; BYTES_PER_TILE * 2];
+    let ts = TileSet::from_2bpp(&data);
+    assert_eq!(ts.len(), 2);
+    assert!(!ts.is_empty());
+}
+
+#[test]
+fn tileset_blank() {
+    let ts = TileSet::blank(10);
+    assert_eq!(ts.len(), 10);
+    for i in 0..10 {
+        assert_eq!(ts.get(i).get(0, 0), 0);
+    }
+}
+
+#[test]
+fn tileset_out_of_bounds_returns_blank() {
+    let ts = TileSet::blank(1);
+    let t = ts.get(999);
+    assert_eq!(t.get(0, 0), 0);
+}
+
+#[test]
+fn tileset_from_1bpp() {
+    // 1bpp: 8 bytes per tile, bit=1 → color 3, bit=0 → color 0
+    let mut data = [0u8; 8];
+    data[0] = 0b10000001; // row 0: pixels 0 and 7 are black
+    let ts = TileSet::from_1bpp(&data);
+    assert_eq!(ts.len(), 1);
+    assert_eq!(ts.get(0).get(0, 0), 3);
+    assert_eq!(ts.get(0).get(0, 1), 0);
+    assert_eq!(ts.get(0).get(0, 7), 3);
+}
+
+#[test]
+fn tileset_load_2bpp_at() {
+    let mut ts = TileSet::blank(4);
+    // Create a tile with all color 3
+    let tile_data = [0xFF; BYTES_PER_TILE];
+    ts.load_2bpp_at(2, &tile_data);
+    assert_eq!(ts.get(0).get(0, 0), 0); // tile 0 still blank
+    assert_eq!(ts.get(2).get(0, 0), 3); // tile 2 loaded
+}
+
+// --- TileMap tests ---
+
+#[test]
+fn tilemap_new_all_zero() {
+    let tm = TileMap::new();
+    for y in 0..BG_MAP_HEIGHT {
+        for x in 0..BG_MAP_WIDTH {
+            assert_eq!(tm.get(x, y), 0);
+        }
+    }
+}
+
+#[test]
+fn tilemap_set_get() {
+    let mut tm = TileMap::new();
+    tm.set(5, 10, 42);
+    assert_eq!(tm.get(5, 10), 42);
+    assert_eq!(tm.get(6, 10), 0);
+}
+
+#[test]
+fn tilemap_wraps() {
+    let mut tm = TileMap::new();
+    tm.set(0, 0, 99);
+    assert_eq!(tm.get(32, 32), 99); // wraps at 32
+    assert_eq!(tm.get(64, 64), 99);
+}
+
+#[test]
+fn tilemap_from_data() {
+    let mut data = vec![0u8; BG_MAP_SIZE];
+    data[0] = 5;
+    data[31] = 10;
+    data[32] = 15; // row 1, col 0
+    let tm = TileMap::from_data(&data);
+    assert_eq!(tm.get(0, 0), 5);
+    assert_eq!(tm.get(31, 0), 10);
+    assert_eq!(tm.get(0, 1), 15);
+}
+
+#[test]
+fn tilemap_fill_rect() {
+    let mut tm = TileMap::new();
+    tm.fill_rect(2, 3, 4, 5, 77);
+    assert_eq!(tm.get(2, 3), 77);
+    assert_eq!(tm.get(5, 7), 77);
+    assert_eq!(tm.get(1, 3), 0);
+    assert_eq!(tm.get(6, 3), 0);
+    assert_eq!(tm.get(2, 2), 0);
+    assert_eq!(tm.get(2, 8), 0);
+}
+
+#[test]
+fn tilemap_copy_block() {
+    let mut tm = TileMap::new();
+    let block = [1, 2, 3, 4, 5, 6]; // 3×2 block
+    tm.copy_block(10, 5, &block, 3);
+    assert_eq!(tm.get(10, 5), 1);
+    assert_eq!(tm.get(11, 5), 2);
+    assert_eq!(tm.get(12, 5), 3);
+    assert_eq!(tm.get(10, 6), 4);
+    assert_eq!(tm.get(11, 6), 5);
+    assert_eq!(tm.get(12, 6), 6);
+}
+
+#[test]
+fn tilemap_render_solid_tile() {
+    // Create a tileset with tile 0 = all color 3 (black)
+    let tile_data = [0xFF; BYTES_PER_TILE];
+    let ts = TileSet::from_2bpp(&tile_data);
+    let tm = TileMap::new(); // all tile 0
+    let mut fb = FrameBuffer::new(Rgba::WHITE);
+    tm.render(&mut fb, &ts, &GRAYSCALE_PALETTE, 0, 0);
+    // All pixels should be black (color 3 in grayscale = 0,0,0)
+    assert_eq!(fb.get_pixel(0, 0), Some(Rgba::BLACK));
+    assert_eq!(fb.get_pixel(159, 143), Some(Rgba::BLACK));
+}
+
+#[test]
+fn tilemap_render_with_scroll() {
+    // Tile 0 = all white (blank), Tile 1 = all black
+    let mut data = vec![0u8; BYTES_PER_TILE * 2];
+    for i in BYTES_PER_TILE..BYTES_PER_TILE * 2 {
+        data[i] = 0xFF;
+    }
+    let ts = TileSet::from_2bpp(&data);
+
+    let mut tm = TileMap::new();
+    // Set tile at (1, 0) to tile 1 (black)
+    tm.set(1, 0, 1);
+
+    let mut fb = FrameBuffer::new(Rgba::WHITE);
+    // Scroll so that tile (1,0) appears at screen (0,0)
+    tm.render(&mut fb, &ts, &GRAYSCALE_PALETTE, 8, 0);
+    assert_eq!(fb.get_pixel(0, 0), Some(Rgba::BLACK));
+    // Pixel at screen (8,0) should be tile (2,0) = tile 0 = white
+    assert_eq!(fb.get_pixel(8, 0), Some(Rgba::rgb(0xFF, 0xFF, 0xFF)));
+}
+
+// --- ScrollState tests ---
+
+#[test]
+fn scroll_state_default() {
+    let s = ScrollState::default();
+    assert_eq!(s.scx, 0);
+    assert_eq!(s.scy, 0);
+}
+
+#[test]
+fn scroll_state_wraps() {
+    let s = ScrollState::new(300, 500);
+    assert!(s.scx < 256);
+    assert!(s.scy < 256);
+}
+
+#[test]
+fn scroll_state_scroll_by() {
+    let mut s = ScrollState::new(0, 0);
+    s.scroll_by(10, 20);
+    assert_eq!(s.scx, 10);
+    assert_eq!(s.scy, 20);
+    // Negative scroll wraps
+    s.scroll_by(-15, -25);
+    assert_eq!(s.scx, 256 - 5); // 251
+    assert_eq!(s.scy, 256 - 5); // 251
+}
+
+#[test]
+fn scroll_state_screen_to_bg() {
+    let s = ScrollState::new(100, 50);
+    let (bx, by) = s.screen_to_bg(10, 20);
+    assert_eq!(bx, 110);
+    assert_eq!(by, 70);
+}
+
+#[test]
+fn scroll_state_screen_to_bg_wraps() {
+    let s = ScrollState::new(250, 250);
+    let (bx, by) = s.screen_to_bg(10, 10);
+    assert_eq!(bx, (250 + 10) % 256);
+    assert_eq!(by, (250 + 10) % 256);
+}
+
+#[test]
+fn scroll_state_bg_to_screen() {
+    let s = ScrollState::new(10, 20);
+    assert_eq!(s.bg_to_screen(15, 25), Some((5, 5)));
+    // Off-screen
+    assert_eq!(s.bg_to_screen(200, 200), None);
+}
+
+// --- Viewport tests ---
+
+#[test]
+fn viewport_from_scroll() {
+    let s = ScrollState::new(10, 20);
+    let vp = Viewport::from_scroll(&s);
+    assert_eq!(vp.x, 10);
+    assert_eq!(vp.y, 20);
+    assert_eq!(vp.width, SCREEN_WIDTH);
+    assert_eq!(vp.height, SCREEN_HEIGHT);
+}
+
+// --- WindowLayer tests ---
+
+#[test]
+fn window_layer_disabled_by_default() {
+    let wl = WindowLayer::new();
+    assert!(!wl.enabled);
+    assert_eq!(wl.wx, 7);
+    assert_eq!(wl.wy, 0);
+}
+
+#[test]
+fn window_layer_screen_x() {
+    let mut wl = WindowLayer::new();
+    wl.wx = 7;
+    assert_eq!(wl.screen_x(), 0);
+    wl.wx = 87;
+    assert_eq!(wl.screen_x(), 80);
+    wl.wx = 3; // less than 7, clamp to 0
+    assert_eq!(wl.screen_x(), 0);
+}
+
+#[test]
+fn window_layer_render_disabled() {
+    let wl = WindowLayer::new();
+    let ts = TileSet::blank(1);
+    let mut fb = FrameBuffer::new(Rgba::WHITE);
+    wl.render(&mut fb, &ts, &GRAYSCALE_PALETTE);
+    // Should not change anything since disabled
+    assert_eq!(fb.get_pixel(0, 0), Some(Rgba::WHITE));
+}
+
+#[test]
+fn window_layer_render_enabled() {
+    let mut wl = WindowLayer::new();
+    wl.enabled = true;
+    wl.wx = 7;  // starts at screen x=0
+    wl.wy = 0;  // starts at screen y=0
+
+    // Tile 0 = all black
+    let tile_data = [0xFF; BYTES_PER_TILE];
+    let ts = TileSet::from_2bpp(&tile_data);
+
+    let mut fb = FrameBuffer::new(Rgba::WHITE);
+    wl.render(&mut fb, &ts, &GRAYSCALE_PALETTE);
+    // Window covers entire screen with black tile
+    assert_eq!(fb.get_pixel(0, 0), Some(Rgba::BLACK));
+    assert_eq!(fb.get_pixel(159, 143), Some(Rgba::BLACK));
+}
+
+#[test]
+fn window_layer_partial_coverage() {
+    let mut wl = WindowLayer::new();
+    wl.enabled = true;
+    wl.wx = 7 + 80;  // starts at screen x=80
+    wl.wy = 72;      // starts at screen y=72
+
+    let tile_data = [0xFF; BYTES_PER_TILE];
+    let ts = TileSet::from_2bpp(&tile_data);
+
+    let mut fb = FrameBuffer::new(Rgba::WHITE);
+    wl.render(&mut fb, &ts, &GRAYSCALE_PALETTE);
+
+    // Above and left of window should remain white
+    assert_eq!(fb.get_pixel(0, 0), Some(Rgba::WHITE));
+    assert_eq!(fb.get_pixel(79, 71), Some(Rgba::WHITE));
+    // Window area should be black
+    assert_eq!(fb.get_pixel(80, 72), Some(Rgba::BLACK));
+    assert_eq!(fb.get_pixel(159, 143), Some(Rgba::BLACK));
+}
+
+// --- BgLayer tests ---
+
+#[test]
+fn bg_layer_default() {
+    let bg = BgLayer::new();
+    assert_eq!(bg.scroll_x, 0);
+    assert_eq!(bg.scroll_y, 0);
+}
