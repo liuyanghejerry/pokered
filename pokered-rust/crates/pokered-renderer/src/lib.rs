@@ -4,6 +4,7 @@
 // rendering API that draws into a 160×144 pixel framebuffer and displays
 // it via a scaled window using the `pixels` crate.
 
+pub mod battle_anim;
 pub mod battle_scene;
 pub mod input;
 pub mod menu;

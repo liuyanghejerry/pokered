@@ -2382,3 +2382,722 @@ fn battle_scene_draw_huds_visible() {
     assert_eq!(buf.get(3, 7), TILE_POKEBALL_NORMAL); // enemy first
     assert_eq!(buf.get(2, 7), TILE_POKEBALL_FAINTED); // enemy second
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// M5.7 — Battle animation tests
+// ═══════════════════════════════════════════════════════════════════════
+
+use crate::battle_anim::*;
+
+// ─── Data integrity tests ────────────────────────────────────────────
+
+#[test]
+fn battle_anim_constants_valid() {
+    assert_eq!(NUM_SUBANIMS, 86);
+    assert_eq!(NUM_FRAMEBLOCKS, 122);
+    assert_eq!(NUM_BASECOORDS, 177);
+    assert_eq!(NUM_MOVE_ANIMS, 203);
+    assert_eq!(ANIM_BASE_TILE_ID, 0x31);
+    assert_eq!(FIRST_SE_ID, 0xD8);
+    assert_eq!(ANIM_END, 0xFF);
+}
+
+#[test]
+fn base_coords_length_matches() {
+    assert_eq!(BASE_COORDS.len(), NUM_BASECOORDS);
+}
+
+#[test]
+fn base_coords_spot_check() {
+    // Coord 0: (0x10, 0x68)
+    assert_eq!(BASE_COORDS[0], (0x10, 0x68));
+    // Coord 0x0A: (0x34, 0x28)
+    assert_eq!(BASE_COORDS[0x0A], (0x34, 0x28));
+}
+
+#[test]
+fn frame_block_data_length() {
+    assert_eq!(FRAME_BLOCK_DATA.len(), NUM_FRAMEBLOCKS);
+}
+
+#[test]
+fn subanim_data_length() {
+    assert_eq!(SUBANIM_DATA.len(), NUM_SUBANIMS);
+}
+
+#[test]
+fn move_anim_data_length() {
+    assert_eq!(MOVE_ANIM_DATA.len(), NUM_MOVE_ANIMS);
+}
+
+#[test]
+fn get_subanimation_all_valid() {
+    for i in 0..NUM_SUBANIMS {
+        let sub = get_subanimation(i);
+        assert!(!sub.frames.is_empty(), "Subanim {} has no frames", i);
+    }
+}
+
+#[test]
+fn get_frame_block_all_valid() {
+    // Frame block 0 is an empty placeholder in the original game
+    assert!(get_frame_block(0).tiles.is_empty());
+    for i in 1..NUM_FRAMEBLOCKS {
+        let fb = get_frame_block(i);
+        assert!(!fb.tiles.is_empty(), "Frame block {} has no tiles", i);
+    }
+}
+
+#[test]
+fn get_move_animation_all_valid() {
+    for i in 0..NUM_MOVE_ANIMS {
+        let ma = get_move_animation(i);
+        assert!(!ma.commands.is_empty(), "Move anim {} has no commands", i);
+    }
+}
+
+// ─── Enum conversion tests ──────────────────────────────────────────
+
+#[test]
+fn subanim_transform_from_u8_roundtrip() {
+    assert_eq!(SubAnimTransform::from_u8(0), SubAnimTransform::Normal);
+    assert_eq!(SubAnimTransform::from_u8(1), SubAnimTransform::HvFlip);
+    assert_eq!(SubAnimTransform::from_u8(2), SubAnimTransform::HFlip);
+    assert_eq!(SubAnimTransform::from_u8(3), SubAnimTransform::CoordFlip);
+    assert_eq!(SubAnimTransform::from_u8(4), SubAnimTransform::Reverse);
+    assert_eq!(SubAnimTransform::from_u8(5), SubAnimTransform::Enemy);
+    // Out of range → Normal
+    assert_eq!(SubAnimTransform::from_u8(6), SubAnimTransform::Normal);
+    assert_eq!(SubAnimTransform::from_u8(255), SubAnimTransform::Normal);
+}
+
+#[test]
+fn frame_block_mode_from_u8_roundtrip() {
+    assert_eq!(FrameBlockMode::from_u8(0), FrameBlockMode::Mode00);
+    assert_eq!(FrameBlockMode::from_u8(1), FrameBlockMode::Mode01);
+    assert_eq!(FrameBlockMode::from_u8(2), FrameBlockMode::Mode02);
+    assert_eq!(FrameBlockMode::from_u8(3), FrameBlockMode::Mode03);
+    assert_eq!(FrameBlockMode::from_u8(4), FrameBlockMode::Mode04);
+    assert_eq!(FrameBlockMode::from_u8(99), FrameBlockMode::Mode00);
+}
+
+#[test]
+fn frame_block_mode_properties() {
+    // Mode00: has delay, cleans OAM, does NOT advance dest
+    assert!(FrameBlockMode::Mode00.has_delay());
+    assert!(FrameBlockMode::Mode00.cleans_oam());
+    assert!(!FrameBlockMode::Mode00.advances_dest());
+
+    // Mode02: no delay, no clean, advances dest
+    assert!(!FrameBlockMode::Mode02.has_delay());
+    assert!(!FrameBlockMode::Mode02.cleans_oam());
+    assert!(FrameBlockMode::Mode02.advances_dest());
+
+    // Mode03: has delay, no clean, advances dest
+    assert!(FrameBlockMode::Mode03.has_delay());
+    assert!(!FrameBlockMode::Mode03.cleans_oam());
+    assert!(FrameBlockMode::Mode03.advances_dest());
+
+    // Mode04: has delay, no clean, does NOT advance dest
+    assert!(FrameBlockMode::Mode04.has_delay());
+    assert!(!FrameBlockMode::Mode04.cleans_oam());
+    assert!(!FrameBlockMode::Mode04.advances_dest());
+}
+
+#[test]
+fn special_effect_from_u8_boundary() {
+    assert_eq!(
+        SpecialEffect::from_u8(0xD8),
+        Some(SpecialEffect::WavyScreen)
+    );
+    assert_eq!(
+        SpecialEffect::from_u8(0xFE),
+        Some(SpecialEffect::DarkScreenFlash)
+    );
+    assert_eq!(SpecialEffect::from_u8(0xD7), None); // below range
+    assert_eq!(SpecialEffect::from_u8(0xFF), None); // above range (ANIM_END)
+    assert_eq!(SpecialEffect::from_u8(0x00), None); // way below range
+}
+
+#[test]
+fn animation_type_from_u8() {
+    assert_eq!(AnimationType::from_u8(0), AnimationType::None);
+    assert_eq!(
+        AnimationType::from_u8(1),
+        AnimationType::ShakeScreenVertically
+    );
+    assert_eq!(
+        AnimationType::from_u8(4),
+        AnimationType::BlinkEnemyMonSprite
+    );
+    assert_eq!(
+        AnimationType::from_u8(6),
+        AnimationType::ShakeScreenHorizontallySlow2
+    );
+    assert_eq!(AnimationType::from_u8(7), AnimationType::None);
+}
+
+// ─── decode_command tests ───────────────────────────────────────────
+
+#[test]
+fn decode_command_subanim() {
+    // kind=0 → SubAnim, sound=5, subanim=10, tileset=1 (bits 7-6 of packed), delay=6 (bits 5-0)
+    let packed = (1 << 6) | 6; // tileset=1, delay=6 → 0x46
+    let raw = (0u8, 5u8, 10u8, packed);
+    let cmd = AnimationPlayer::decode_command(&raw);
+    match cmd {
+        AnimCommand::SubAnim {
+            sound_id,
+            subanim_id,
+            tileset,
+            delay,
+        } => {
+            assert_eq!(sound_id, 5);
+            assert_eq!(subanim_id, 10);
+            assert_eq!(tileset, 1);
+            assert_eq!(delay, 6);
+        }
+        _ => panic!("Expected SubAnim command"),
+    }
+}
+
+#[test]
+fn decode_command_subanim_tileset_zero() {
+    // tileset=0, delay=0x3F (max)
+    let raw = (0u8, 0u8, 42u8, 0x3F);
+    let cmd = AnimationPlayer::decode_command(&raw);
+    match cmd {
+        AnimCommand::SubAnim {
+            sound_id,
+            subanim_id,
+            tileset,
+            delay,
+        } => {
+            assert_eq!(sound_id, 0);
+            assert_eq!(subanim_id, 42);
+            assert_eq!(tileset, 0);
+            assert_eq!(delay, 0x3F);
+        }
+        _ => panic!("Expected SubAnim command"),
+    }
+}
+
+#[test]
+fn decode_command_effect() {
+    // kind=1 → Effect, sound=73, effect=0xFB (ShakeScreen)
+    let raw = (1u8, 73u8, 0xFBu8, 0u8);
+    let cmd = AnimationPlayer::decode_command(&raw);
+    match cmd {
+        AnimCommand::Effect { sound_id, effect } => {
+            assert_eq!(sound_id, 73);
+            assert_eq!(effect, SpecialEffect::ShakeScreen);
+        }
+        _ => panic!("Expected Effect command"),
+    }
+}
+
+#[test]
+fn decode_command_effect_wavy_screen() {
+    let raw = (1u8, 0u8, 0xD8u8, 0u8);
+    let cmd = AnimationPlayer::decode_command(&raw);
+    match cmd {
+        AnimCommand::Effect { sound_id, effect } => {
+            assert_eq!(sound_id, 0);
+            assert_eq!(effect, SpecialEffect::WavyScreen);
+        }
+        _ => panic!("Expected Effect command"),
+    }
+}
+
+// ─── resolve_transform tests ────────────────────────────────────────
+
+#[test]
+fn resolve_transform_enemy_player_turn() {
+    // Player is attacker + Enemy transform → HFlip
+    let mut player = AnimationPlayer::new();
+    player.start(0, true); // player_is_attacker = true
+    assert_eq!(
+        player.resolve_transform(SubAnimTransform::Enemy),
+        SubAnimTransform::HFlip
+    );
+}
+
+#[test]
+fn resolve_transform_enemy_enemy_turn() {
+    // Enemy is attacker + Enemy transform → Normal
+    let mut player = AnimationPlayer::new();
+    player.start(0, false); // player_is_attacker = false
+    assert_eq!(
+        player.resolve_transform(SubAnimTransform::Enemy),
+        SubAnimTransform::Normal
+    );
+}
+
+#[test]
+fn resolve_transform_non_enemy_player_turn() {
+    // Player is attacker + non-Enemy → Normal (override per GetSubanimationTransform1)
+    let mut player = AnimationPlayer::new();
+    player.start(0, true);
+    assert_eq!(
+        player.resolve_transform(SubAnimTransform::HvFlip),
+        SubAnimTransform::Normal
+    );
+    assert_eq!(
+        player.resolve_transform(SubAnimTransform::HFlip),
+        SubAnimTransform::Normal
+    );
+    assert_eq!(
+        player.resolve_transform(SubAnimTransform::CoordFlip),
+        SubAnimTransform::Normal
+    );
+    assert_eq!(
+        player.resolve_transform(SubAnimTransform::Normal),
+        SubAnimTransform::Normal
+    );
+}
+
+#[test]
+fn resolve_transform_non_enemy_enemy_turn() {
+    // Enemy is attacker + non-Enemy → use specified type
+    let mut player = AnimationPlayer::new();
+    player.start(0, false);
+    assert_eq!(
+        player.resolve_transform(SubAnimTransform::HvFlip),
+        SubAnimTransform::HvFlip
+    );
+    assert_eq!(
+        player.resolve_transform(SubAnimTransform::HFlip),
+        SubAnimTransform::HFlip
+    );
+    assert_eq!(
+        player.resolve_transform(SubAnimTransform::CoordFlip),
+        SubAnimTransform::CoordFlip
+    );
+    assert_eq!(
+        player.resolve_transform(SubAnimTransform::Normal),
+        SubAnimTransform::Normal
+    );
+}
+
+// ─── render_frame_block tests ───────────────────────────────────────
+
+#[test]
+fn render_frame_block_normal_transform() {
+    // Use frame block 1 (block 0 is empty), base coord 0: (0x10, 0x68)
+    let mut dest = Vec::new();
+    AnimationPlayer::render_frame_block(1, 0, SubAnimTransform::Normal, &mut dest);
+    assert!(!dest.is_empty(), "Frame block 1 should produce OAM entries");
+    let fb = FRAME_BLOCK_DATA[1];
+    let (by, bx) = BASE_COORDS[0];
+    let (y_off, x_off, raw_tile, flags) = fb[0];
+    let expected_y = by as i32 + (y_off as i32) * 8;
+    let expected_x = bx as i32 + (x_off as i32) * 8;
+    assert_eq!(dest[0].y, expected_y);
+    assert_eq!(dest[0].x, expected_x);
+    assert_eq!(dest[0].tile_id, raw_tile.wrapping_add(ANIM_BASE_TILE_ID));
+    assert_eq!(dest[0].attributes, flags);
+}
+
+#[test]
+fn render_frame_block_hvflip_transform() {
+    let mut dest = Vec::new();
+    AnimationPlayer::render_frame_block(1, 0, SubAnimTransform::HvFlip, &mut dest);
+    assert!(!dest.is_empty());
+    let fb = FRAME_BLOCK_DATA[1];
+    let (by, bx) = BASE_COORDS[0];
+    let (y_off, x_off, raw_tile, flags) = fb[0];
+    let expected_y = 136i32 - (by as i32 + (y_off as i32) * 8);
+    let expected_x = 168i32 - (bx as i32 + (x_off as i32) * 8);
+    assert_eq!(dest[0].y, expected_y);
+    assert_eq!(dest[0].x, expected_x);
+    assert_eq!(dest[0].tile_id, raw_tile.wrapping_add(ANIM_BASE_TILE_ID));
+    let expected_flags = match flags & 0x60 {
+        0x00 => (flags & !0x60) | 0x60,
+        0x20 => (flags & !0x60) | 0x40,
+        0x40 => (flags & !0x60) | 0x20,
+        0x60 => flags & !0x60,
+        _ => flags,
+    };
+    assert_eq!(dest[0].attributes, expected_flags);
+}
+
+#[test]
+fn render_frame_block_hflip_transform() {
+    let mut dest = Vec::new();
+    AnimationPlayer::render_frame_block(1, 0, SubAnimTransform::HFlip, &mut dest);
+    assert!(!dest.is_empty());
+    let fb = FRAME_BLOCK_DATA[1];
+    let (by, bx) = BASE_COORDS[0];
+    let (y_off, x_off, _raw_tile, flags) = fb[0];
+    let expected_y = by as i32 + (y_off as i32) * 8 + 40;
+    let expected_x = 168i32 - (bx as i32 + (x_off as i32) * 8);
+    assert_eq!(dest[0].y, expected_y);
+    assert_eq!(dest[0].x, expected_x);
+    assert_eq!(dest[0].attributes, flags ^ OAM_XFLIP);
+}
+
+#[test]
+fn render_frame_block_coordflip_transform() {
+    let mut dest = Vec::new();
+    AnimationPlayer::render_frame_block(1, 0, SubAnimTransform::CoordFlip, &mut dest);
+    assert!(!dest.is_empty());
+    let fb = FRAME_BLOCK_DATA[1];
+    let (by, bx) = BASE_COORDS[0];
+    let (y_off, x_off, _raw_tile, flags) = fb[0];
+    let expected_y = (136i32 - by as i32) + (y_off as i32) * 8;
+    let expected_x = (168i32 - bx as i32) + (x_off as i32) * 8;
+    assert_eq!(dest[0].y, expected_y);
+    assert_eq!(dest[0].x, expected_x);
+    assert_eq!(dest[0].attributes, flags);
+}
+
+#[test]
+fn render_frame_block_out_of_bounds() {
+    let mut dest = Vec::new();
+    // Invalid frame block ID
+    AnimationPlayer::render_frame_block(NUM_FRAMEBLOCKS, 0, SubAnimTransform::Normal, &mut dest);
+    assert!(dest.is_empty());
+    // Invalid base coord ID
+    AnimationPlayer::render_frame_block(0, NUM_BASECOORDS, SubAnimTransform::Normal, &mut dest);
+    assert!(dest.is_empty());
+}
+
+#[test]
+fn render_frame_block_tile_count_matches_data() {
+    // Each tile in frame block → one OAM entry
+    for fb_id in 0..NUM_FRAMEBLOCKS {
+        let mut dest = Vec::new();
+        AnimationPlayer::render_frame_block(fb_id, 0, SubAnimTransform::Normal, &mut dest);
+        assert_eq!(
+            dest.len(),
+            FRAME_BLOCK_DATA[fb_id].len(),
+            "Frame block {} tile count mismatch",
+            fb_id
+        );
+    }
+}
+
+// ─── AnimationPlayer lifecycle tests ────────────────────────────────
+
+#[test]
+fn animation_player_new_is_finished() {
+    let player = AnimationPlayer::new();
+    assert!(player.is_finished());
+    assert!(player.oam_entries().is_empty());
+}
+
+#[test]
+fn animation_player_default_is_finished() {
+    let player = AnimationPlayer::default();
+    assert!(player.is_finished());
+}
+
+#[test]
+fn animation_player_start_resets_state() {
+    let mut player = AnimationPlayer::new();
+    assert!(player.is_finished());
+    // Start move 0 (Pound): has subanim commands
+    player.start(0, true);
+    assert!(!player.is_finished());
+}
+
+#[test]
+fn animation_player_start_invalid_move() {
+    let mut player = AnimationPlayer::new();
+    player.start(9999, true);
+    assert!(player.is_finished());
+}
+
+#[test]
+fn animation_player_tick_finished_returns_done() {
+    let mut player = AnimationPlayer::new();
+    assert_eq!(player.tick(), AnimTickResult::Done);
+}
+
+// ─── tick state machine tests ───────────────────────────────────────
+
+#[test]
+fn animation_player_tick_effect_only_anim() {
+    // Move 0xA5 (ShowPic, index 165) = [(1, 0, 220, 0)] → single Effect command
+    // 220 = 0xDC = ShowEnemyMonPic
+    let mut player = AnimationPlayer::new();
+    player.start(165, true);
+    let result = player.tick();
+    match result {
+        AnimTickResult::Effect(e) => {
+            assert_eq!(e, SpecialEffect::ShowEnemyMonPic);
+        }
+        other => panic!("Expected Effect, got {:?}", other),
+    }
+    // Next tick should be Done
+    assert_eq!(player.tick(), AnimTickResult::Done);
+    assert!(player.is_finished());
+}
+
+#[test]
+fn animation_player_tick_subanim_produces_oam() {
+    // Move 0 (Pound) = [(0, 1, 1, 8)] → SubAnim with subanim_id=1, tileset=0, delay=8
+    let mut player = AnimationPlayer::new();
+    player.start(0, true);
+    let result = player.tick();
+    // First tick should either produce Playing or WaitDelay (depending on delay and mode)
+    match result {
+        AnimTickResult::Playing | AnimTickResult::WaitDelay(_) => {
+            // After first tick, OAM buffer should have entries
+            assert!(
+                !player.oam_entries().is_empty(),
+                "OAM buffer should have entries after SubAnim tick"
+            );
+        }
+        other => panic!("Expected Playing or WaitDelay, got {:?}", other),
+    }
+}
+
+#[test]
+fn animation_player_runs_to_completion() {
+    // Run a simple animation to completion (max 1000 ticks to prevent infinite loops)
+    // Move 165 (ShowPic) = single Effect command
+    let mut player = AnimationPlayer::new();
+    player.start(165, true);
+    let mut ticks = 0;
+    loop {
+        let result = player.tick();
+        ticks += 1;
+        if ticks > 1000 {
+            panic!("Animation didn't finish in 1000 ticks");
+        }
+        if let AnimTickResult::Done = result {
+            break;
+        }
+    }
+    assert!(player.is_finished());
+}
+
+#[test]
+fn animation_player_multi_command_anim() {
+    // Move 0xA6 (EnemyFlash, index 166) = [(1, 0, 221, 0)] → Effect: 0xDD = ShowMonPic
+    // Move 0xAD (XStatItem, index 173) = [(1,0,240,0), (1,0,226,0), (1,0,252,0)]
+    //   → 3 Effect commands: 0xF0=LightScreenPalette, 0xE2=SpiralBallsInward, 0xFC=ResetScreenPalette
+    let mut player = AnimationPlayer::new();
+    player.start(173, true);
+
+    let mut effects = Vec::new();
+    let mut ticks = 0;
+    loop {
+        let result = player.tick();
+        ticks += 1;
+        if ticks > 100 {
+            panic!("Too many ticks");
+        }
+        match result {
+            AnimTickResult::Effect(e) => effects.push(e),
+            AnimTickResult::Done => break,
+            _ => {}
+        }
+    }
+    assert_eq!(effects.len(), 3);
+    assert_eq!(effects[0], SpecialEffect::LightScreenPalette);
+    assert_eq!(effects[1], SpecialEffect::SpiralBallsInward);
+    assert_eq!(effects[2], SpecialEffect::ResetScreenPalette);
+}
+
+// ─── apply_effect tests ─────────────────────────────────────────────
+
+#[test]
+fn apply_effect_flash_screen_variants() {
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::FlashScreenLong),
+        AnimEffect::FlashScreen { frames: 16 }
+    );
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::DarkScreenFlash),
+        AnimEffect::FlashScreen { frames: 4 }
+    );
+}
+
+#[test]
+fn apply_effect_screen_palettes() {
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::DarkScreenPalette),
+        AnimEffect::DarkScreenPalette
+    );
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::LightScreenPalette),
+        AnimEffect::LightScreenPalette
+    );
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::ResetScreenPalette),
+        AnimEffect::ResetScreenPalette
+    );
+}
+
+#[test]
+fn apply_effect_mon_visibility() {
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::HideMonPic),
+        AnimEffect::HidePlayerMon
+    );
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::ShowMonPic),
+        AnimEffect::ShowPlayerMon
+    );
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::HideEnemyMonPic),
+        AnimEffect::HideEnemyMon
+    );
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::ShowEnemyMonPic),
+        AnimEffect::ShowEnemyMon
+    );
+}
+
+#[test]
+fn apply_effect_blink_variants() {
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::BlinkEnemyMon),
+        AnimEffect::BlinkEnemyMon { times: 6 }
+    );
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::BlinkMon),
+        AnimEffect::BlinkPlayerMon { times: 6 }
+    );
+}
+
+#[test]
+fn apply_effect_slide_variants() {
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::SlideEnemyMonOff),
+        AnimEffect::SlideEnemyMonOff
+    );
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::SlideMonHalfOff),
+        AnimEffect::SlidePlayerMonHalfOff
+    );
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::SlideMonDown),
+        AnimEffect::SlidePlayerMonDown
+    );
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::SlideMonUp),
+        AnimEffect::SlidePlayerMonUp
+    );
+}
+
+#[test]
+fn apply_effect_shoot_balls() {
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::ShootManyBallsUpward),
+        AnimEffect::ShootBallsUpward { many: true }
+    );
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::ShootBallsUpward),
+        AnimEffect::ShootBallsUpward { many: false }
+    );
+}
+
+#[test]
+fn apply_effect_shake_enemy_hud() {
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::ShakeEnemyHud),
+        AnimEffect::ShakeEnemyHud { variant: 1 }
+    );
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::ShakeEnemyHud2),
+        AnimEffect::ShakeEnemyHud { variant: 2 }
+    );
+}
+
+#[test]
+fn apply_effect_misc() {
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::WavyScreen),
+        AnimEffect::WavyScreen
+    );
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::SubstituteMon),
+        AnimEffect::SubstituteMon
+    );
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::TransformMon),
+        AnimEffect::TransformMon
+    );
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::MinimizeMon),
+        AnimEffect::MinimizeMon
+    );
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::BounceUpAndDown),
+        AnimEffect::BounceUpAndDown
+    );
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::DelayAnimation10),
+        AnimEffect::Delay10
+    );
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::DarkenMonPalette),
+        AnimEffect::DarkenMonPalette
+    );
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::SquishMonPic),
+        AnimEffect::SquishMonPic
+    );
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::ResetMonPosition),
+        AnimEffect::ResetPlayerMonPosition
+    );
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::MoveMonHorizontally),
+        AnimEffect::MovePlayerMonH
+    );
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::PetalsFalling),
+        AnimEffect::PetalsFalling
+    );
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::LeavesFalling),
+        AnimEffect::LeavesFalling
+    );
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::WaterDropletsEverywhere),
+        AnimEffect::WaterDroplets
+    );
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::SpiralBallsInward),
+        AnimEffect::SpiralBallsInward
+    );
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::ShakeBackAndForth),
+        AnimEffect::ShakeBackAndForth
+    );
+    assert_eq!(
+        AnimationPlayer::apply_effect(SpecialEffect::ShakeScreen),
+        AnimEffect::ShakeScreenH {
+            pixels: 4,
+            frames: 8
+        }
+    );
+}
+
+// ─── HvFlip flag toggle logic ───────────────────────────────────────
+
+#[test]
+fn hvflip_flag_cycle() {
+    // Test the XOR-with-0x60 cycle on isolated flag values
+    // 0x00 → 0x60, 0x20 → 0x40, 0x40 → 0x20, 0x60 → 0x00
+    let toggle = |flags: u8| -> u8 {
+        match flags & 0x60 {
+            0x00 => (flags & !0x60) | 0x60,
+            0x20 => (flags & !0x60) | 0x40,
+            0x40 => (flags & !0x60) | 0x20,
+            0x60 => flags & !0x60,
+            _ => flags,
+        }
+    };
+    assert_eq!(toggle(0x00), 0x60);
+    assert_eq!(toggle(0x20), 0x40);
+    assert_eq!(toggle(0x40), 0x20);
+    assert_eq!(toggle(0x60), 0x00);
+    // With extra bits (e.g. priority bit 0x80)
+    assert_eq!(toggle(0x80), 0xE0); // 0x80 | 0x60
+    assert_eq!(toggle(0xA0), 0xC0); // 0x80 | 0x40
+}
