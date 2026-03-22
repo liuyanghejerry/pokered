@@ -1,0 +1,323 @@
+//! Audio command decoding and frequency calculation.
+//!
+//! Parses the byte stream format used by the pokered audio engine.
+//! Command byte ranges:
+//! - $00-$AF: note (high nibble = pitch, low nibble = length-1)
+//! - $B0-$BF: drum_note (low nibble = length-1, next byte = instrument)
+//! - $C0-$CF: rest (low nibble = length-1)
+//! - $D0-$DF: note_type (low nibble = speed, param bytes follow)
+//! - $E0-$E7: octave (octave = 8 - low nibble)
+//! - $E8+:    control commands (vibrato, pitch slide, duty, tempo, etc.)
+
+use crate::{NOTE_FREQUENCIES, NUM_NOTES};
+
+// ── Command Enum ─────────────────────────────────────────────────────────
+
+/// Decoded audio command.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Command {
+    /// Play a note. pitch = 0-11 (C through B), length = 1-16.
+    Note { pitch: u8, length: u8 },
+
+    /// Play a drum/noise note. length = 1-16, instrument = noise instrument ID.
+    DrumNote { length: u8, instrument: u8 },
+
+    /// Rest (silence). length = 1-16.
+    Rest { length: u8 },
+
+    /// Set note type: speed (1-16) + volume/envelope byte.
+    /// For wave channel: the param byte's low nibble is wave instrument index.
+    NoteType { speed: u8, param: u8 },
+
+    /// Set octave (0-7). In the byte stream: $E0 = octave 8, $E7 = octave 1.
+    /// We store the actual octave value.
+    Octave(u8),
+
+    /// Toggle perfect pitch flag.
+    TogglePerfectPitch,
+
+    /// Set vibrato parameters.
+    /// delay = initial delay before vibrato starts, depth_rate = packed (depth<<4 | rate).
+    Vibrato { delay: u8, depth_rate: u8 },
+
+    /// Initiate pitch slide.
+    /// length_modifier = duration adjustment, octave_pitch = packed (octave<<4 | pitch).
+    PitchSlide { length_modifier: u8, octave_pitch: u8 },
+
+    /// Set duty cycle (0-3).
+    DutyCycle(u8),
+
+    /// Set tempo (16-bit big-endian in original; we store as u16).
+    Tempo(u16),
+
+    /// Set stereo panning byte.
+    StereoPanning(u8),
+
+    /// Unknown command 0xEF (mostly unused, 1 param byte).
+    UnknownEF(u8),
+
+    /// Set master volume (written to NR50).
+    Volume(u8),
+
+    /// Toggle execute_music flag on SFX channel.
+    ExecuteMusic,
+
+    /// Set duty cycle rotation pattern (4 x 2-bit packed).
+    DutyCyclePattern(u8),
+
+    /// Call a subroutine at the given data offset.
+    SoundCall { offset: u16 },
+
+    /// Loop: count (0 = infinite), target offset.
+    SoundLoop { count: u8, offset: u16 },
+
+    /// Return from sound_call subroutine.
+    SoundRet,
+
+    /// End of data / unrecognized.
+    EndOfData,
+}
+
+// ── Command Byte Constants ───────────────────────────────────────────────
+
+pub const CMD_TOGGLE_PERFECT_PITCH: u8 = 0xE8;
+// 0xE9 is unused
+pub const CMD_VIBRATO: u8 = 0xEA;
+pub const CMD_PITCH_SLIDE: u8 = 0xEB;
+pub const CMD_DUTY_CYCLE: u8 = 0xEC;
+pub const CMD_TEMPO: u8 = 0xED;
+pub const CMD_STEREO_PANNING: u8 = 0xEE;
+pub const CMD_UNKNOWN_EF: u8 = 0xEF;
+pub const CMD_VOLUME: u8 = 0xF0;
+// $F1-$F7 unused
+pub const CMD_EXECUTE_MUSIC: u8 = 0xF8;
+// $F9-$FB unused
+pub const CMD_DUTY_CYCLE_PATTERN: u8 = 0xFC;
+pub const CMD_SOUND_CALL: u8 = 0xFD;
+pub const CMD_SOUND_LOOP: u8 = 0xFE;
+pub const CMD_SOUND_RET: u8 = 0xFF;
+
+// ── Decode ───────────────────────────────────────────────────────────────
+
+/// Decode one command from a byte slice starting at `pos`.
+/// Returns (command, new_pos).
+pub fn decode_command(data: &[u8], pos: usize) -> (Command, usize) {
+    if pos >= data.len() {
+        return (Command::EndOfData, pos);
+    }
+
+    let byte = data[pos];
+    let mut next = pos + 1;
+
+    match byte {
+        // Notes: $00-$AF
+        // High nibble (0-10) = pitch index, low nibble = length - 1
+        0x00..=0xAF => {
+            let pitch = byte >> 4;
+            let length = (byte & 0x0F) + 1;
+            (Command::Note { pitch, length }, next)
+        }
+
+        // Drum note: $B0-$BF
+        // Low nibble = length - 1, next byte = instrument ID
+        0xB0..=0xBF => {
+            let length = (byte & 0x0F) + 1;
+            let instrument = if next < data.len() {
+                let v = data[next];
+                next += 1;
+                v
+            } else {
+                0
+            };
+            (Command::DrumNote { length, instrument }, next)
+        }
+
+        // Rest: $C0-$CF
+        0xC0..=0xCF => {
+            let length = (byte & 0x0F) + 1;
+            (Command::Rest { length }, next)
+        }
+
+        // Note type: $D0-$DF
+        // Low nibble = speed, next byte = volume_envelope (or wave instrument)
+        0xD0..=0xDF => {
+            let speed = (byte & 0x0F) + 1; // speed is stored as (speed - 1) in low nibble
+            let param = if next < data.len() {
+                let v = data[next];
+                next += 1;
+                v
+            } else {
+                0
+            };
+            (Command::NoteType { speed, param }, next)
+        }
+
+        // Octave: $E0-$E7
+        // Octave value = 8 - low_nibble
+        0xE0..=0xE7 => {
+            let octave = 8 - (byte & 0x07);
+            (Command::Octave(octave), next)
+        }
+
+        // Control commands $E8+
+        CMD_TOGGLE_PERFECT_PITCH => (Command::TogglePerfectPitch, next),
+
+        0xE9 => (Command::EndOfData, next), // unused
+
+        CMD_VIBRATO => {
+            let delay = read_byte_at(data, &mut next);
+            let depth_rate = read_byte_at(data, &mut next);
+            (Command::Vibrato { delay, depth_rate }, next)
+        }
+
+        CMD_PITCH_SLIDE => {
+            let length_modifier = read_byte_at(data, &mut next);
+            let octave_pitch = read_byte_at(data, &mut next);
+            (
+                Command::PitchSlide {
+                    length_modifier,
+                    octave_pitch,
+                },
+                next,
+            )
+        }
+
+        CMD_DUTY_CYCLE => {
+            let duty = read_byte_at(data, &mut next);
+            (Command::DutyCycle(duty), next)
+        }
+
+        CMD_TEMPO => {
+            // Original is big-endian: high byte first, then low byte
+            let hi = read_byte_at(data, &mut next) as u16;
+            let lo = read_byte_at(data, &mut next) as u16;
+            (Command::Tempo((hi << 8) | lo), next)
+        }
+
+        CMD_STEREO_PANNING => {
+            let pan = read_byte_at(data, &mut next);
+            (Command::StereoPanning(pan), next)
+        }
+
+        CMD_UNKNOWN_EF => {
+            let param = read_byte_at(data, &mut next);
+            (Command::UnknownEF(param), next)
+        }
+
+        CMD_VOLUME => {
+            let vol = read_byte_at(data, &mut next);
+            (Command::Volume(vol), next)
+        }
+
+        0xF1..=0xF7 => (Command::EndOfData, next), // unused range
+
+        CMD_EXECUTE_MUSIC => (Command::ExecuteMusic, next),
+
+        0xF9..=0xFB => (Command::EndOfData, next), // unused range
+
+        CMD_DUTY_CYCLE_PATTERN => {
+            let pattern = read_byte_at(data, &mut next);
+            (Command::DutyCyclePattern(pattern), next)
+        }
+
+        CMD_SOUND_CALL => {
+            // 2-byte little-endian offset (in original this is a ROM address,
+            // but we treat it as an offset into the data stream)
+            let lo = read_byte_at(data, &mut next) as u16;
+            let hi = read_byte_at(data, &mut next) as u16;
+            let offset = (hi << 8) | lo;
+            (Command::SoundCall { offset }, next)
+        }
+
+        CMD_SOUND_LOOP => {
+            let count = read_byte_at(data, &mut next);
+            let lo = read_byte_at(data, &mut next) as u16;
+            let hi = read_byte_at(data, &mut next) as u16;
+            let offset = (hi << 8) | lo;
+            (Command::SoundLoop { count, offset }, next)
+        }
+
+        CMD_SOUND_RET => (Command::SoundRet, next),
+    }
+}
+
+/// Helper: read one byte at `pos` from `data`, advancing pos.
+fn read_byte_at(data: &[u8], pos: &mut usize) -> u8 {
+    if *pos < data.len() {
+        let v = data[*pos];
+        *pos += 1;
+        v
+    } else {
+        0
+    }
+}
+
+// ── Frequency Calculation ────────────────────────────────────────────────
+
+/// Calculate the 11-bit GB frequency register value for a given note and octave.
+///
+/// Replicates `Audio1_CalculateFrequency` from engine_1.asm:
+/// 1. Look up the 16-bit base value from NOTE_FREQUENCIES[note]
+/// 2. Arithmetic shift right by (7 - octave) positions
+/// 3. Add 0x0800 to the high byte
+/// 4. Return the 11-bit frequency register value (low 11 bits)
+///
+/// `note` is 0-11 (C through B), `octave` is 1-8 (engine convention).
+pub fn calculate_frequency(note: u8, octave: u8) -> u16 {
+    if note as usize >= NUM_NOTES {
+        return 0;
+    }
+
+    let base = NOTE_FREQUENCIES[note as usize];
+
+    // Arithmetic shift right by (7 - octave) — the original uses octave 1-8
+    // where octave 8 means no shift and octave 1 means 7 shifts.
+    // The engine stores octave as 1-8 (from command $E0-$E7 mapping).
+    let shift = if octave <= 7 { 7 - octave } else { 0 };
+
+    // Arithmetic right shift on a 16-bit signed value
+    let mut freq = base as i16;
+    for _ in 0..shift {
+        freq >>= 1; // Rust >> on i16 is arithmetic shift
+    }
+
+    // Add 0x08 to high byte (= add 0x0800 to the 16-bit value)
+    let result = (freq as u16).wrapping_add(0x0800);
+
+    // The 11-bit frequency register value
+    result & 0x07FF
+}
+
+/// Calculate note delay (frames) from note length, speed, and tempo.
+///
+/// Replicates `Audio1_note_length` from engine_1.asm:
+/// ```text
+/// raw = note_length * note_speed    (8-bit multiply)
+/// frac_accum += raw * tempo_lo
+/// delay = raw * tempo_hi + carry_from_frac
+/// ```
+///
+/// Returns (delay_counter, new_frac_accumulator).
+pub fn calculate_delay(note_length: u8, note_speed: u8, tempo: u16, frac_accum: u8) -> (u8, u8) {
+    let raw = (note_length as u16) * (note_speed as u16);
+
+    // Multiply raw by tempo (16-bit), accumulating into 24-bit result
+    // tempo is big-endian in the original: tempo_hi is the integer part,
+    // tempo_lo is the fractional part.
+    let tempo_hi = (tempo >> 8) as u16;
+    let tempo_lo = (tempo & 0xFF) as u16;
+
+    // Fractional part: raw * tempo_lo + previous frac accumulator
+    let frac_product = raw * tempo_lo + frac_accum as u16;
+    let new_frac = (frac_product & 0xFF) as u8;
+    let carry = (frac_product >> 8) as u16;
+
+    // Integer part: raw * tempo_hi + carry from fractional
+    let int_product = raw * tempo_hi + carry;
+    let delay = (int_product & 0xFF) as u8;
+
+    // Clamp to at least 1 frame
+    let delay = if delay == 0 { 1 } else { delay };
+
+    (delay, new_frac)
+}

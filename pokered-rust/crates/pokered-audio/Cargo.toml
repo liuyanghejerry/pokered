@@ -5,3 +5,4 @@ edition.workspace = true
 
 [dependencies]
 pokered-data = { path = "../pokered-data" }
+bitflags = "2"

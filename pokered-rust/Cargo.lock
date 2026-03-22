@@ -1398,6 +1398,7 @@ dependencies = [
 name = "pokered-audio"
 version = "0.1.0"
 dependencies = [
+ "bitflags 2.11.0",
  "pokered-data",
 ]
 

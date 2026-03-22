@@ -11,9 +11,15 @@
 
 pub mod channel;
 pub mod apu;
+pub mod commands;
+pub mod effects;
+pub mod sequencer;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod sequencer_tests;
 
 // ── Constants ────────────────────────────────────────────────────────────
 
