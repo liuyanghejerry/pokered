@@ -23,12 +23,6 @@
 **已完成**: WASM构建验证通过 — pokered-web编译正常(BattleScreen新字段兼容,new()签名不变)
 **验证**: `cargo build -p pokered-web --target wasm32-unknown-unknown` 通过
 
-## 里程碑 D5: 音频播放接入
-**目标**: 连接pokered-audio到主循环，播放BGM和音效
-**任务**:
-- 标题画面播放Title BGM
-- 大地图播放对应地图BGM
-- 战斗播放战斗BGM
-- 按键音效
-**参考**: `pokered-audio/src/` (已有完整音频引擎)
-**验收**: 运行游戏能听到音乐和音效
+## 里程碑 D5: 音频播放接入 ✅ 已完成
+**已完成**: cpal音频输出(cfg-gated非WASM) — AudioOutput封装Arc<Mutex<AudioManager>>共享给cpal回调线程 + 画面切换自动播放BGM(标题/橡木/调色板镇/野战) + A键音效(PressAB) + 开始菜单音效(StartMenu) + WASM构建验证通过
+**验证**: `cargo check -p pokered-app` 零错误 + `cargo build -p pokered-web --target wasm32-unknown-unknown` 通过

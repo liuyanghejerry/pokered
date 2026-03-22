@@ -1,0 +1,4 @@
+# Use Apple's libclang for bindgen (coreaudio-sys).
+# Homebrew LLVM's libclang may have broken dylib paths.
+[env]
+LIBCLANG_PATH = "/Library/Developer/CommandLineTools/usr/lib"

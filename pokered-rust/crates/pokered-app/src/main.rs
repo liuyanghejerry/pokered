@@ -1,6 +1,13 @@
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 
 use clap::{Parser, Subcommand, ValueEnum};
+#[cfg(not(target_arch = "wasm32"))]
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use pokered_audio::audio_manager::AudioManager;
+use pokered_audio::music_data::MusicId;
+use pokered_audio::sfx_data::SfxId;
+use pokered_audio::CPU_CLOCK_HZ;
 use pokered_core::battle::{BattleInput, BattlePhase, BattleScreen};
 use pokered_core::data::maps::MapId;
 use pokered_core::data::wild_data::GameVersion;
@@ -71,6 +78,72 @@ enum ScreenTarget {
     Save,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+struct AudioOutput {
+    manager: Arc<Mutex<AudioManager>>,
+    _stream: cpal::Stream,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl AudioOutput {
+    fn new() -> Option<Self> {
+        let host = cpal::default_host();
+        let device = host.default_output_device()?;
+        let config = cpal::StreamConfig {
+            channels: 2,
+            sample_rate: cpal::SampleRate(44_100),
+            buffer_size: cpal::BufferSize::Default,
+        };
+
+        let manager = Arc::new(Mutex::new(AudioManager::new()));
+        let mgr_clone = Arc::clone(&manager);
+
+        let cycles_per_sample = CPU_CLOCK_HZ / 44_100;
+        let stream = device
+            .build_output_stream(
+                &config,
+                move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
+                    let mut mgr = mgr_clone.lock().unwrap();
+                    let max_amplitude = 480.0_f32;
+                    for frame in data.chunks_mut(2) {
+                        mgr.apu.tick_n(cycles_per_sample);
+                        let (left, right) = mgr.apu.mix_sample();
+                        frame[0] = left as f32 / max_amplitude;
+                        frame[1] = right as f32 / max_amplitude;
+                    }
+                },
+                |err| eprintln!("Audio stream error: {}", err),
+                None,
+            )
+            .ok()?;
+
+        stream.play().ok()?;
+
+        Some(Self {
+            manager,
+            _stream: stream,
+        })
+    }
+
+    fn play_music(&self, id: MusicId) {
+        if let Ok(mut mgr) = self.manager.lock() {
+            mgr.play_music(id);
+        }
+    }
+
+    fn play_sfx(&self, id: SfxId) {
+        if let Ok(mut mgr) = self.manager.lock() {
+            mgr.play_sfx(id);
+        }
+    }
+
+    fn update_frame(&self) {
+        if let Ok(mut mgr) = self.manager.lock() {
+            mgr.update_frame();
+        }
+    }
+}
+
 struct PokemonGame {
     state: GameState,
     title_screen: TitleScreenState,
@@ -86,6 +159,8 @@ struct PokemonGame {
     frame_count: u64,
     exit_requested: bool,
     resources: Option<ResourceManager>,
+    #[cfg(not(target_arch = "wasm32"))]
+    audio: Option<AudioOutput>,
 }
 
 impl PokemonGame {
@@ -123,6 +198,18 @@ impl PokemonGame {
             }
         };
 
+        #[cfg(not(target_arch = "wasm32"))]
+        let audio = match AudioOutput::new() {
+            Some(ao) => {
+                println!("Audio output initialized (cpal 44100 Hz stereo)");
+                Some(ao)
+            }
+            None => {
+                eprintln!("Warning: Could not initialize audio output.");
+                None
+            }
+        };
+
         Self {
             state,
             title_screen,
@@ -138,6 +225,8 @@ impl PokemonGame {
             frame_count: 0,
             exit_requested: false,
             resources,
+            #[cfg(not(target_arch = "wasm32"))]
+            audio,
         }
     }
 
@@ -145,21 +234,41 @@ impl PokemonGame {
         match screen {
             GameScreen::TitleScreen => {
                 self.title_screen.reset();
+                #[cfg(not(target_arch = "wasm32"))]
+                if let Some(ref audio) = self.audio {
+                    audio.play_music(MusicId::TITLE_SCREEN);
+                }
             }
             GameScreen::MainMenu => {
                 self.main_menu = MainMenuState::new(None);
             }
             GameScreen::OakSpeech => {
                 self.oak_speech = OakSpeechState::new();
+                #[cfg(not(target_arch = "wasm32"))]
+                if let Some(ref audio) = self.audio {
+                    audio.play_music(MusicId::MEET_PROF_OAK);
+                }
             }
             GameScreen::Overworld => {
                 self.overworld = OverworldScreen::new(MapId::PalletTown);
+                #[cfg(not(target_arch = "wasm32"))]
+                if let Some(ref audio) = self.audio {
+                    audio.play_music(MusicId::PALLET_TOWN);
+                }
             }
             GameScreen::Battle => {
                 self.battle = BattleScreen::new(true);
+                #[cfg(not(target_arch = "wasm32"))]
+                if let Some(ref audio) = self.audio {
+                    audio.play_music(MusicId::WILD_BATTLE);
+                }
             }
             GameScreen::StartMenu => {
                 self.start_menu.open(false, false);
+                #[cfg(not(target_arch = "wasm32"))]
+                if let Some(ref audio) = self.audio {
+                    audio.play_sfx(SfxId::StartMenu);
+                }
             }
             GameScreen::OptionsMenu => {
                 self.options_menu = OptionsMenuState::new(GameOptions::default());
@@ -188,6 +297,14 @@ impl PokemonGame {
 impl GameLoop for PokemonGame {
     fn update(&mut self, input: &InputState) {
         self.frame_count += 1;
+
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(ref audio) = self.audio {
+            audio.update_frame();
+            if input.is_just_pressed(GbButton::A) {
+                audio.play_sfx(SfxId::PressAB);
+            }
+        }
 
         let action = match self.state.screen {
             GameScreen::CopyrightSplash | GameScreen::TitleScreen => {
