@@ -10,6 +10,7 @@
 //! module; this crate provides the low-level sample generation.
 
 pub mod apu;
+pub mod audio_manager;
 pub mod channel;
 pub mod commands;
 pub mod effects;
@@ -28,6 +29,9 @@ mod music_data_tests;
 
 #[cfg(test)]
 mod sfx_data_tests;
+
+#[cfg(test)]
+mod audio_manager_tests;
 
 // ── Constants ────────────────────────────────────────────────────────────
 
