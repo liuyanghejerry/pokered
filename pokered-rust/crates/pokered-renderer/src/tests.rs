@@ -3101,3 +3101,279 @@ fn hvflip_flag_cycle() {
     assert_eq!(toggle(0x80), 0xE0); // 0x80 | 0x60
     assert_eq!(toggle(0xA0), 0xC0); // 0x80 | 0x40
 }
+
+// ── Transition / Fade tests ──────────────────────────────────────────
+
+use crate::transition::*;
+
+#[test]
+fn fade_palette_constants_all_black() {
+    assert_eq!(FADE_PAL_1, FadePalette::new(0xFF, 0xFF, 0xFF));
+}
+
+#[test]
+fn fade_palette_constants_normal() {
+    assert_eq!(FADE_PAL_4.bgp, 0xE4);
+    assert_eq!(FADE_PAL_4.obp0, 0xD0);
+    assert_eq!(FADE_PAL_4.obp1, 0xE0);
+    assert_eq!(FADE_PAL_4, FADE_PAL_5);
+}
+
+#[test]
+fn fade_palette_constants_all_white() {
+    assert_eq!(FADE_PAL_8, FadePalette::new(0x00, 0x00, 0x00));
+}
+
+#[test]
+fn fade_palettes_array_length() {
+    assert_eq!(FADE_PALETTES.len(), 8);
+    assert_eq!(FADE_PALETTES[0], FADE_PAL_1);
+    assert_eq!(FADE_PALETTES[7], FADE_PAL_8);
+}
+
+#[test]
+fn fade_direction_in_from_black_indices() {
+    let indices = FadeDirection::InFromBlack.palette_indices();
+    assert_eq!(indices, &[0, 1, 2, 3]);
+    assert_eq!(FadeDirection::InFromBlack.step_count(), 4);
+}
+
+#[test]
+fn fade_direction_out_to_black_indices() {
+    let indices = FadeDirection::OutToBlack.palette_indices();
+    assert_eq!(indices, &[3, 2, 1, 0]);
+    assert_eq!(FadeDirection::OutToBlack.step_count(), 4);
+}
+
+#[test]
+fn fade_direction_out_to_white_indices() {
+    let indices = FadeDirection::OutToWhite.palette_indices();
+    assert_eq!(indices, &[5, 6, 7]);
+    assert_eq!(FadeDirection::OutToWhite.step_count(), 3);
+}
+
+#[test]
+fn fade_direction_in_from_white_indices() {
+    let indices = FadeDirection::InFromWhite.palette_indices();
+    assert_eq!(indices, &[6, 5, 4]);
+    assert_eq!(FadeDirection::InFromWhite.step_count(), 3);
+}
+
+#[test]
+fn instant_palette_normal() {
+    let p = InstantPalette::Normal.palette();
+    assert_eq!(p.bgp, 0xE4);
+    assert_eq!(p.obp0, 0xD0);
+}
+
+#[test]
+fn instant_palette_white_out() {
+    let p = InstantPalette::WhiteOut.palette();
+    assert_eq!(p.bgp, 0x00);
+    assert_eq!(p.obp0, 0x00);
+    assert_eq!(p.obp1, 0x00);
+}
+
+#[test]
+fn fade_transition_new_is_idle() {
+    let ft = FadeTransition::new();
+    assert!(!ft.is_active());
+    assert!(!ft.is_done());
+    assert_eq!(ft.state(), FadeState::Idle);
+    assert_eq!(ft.current_palette(), None);
+}
+
+#[test]
+fn fade_transition_default_is_idle() {
+    let ft = FadeTransition::default();
+    assert_eq!(ft.state(), FadeState::Idle);
+}
+
+#[test]
+fn fade_transition_start_sets_active() {
+    let mut ft = FadeTransition::new();
+    ft.start(FadeDirection::InFromBlack);
+    assert!(ft.is_active());
+    assert!(!ft.is_done());
+    assert_eq!(
+        ft.current_palette(),
+        Some(FADE_PALETTES[0]) // FadePal1
+    );
+}
+
+#[test]
+fn fade_tick_idle_returns_idle() {
+    let mut ft = FadeTransition::new();
+    assert_eq!(ft.tick(), FadeTickResult::Idle);
+}
+
+#[test]
+fn fade_in_from_black_full_sequence() {
+    let mut ft = FadeTransition::new();
+    ft.start(FadeDirection::InFromBlack);
+
+    // 4 steps, 8 frames each = 32 ticks total
+    for step in 0..4usize {
+        let expected_pal = FADE_PALETTES[step]; // indices [0,1,2,3]
+        for frame in 0..FADE_DELAY_FRAMES {
+            let result = ft.tick();
+            if step == 3 && frame == FADE_DELAY_FRAMES - 1 {
+                assert_eq!(result, FadeTickResult::Done(expected_pal));
+            } else if frame == FADE_DELAY_FRAMES - 1 && step < 3 {
+                // Last frame of non-final step returns next step's palette
+                assert_eq!(result, FadeTickResult::Fading(FADE_PALETTES[step + 1]));
+            } else {
+                assert_eq!(result, FadeTickResult::Fading(expected_pal));
+            }
+        }
+    }
+
+    assert!(ft.is_done());
+    // One more tick transitions Done→Idle
+    assert_eq!(ft.tick(), FadeTickResult::Idle);
+    assert!(!ft.is_active());
+    assert!(!ft.is_done());
+}
+
+#[test]
+fn fade_out_to_white_full_sequence() {
+    let mut ft = FadeTransition::new();
+    ft.start(FadeDirection::OutToWhite);
+
+    // 3 steps: indices [5,6,7]
+    let indices = [5, 6, 7];
+    for (step_idx, &pal_idx) in indices.iter().enumerate() {
+        let expected_pal = FADE_PALETTES[pal_idx];
+        for frame in 0..FADE_DELAY_FRAMES {
+            let result = ft.tick();
+            if step_idx == 2 && frame == FADE_DELAY_FRAMES - 1 {
+                assert_eq!(result, FadeTickResult::Done(expected_pal));
+            } else if frame == FADE_DELAY_FRAMES - 1 && step_idx < 2 {
+                assert_eq!(
+                    result,
+                    FadeTickResult::Fading(FADE_PALETTES[indices[step_idx + 1]])
+                );
+            } else {
+                assert_eq!(result, FadeTickResult::Fading(expected_pal));
+            }
+        }
+    }
+    assert!(ft.is_done());
+}
+
+#[test]
+fn fade_out_to_black_ends_at_pal1() {
+    let mut ft = FadeTransition::new();
+    ft.start(FadeDirection::OutToBlack);
+
+    // Run all 4*8 = 32 ticks
+    let mut last = FadeTickResult::Idle;
+    for _ in 0..32 {
+        last = ft.tick();
+    }
+    // Final tick should be Done with FadePal1 (all black)
+    assert_eq!(last, FadeTickResult::Done(FADE_PAL_1));
+}
+
+#[test]
+fn fade_in_from_white_ends_at_pal5() {
+    let mut ft = FadeTransition::new();
+    ft.start(FadeDirection::InFromWhite);
+
+    // 3*8 = 24 ticks
+    let mut last = FadeTickResult::Idle;
+    for _ in 0..24 {
+        last = ft.tick();
+    }
+    assert_eq!(last, FadeTickResult::Done(FADE_PAL_5));
+}
+
+#[test]
+fn fade_cancel_stops_fade() {
+    let mut ft = FadeTransition::new();
+    ft.start(FadeDirection::InFromBlack);
+    assert!(ft.is_active());
+
+    ft.cancel();
+    assert!(!ft.is_active());
+    assert_eq!(ft.state(), FadeState::Idle);
+    assert_eq!(ft.tick(), FadeTickResult::Idle);
+}
+
+#[test]
+fn fade_restart_during_active() {
+    let mut ft = FadeTransition::new();
+    ft.start(FadeDirection::InFromBlack);
+    // Tick a few frames
+    for _ in 0..5 {
+        ft.tick();
+    }
+    // Restart with different direction
+    ft.start(FadeDirection::OutToWhite);
+    assert!(ft.is_active());
+    let result = ft.tick();
+    assert_eq!(result, FadeTickResult::Fading(FADE_PAL_6));
+}
+
+#[test]
+fn fade_done_clears_after_one_tick() {
+    let mut ft = FadeTransition::new();
+    ft.start(FadeDirection::OutToWhite);
+    // Run to completion: 3*8 = 24
+    for _ in 0..24 {
+        ft.tick();
+    }
+    assert!(ft.is_done());
+    ft.tick(); // transitions Done→Idle
+    assert_eq!(ft.state(), FadeState::Idle);
+    assert_eq!(ft.current_palette(), None);
+}
+
+#[test]
+fn load_gb_pal_offset_zero_is_normal() {
+    let p = load_gb_pal(0);
+    assert_eq!(p, FADE_PAL_4);
+}
+
+#[test]
+fn load_gb_pal_offset_3_is_darker() {
+    let p = load_gb_pal(3);
+    assert_eq!(p, FADE_PAL_3);
+}
+
+#[test]
+fn load_gb_pal_offset_6() {
+    let p = load_gb_pal(6);
+    assert_eq!(p, FADE_PAL_2);
+}
+
+#[test]
+fn load_gb_pal_offset_9_is_darkest() {
+    let p = load_gb_pal(9);
+    assert_eq!(p, FADE_PAL_1);
+}
+
+#[test]
+fn load_gb_pal_offset_large_saturates() {
+    let p = load_gb_pal(12);
+    assert_eq!(p, FADE_PAL_1);
+}
+
+#[test]
+fn health_bar_color_green() {
+    assert_eq!(get_health_bar_color(27), 0);
+    assert_eq!(get_health_bar_color(48), 0);
+    assert_eq!(get_health_bar_color(255), 0);
+}
+
+#[test]
+fn health_bar_color_yellow() {
+    assert_eq!(get_health_bar_color(10), 1);
+    assert_eq!(get_health_bar_color(26), 1);
+}
+
+#[test]
+fn health_bar_color_red() {
+    assert_eq!(get_health_bar_color(0), 2);
+    assert_eq!(get_health_bar_color(9), 2);
+}
