@@ -6,7 +6,7 @@
 
 use crate::palette::Palette;
 use crate::tile::TileSet;
-use crate::{FrameBuffer, Rgba, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE};
+use crate::{FrameBuffer, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE};
 
 /// Game Boy background map dimensions in tiles.
 pub const BG_MAP_WIDTH: u32 = 32;

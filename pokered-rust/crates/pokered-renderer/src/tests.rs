@@ -766,8 +766,8 @@ fn window_layer_render_disabled() {
 fn window_layer_render_enabled() {
     let mut wl = WindowLayer::new();
     wl.enabled = true;
-    wl.wx = 7;  // starts at screen x=0
-    wl.wy = 0;  // starts at screen y=0
+    wl.wx = 7; // starts at screen x=0
+    wl.wy = 0; // starts at screen y=0
 
     // Tile 0 = all black
     let tile_data = [0xFF; BYTES_PER_TILE];
@@ -784,8 +784,8 @@ fn window_layer_render_enabled() {
 fn window_layer_partial_coverage() {
     let mut wl = WindowLayer::new();
     wl.enabled = true;
-    wl.wx = 7 + 80;  // starts at screen x=80
-    wl.wy = 72;      // starts at screen y=72
+    wl.wx = 7 + 80; // starts at screen x=80
+    wl.wy = 72; // starts at screen y=72
 
     let tile_data = [0xFF; BYTES_PER_TILE];
     let ts = TileSet::from_2bpp(&tile_data);
@@ -808,4 +808,177 @@ fn bg_layer_default() {
     let bg = BgLayer::new();
     assert_eq!(bg.scroll_x, 0);
     assert_eq!(bg.scroll_y, 0);
+}
+
+// =====================================================
+// M5.3 — Sprite rendering tests
+// =====================================================
+
+use crate::sprite::{
+    SpriteLayer, SpriteOamEntry, OAM_PALETTE, OAM_PRIORITY, OAM_X_FLIP, OAM_Y_FLIP,
+};
+
+#[test]
+fn sprite_oam_from_raw() {
+    let e = SpriteOamEntry::from_raw(32, 24, 0, 0);
+    assert_eq!(e.y, 16); // 32 - 16
+    assert_eq!(e.x, 16); // 24 - 8
+}
+
+#[test]
+fn sprite_oam_attributes() {
+    let e = SpriteOamEntry::new(
+        0,
+        0,
+        0,
+        OAM_PRIORITY | OAM_Y_FLIP | OAM_X_FLIP | OAM_PALETTE,
+    );
+    assert!(e.bg_priority());
+    assert!(e.y_flip());
+    assert!(e.x_flip());
+    assert!(e.uses_obp1());
+
+    let e2 = SpriteOamEntry::new(0, 0, 0, 0);
+    assert!(!e2.bg_priority());
+    assert!(!e2.y_flip());
+    assert!(!e2.x_flip());
+    assert!(!e2.uses_obp1());
+}
+
+#[test]
+fn sprite_on_screen() {
+    let on = SpriteOamEntry::new(0, 0, 0, 0);
+    assert!(on.is_on_screen());
+
+    let off_right = SpriteOamEntry::new(0, 160, 0, 0);
+    assert!(!off_right.is_on_screen());
+
+    let off_bottom = SpriteOamEntry::new(144, 0, 0, 0);
+    assert!(!off_bottom.is_on_screen());
+
+    let partially_on = SpriteOamEntry::new(-4, -4, 0, 0);
+    assert!(partially_on.is_on_screen());
+
+    let fully_off_left = SpriteOamEntry::new(0, -8, 0, 0);
+    assert!(!fully_off_left.is_on_screen());
+}
+
+#[test]
+fn sprite_render_transparent_color0() {
+    // Tile with all color 0 = transparent → nothing drawn
+    let ts = TileSet::blank(1);
+    let mut fb = FrameBuffer::new(Rgba::WHITE);
+    let mut layer = SpriteLayer::new();
+    layer.add(SpriteOamEntry::new(0, 0, 0, 0));
+    layer.render(&mut fb, &ts, &GRAYSCALE_PALETTE, &GRAYSCALE_PALETTE, None);
+    // Should still be white (color 0 is transparent)
+    assert_eq!(fb.get_pixel(0, 0), Some(Rgba::WHITE));
+}
+
+#[test]
+fn sprite_render_visible() {
+    // Tile 0 = all color 3 (black)
+    let tile_data = [0xFF; BYTES_PER_TILE];
+    let ts = TileSet::from_2bpp(&tile_data);
+    let mut fb = FrameBuffer::new(Rgba::WHITE);
+    let mut layer = SpriteLayer::new();
+    layer.add(SpriteOamEntry::new(10, 20, 0, 0));
+    layer.render(&mut fb, &ts, &GRAYSCALE_PALETTE, &GRAYSCALE_PALETTE, None);
+    // Pixel (20, 10) should be black
+    assert_eq!(fb.get_pixel(20, 10), Some(Rgba::BLACK));
+    // Pixel outside sprite should be white
+    assert_eq!(fb.get_pixel(19, 10), Some(Rgba::WHITE));
+    assert_eq!(fb.get_pixel(28, 10), Some(Rgba::WHITE));
+}
+
+#[test]
+fn sprite_render_x_flip() {
+    // Create a tile where only column 0 has color 1
+    let mut data = [0u8; BYTES_PER_TILE];
+    for row in 0..8 {
+        data[row * 2] = 0b10000000; // lo: only bit 7 (col 0) set
+        data[row * 2 + 1] = 0;
+    }
+    let ts = TileSet::from_2bpp(&data);
+
+    let mut fb = FrameBuffer::new(Rgba::WHITE);
+    let mut layer = SpriteLayer::new();
+    layer.add(SpriteOamEntry::new(0, 0, 0, OAM_X_FLIP));
+    layer.render(&mut fb, &ts, &GRAYSCALE_PALETTE, &GRAYSCALE_PALETTE, None);
+
+    // With x-flip, column 0 becomes column 7
+    assert_eq!(fb.get_pixel(7, 0), Some(Rgba::rgb(0xAA, 0xAA, 0xAA))); // color 1 = light gray
+    assert_eq!(fb.get_pixel(0, 0), Some(Rgba::WHITE)); // transparent (color 0)
+}
+
+#[test]
+fn sprite_render_y_flip() {
+    // Create a tile where only row 0 has color 3
+    let mut data = [0u8; BYTES_PER_TILE];
+    data[0] = 0xFF; // row 0 lo
+    data[1] = 0xFF; // row 0 hi → color 3
+    let ts = TileSet::from_2bpp(&data);
+
+    let mut fb = FrameBuffer::new(Rgba::WHITE);
+    let mut layer = SpriteLayer::new();
+    layer.add(SpriteOamEntry::new(0, 0, 0, OAM_Y_FLIP));
+    layer.render(&mut fb, &ts, &GRAYSCALE_PALETTE, &GRAYSCALE_PALETTE, None);
+
+    // With y-flip, row 0 → row 7
+    assert_eq!(fb.get_pixel(0, 7), Some(Rgba::BLACK)); // color 3
+    assert_eq!(fb.get_pixel(0, 0), Some(Rgba::WHITE)); // transparent (was row 7, now row 0)
+}
+
+#[test]
+fn sprite_render_obp1() {
+    // Use OBP1 palette
+    let tile_data = [0xFF; BYTES_PER_TILE]; // all color 3
+    let ts = TileSet::from_2bpp(&tile_data);
+
+    let obp0 = Palette::new([Rgba::WHITE, Rgba::WHITE, Rgba::WHITE, Rgba::rgb(0xAA, 0, 0)]);
+    let obp1 = Palette::new([Rgba::WHITE, Rgba::WHITE, Rgba::WHITE, Rgba::rgb(0, 0, 0xBB)]);
+
+    let mut fb = FrameBuffer::new(Rgba::WHITE);
+    let mut layer = SpriteLayer::new();
+    layer.add(SpriteOamEntry::new(0, 0, 0, OAM_PALETTE));
+    layer.render(&mut fb, &ts, &obp0, &obp1, None);
+
+    // Should use OBP1's color 3 (blue)
+    assert_eq!(fb.get_pixel(0, 0), Some(Rgba::rgb(0, 0, 0xBB)));
+}
+
+#[test]
+fn sprite_bg_priority() {
+    let tile_data = [0xFF; BYTES_PER_TILE]; // all color 3
+    let ts = TileSet::from_2bpp(&tile_data);
+
+    // BG color buffer: pixel at (0,0) has BG color 2 (non-zero)
+    let mut bg_buf = vec![0u8; (SCREEN_WIDTH * SCREEN_HEIGHT) as usize];
+    bg_buf[0] = 2; // pixel (0,0) has non-zero BG
+
+    let mut fb = FrameBuffer::new(Rgba::WHITE);
+    let mut layer = SpriteLayer::new();
+    layer.add(SpriteOamEntry::new(0, 0, 0, OAM_PRIORITY));
+    layer.render(
+        &mut fb,
+        &ts,
+        &GRAYSCALE_PALETTE,
+        &GRAYSCALE_PALETTE,
+        Some(&bg_buf),
+    );
+
+    // Pixel (0,0) should NOT be overwritten (BG priority, BG != 0)
+    assert_eq!(fb.get_pixel(0, 0), Some(Rgba::WHITE));
+    // Pixel (1,0) has BG color 0, so sprite draws there
+    assert_eq!(fb.get_pixel(1, 0), Some(Rgba::BLACK));
+}
+
+#[test]
+fn sprite_layer_clear() {
+    let mut layer = SpriteLayer::new();
+    layer.add(SpriteOamEntry::new(0, 0, 0, 0));
+    layer.add(SpriteOamEntry::new(10, 10, 0, 0));
+    assert_eq!(layer.entries.len(), 2);
+    layer.clear();
+    assert_eq!(layer.entries.len(), 0);
 }

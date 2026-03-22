@@ -6,6 +6,7 @@
 
 pub mod input;
 pub mod palette;
+pub mod sprite;
 pub mod tile;
 pub mod tilemap;
 pub mod viewport;
