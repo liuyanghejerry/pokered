@@ -1579,6 +1579,7 @@ name = "pokered-app"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "env_logger",
  "pokered-audio",
  "pokered-core",
  "pokered-renderer",
