@@ -708,7 +708,7 @@ cargo test -p pokered-core -- battle  # 战斗测试通过
 - [x] **M4.10** 实现所有 248 张地图数据
 - [x] **M4.11** 实现文本引擎/命令处理器 (控制码: `<LINE>`, `<PAGE>`, `<DONE>`, `<PLAYER>`, `<RIVAL>` 等，逐字渲染，文本框管理)
 - [x] **M4.12** 实现精灵/OAM 系统 (精灵碰撞、OAM DMA、精灵叠加优先级) ✅ — pokered-data: oam_constants.rs(OAM常量/位标志)、sprite_facing.rs(SpriteFacingAndAnimationTable 32项方向/动画查找表、6种瓦片模式、2种OAM模板)、sprite_state_constants.rs(SpriteStateData1/2字段偏移、MovementStatus枚举、朝向/移动常量); pokered-core/overworld/sprites/: mod.rs(SpriteStateData1/2结构体、SpriteTable 16槽管理、ShadowOam 40项OAM缓冲、OamEntry)、oam.rs(prepare_oam_data: 16精灵→OAM转换循环+facing表查找+草地优先级+ledge/fishing保留末4项)、collision.rs(detect_collisions_for_sprite: O(n²)碰撞检测+7/9像素阈值+方向位+16位碰撞位表)、update.rs(update_sprites调度器: 玩家/NPC分别处理+移动状态机+动画帧更新); 47个新测试(核心21+数据26)，总计1087+测试通过
-- [ ] **M4.13** 实现老虎机迷你游戏 (engine/slots/ 完整子系统)
+- [x] **M4.13** 实现老虎机迷你游戏 (engine/slots/ 完整子系统)
 
 ### 第五阶段：图形渲染层 (预计 4-6 周)
 

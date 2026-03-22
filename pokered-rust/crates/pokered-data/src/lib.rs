@@ -19,6 +19,7 @@ pub mod npc_data;
 pub mod oam_constants;
 pub mod pokemon_data;
 pub mod sign_data;
+pub mod slot_machine;
 pub mod species;
 pub mod sprite_facing;
 pub mod sprite_set_data;
