@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand, ValueEnum};
-use pokered_core::battle::{BattleInput, BattleScreen};
+use pokered_core::battle::{BattleInput, BattlePhase, BattleScreen};
 use pokered_core::data::maps::MapId;
 use pokered_core::data::wild_data::GameVersion;
 use pokered_core::game_state::{GameScreen, GameState, ScreenAction};
@@ -514,16 +514,34 @@ fn draw_title_screen(
 
 fn draw_main_menu(state: &MainMenuState, fb: &mut FrameBuffer) {
     fb.clear(Rgba::WHITE);
-    draw_text("MAIN MENU", 60, 20, Rgba::BLACK, fb);
+
+    // Original ASM (main_menu.asm):
+    // No save: hlcoord 0,0 / b=4, c=13 / text at hlcoord 2,2 → "NEW GAME" + "OPTION"
+    // With save: hlcoord 0,0 / b=6, c=13 / text at hlcoord 2,2 → "CONTINUE" + "NEW GAME" + "OPTION"
     let labels = state.item_labels();
+    let num_items = labels.len();
+    let box_h = if num_items > 2 { 6_u32 } else { 4_u32 };
+
+    // TextBoxBorder at tile (0, 0) with inner size c=13, b=box_h
+    draw_text_box(fb, 0, 0, 13, box_h, Rgba::BLACK);
+
+    // Menu items at tile (2, 2), each 2 tiles apart
     for (i, label) in labels.iter().enumerate() {
-        let y = 50 + (i as u32 * 20);
-        let prefix = if i == state.cursor { "> " } else { "  " };
-        let text = format!("{}{}", prefix, label);
-        draw_text(&text, 50, y, Rgba::BLACK, fb);
+        let tile_y = 2 + (i as u32 * 2);
+        let px_x = 2 * TILE_SIZE;
+        let px_y = tile_y * TILE_SIZE;
+        draw_text(label, px_x, px_y, Rgba::BLACK, fb);
     }
-    draw_text("Up/Down: Select", 10, 120, Rgba::BLACK, fb);
-    draw_text("A/Start: Confirm", 10, 130, Rgba::BLACK, fb);
+
+    // Cursor arrow at tile (1, 2 + cursor*2)
+    let cursor_tile_y = 2 + (state.cursor as u32 * 2);
+    draw_text(
+        "\x7F",
+        1 * TILE_SIZE,
+        cursor_tile_y * TILE_SIZE,
+        Rgba::BLACK,
+        fb,
+    );
 }
 
 fn draw_oak_speech(
@@ -717,131 +735,332 @@ fn draw_overworld(
             blit_tileset(fb, &ts, 0, 0, tpr, pal);
         }
 
+        // Player sprite centered on screen (tile 4,4 → pixel 32,32 in a 10x9 visible area)
+        // GB screen = 20x18 tiles, player centered at (10,9) → pixel (80, 72)
         if let Ok(cached) = rm.load_sprite("red") {
             let ts = cached.tileset.clone();
             let tpr = cached.source_size.0 / TILE_SIZE;
-            let px = screen.state.player.x as u32 * 16;
-            let py = screen.state.player.y as u32 * 16;
-            let sx = px.min(SCREEN_WIDTH.saturating_sub(cached.source_size.0));
-            let sy = py.min(SCREEN_HEIGHT.saturating_sub(cached.source_size.1));
-            blit_tileset(fb, &ts, sx, sy, tpr, pal);
+            let player_px_x = (SCREEN_WIDTH.saturating_sub(cached.source_size.0)) / 2;
+            let player_px_y = (SCREEN_HEIGHT.saturating_sub(cached.source_size.1)) / 2;
+            blit_tileset(fb, &ts, player_px_x, player_px_y, tpr, pal);
         }
     }
 
-    let pos_text = format!(
-        "Map: {:?}  Pos: ({}, {})",
-        screen.state.current_map, screen.state.player.x, screen.state.player.y
-    );
-    draw_text(&pos_text, 5, 10, Rgba::BLACK, fb);
-
-    let facing_text = format!("Facing: {:?}", screen.state.player.facing);
-    draw_text(&facing_text, 5, 30, Rgba::BLACK, fb);
-
-    draw_text("OVERWORLD", 50, 60, Rgba::BLACK, fb);
-    draw_text("Arrows: Move", 10, 100, Rgba::BLACK, fb);
-    draw_text("Start: Menu", 10, 115, Rgba::BLACK, fb);
+    let map_name = format!("{:?}", screen.state.current_map);
+    draw_text(&map_name, 1 * TILE_SIZE, 1 * TILE_SIZE, Rgba::BLACK, fb);
 }
 
 fn draw_battle(screen: &BattleScreen, res: &mut Option<ResourceManager>, fb: &mut FrameBuffer) {
     fb.clear(Rgba::WHITE);
     let pal = &GRAYSCALE_PALETTE;
 
+    // Enemy sprite: top-right area. ASM places at roughly tile (12, 0).
     if let Some(ref mut rm) = res {
         if let Ok(cached) = rm.load_pokemon_front("pikachu") {
             let ts = cached.tileset.clone();
             let tpr = cached.source_size.0 / TILE_SIZE;
-            let ex = SCREEN_WIDTH
-                .saturating_sub(cached.source_size.0)
-                .saturating_sub(8);
-            blit_tileset(fb, &ts, ex, 8, tpr, pal);
+            blit_tileset(fb, &ts, 12 * TILE_SIZE, 0, tpr, pal);
         }
 
+        // Player sprite: bottom-left area. ASM places at roughly tile (1, 5).
         if let Ok(cached) = rm.load_pokemon_back("charmander") {
             let ts = cached.tileset.clone();
             let tpr = cached.source_size.0 / TILE_SIZE;
-            blit_tileset(fb, &ts, 16, 48, tpr, pal);
+            blit_tileset(fb, &ts, 1 * TILE_SIZE, 5 * TILE_SIZE, tpr, pal);
         }
-
-        if let Ok(cached) = rm.load_battle("battle_hud_1") {
-            let ts = cached.tileset.clone();
-            let tpr = cached.source_size.0 / TILE_SIZE;
-            blit_tileset(fb, &ts, 0, 96, tpr, pal);
-        }
-    } else {
-        draw_text("BATTLE", 55, 10, Rgba::BLACK, fb);
     }
 
-    let phase_text = format!("Phase: {:?}", screen.phase);
-    draw_text(&phase_text, 10, 30, Rgba::BLACK, fb);
+    // Enemy HUD: hlcoord 0,0 / clear area lb bc, 4, 12
+    // Name at hlcoord 1,0, level/status at hlcoord 4,1, HP bar at row 2-3
+    draw_text_box(fb, 0, 0, 12, 3, Rgba::BLACK);
+    draw_text("PIKACHU", 1 * TILE_SIZE, 1 * TILE_SIZE, Rgba::BLACK, fb);
+    draw_text("Lv25", 8 * TILE_SIZE, 1 * TILE_SIZE, Rgba::BLACK, fb);
+    draw_text("HP:", 1 * TILE_SIZE, 2 * TILE_SIZE, Rgba::BLACK, fb);
+    // HP bar placeholder (filled rectangle)
+    let hp_bar_x = 4 * TILE_SIZE;
+    let hp_bar_y = 2 * TILE_SIZE + 2;
+    let hp_bar_w = 8 * TILE_SIZE;
+    let hp_bar_h = 4;
+    for y in hp_bar_y..hp_bar_y + hp_bar_h {
+        for x in hp_bar_x..hp_bar_x + hp_bar_w {
+            if x < SCREEN_WIDTH && y < SCREEN_HEIGHT {
+                fb.set_pixel(x, y, Rgba::BLACK);
+            }
+        }
+    }
 
-    if matches!(screen.phase, pokered_core::battle::BattlePhase::PlayerMenu) {
-        let menu_labels = ["FIGHT", "BAG", "POKeMON", "RUN"];
-        for (i, label) in menu_labels.iter().enumerate() {
-            let row = i / 2;
-            let col = i % 2;
-            let x = 20 + (col as u32 * 70);
-            let y = 100 + (row as u32 * 20);
-            let is_selected = screen.battle_menu.row() == row && screen.battle_menu.col() == col;
-            let prefix = if is_selected { ">" } else { " " };
-            let text = format!("{}{}", prefix, label);
-            draw_text(&text, x, y, Rgba::BLACK, fb);
+    // Player HUD: hlcoord 9,7 / clear area lb bc, 5, 11
+    // Name at hlcoord 10,7, HP at hlcoord 10,9
+    draw_text_box(fb, 9 * TILE_SIZE, 7 * TILE_SIZE, 10, 4, Rgba::BLACK);
+    draw_text("CHARMANDER", 10 * TILE_SIZE, 8 * TILE_SIZE, Rgba::BLACK, fb);
+    draw_text("Lv5", 17 * TILE_SIZE, 8 * TILE_SIZE, Rgba::BLACK, fb);
+    draw_text("HP:", 10 * TILE_SIZE, 9 * TILE_SIZE, Rgba::BLACK, fb);
+    let php_bar_x = 13 * TILE_SIZE;
+    let php_bar_y = 9 * TILE_SIZE + 2;
+    for y in php_bar_y..php_bar_y + hp_bar_h {
+        for x in php_bar_x..php_bar_x + 6 * TILE_SIZE {
+            if x < SCREEN_WIDTH && y < SCREEN_HEIGHT {
+                fb.set_pixel(x, y, Rgba::BLACK);
+            }
+        }
+    }
+    draw_text("35/ 39", 12 * TILE_SIZE, 10 * TILE_SIZE, Rgba::BLACK, fb);
+
+    // Battle menu: text_box at tile (8,12) to (19,17) → inner 10 wide, 4 tall
+    // "FIGHT PkMn / ITEM  RUN" at tile (10, 14)/(10,16)
+    draw_text_box(fb, 8 * TILE_SIZE, 12 * TILE_SIZE, 10, 4, Rgba::BLACK);
+
+    if matches!(screen.phase, BattlePhase::PlayerMenu) {
+        draw_text("FIGHT", 10 * TILE_SIZE, 14 * TILE_SIZE, Rgba::BLACK, fb);
+        draw_text("PkMn", 16 * TILE_SIZE, 14 * TILE_SIZE, Rgba::BLACK, fb);
+        draw_text("ITEM", 10 * TILE_SIZE, 16 * TILE_SIZE, Rgba::BLACK, fb);
+        draw_text("RUN", 16 * TILE_SIZE, 16 * TILE_SIZE, Rgba::BLACK, fb);
+
+        let menu_labels_pos = [(10, 14), (16, 14), (10, 16), (16, 16)];
+        let sel = screen.battle_menu.row() * 2 + screen.battle_menu.col();
+        if sel < menu_labels_pos.len() {
+            let (cx, cy) = menu_labels_pos[sel];
+            draw_text(">", (cx - 1) * TILE_SIZE, cy * TILE_SIZE, Rgba::BLACK, fb);
+        }
+    } else {
+        // Text area for non-menu phases
+        let phase_text = match &screen.phase {
+            BattlePhase::Intro { .. } => "Wild PIKACHU appeared!",
+            BattlePhase::TurnExecution { .. } => "CHARMANDER used SCRATCH!",
+            BattlePhase::FaintCheck { .. } => "Enemy PIKACHU fainted!",
+            BattlePhase::Finished { won, .. } => {
+                if *won {
+                    "You won!"
+                } else {
+                    "You lost..."
+                }
+            }
+            _ => "",
+        };
+        if !phase_text.is_empty() {
+            draw_text(phase_text, 1 * TILE_SIZE, 14 * TILE_SIZE, Rgba::BLACK, fb);
+        }
+    }
+
+    // Message text box at bottom-left (when not in menu) — tile (0, 12) to (8, 17)
+    if !matches!(screen.phase, BattlePhase::PlayerMenu) {
+        draw_text_box(fb, 0, 12 * TILE_SIZE, 18, 4, Rgba::BLACK);
+        let phase_text = match &screen.phase {
+            BattlePhase::Intro { .. } => "Wild PIKACHU appeared!",
+            BattlePhase::TurnExecution { .. } => "CHARMANDER used SCRATCH!",
+            BattlePhase::FaintCheck { .. } => "Enemy PIKACHU fainted!",
+            BattlePhase::Finished { won, .. } => {
+                if *won {
+                    "You won!"
+                } else {
+                    "You lost..."
+                }
+            }
+            _ => "",
+        };
+        if !phase_text.is_empty() {
+            draw_text(phase_text, 1 * TILE_SIZE, 14 * TILE_SIZE, Rgba::BLACK, fb);
         }
     }
 }
 
 fn draw_start_menu(state: &StartMenuState, player_name: &str, fb: &mut FrameBuffer) {
     fb.clear(Rgba::WHITE);
-    draw_text("START MENU", 50, 10, Rgba::BLACK, fb);
 
+    // draw_start_menu.asm: hlcoord 10,0 / b=14(pokedex)/12(no pokedex), c=8
+    // Items at hlcoord 12,2, spaced 2 tile rows. Cursor at X=11.
     let labels = state.item_labels(player_name);
+    let box_h = (labels.len() as u32) * 2;
+
+    draw_text_box(fb, 10 * TILE_SIZE, 0, 8, box_h, Rgba::BLACK);
+
     for (i, label) in labels.iter().enumerate() {
-        let y = 30 + (i as u32 * 16);
-        let prefix = if i == state.cursor() { "> " } else { "  " };
-        let text = format!("{}{}", prefix, label.as_str());
-        draw_text(&text, 20, y, Rgba::BLACK, fb);
+        let tile_y = 2 + (i as u32 * 2);
+        draw_text(
+            label.as_str(),
+            12 * TILE_SIZE,
+            tile_y * TILE_SIZE,
+            Rgba::BLACK,
+            fb,
+        );
     }
+
+    let cursor_tile_y = 2 + (state.cursor() as u32 * 2);
+    draw_text(
+        ">",
+        11 * TILE_SIZE,
+        cursor_tile_y * TILE_SIZE,
+        Rgba::BLACK,
+        fb,
+    );
 }
 
 fn draw_options_menu(state: &OptionsMenuState, fb: &mut FrameBuffer) {
     fb.clear(Rgba::WHITE);
-    draw_text("OPTIONS", 55, 10, Rgba::BLACK, fb);
 
-    let speed_text = format!("TEXT SPEED: {:?}", state.options.text_speed);
-    draw_text(&speed_text, 10, 40, Rgba::BLACK, fb);
+    // DisplayOptionMenu: 3 boxes at rows 0/5/10, each b=3 c=18. CANCEL at tile (2,16).
+    draw_text_box(fb, 0, 0 * TILE_SIZE, 18, 3, Rgba::BLACK);
+    draw_text_box(fb, 0, 5 * TILE_SIZE, 18, 3, Rgba::BLACK);
+    draw_text_box(fb, 0, 10 * TILE_SIZE, 18, 3, Rgba::BLACK);
 
-    let anim_text = format!("BATTLE ANIM: {:?}", state.options.battle_animation);
-    draw_text(&anim_text, 10, 60, Rgba::BLACK, fb);
+    // Section 1: TEXT SPEED at tile (1,1), options at tile (1,2)
+    draw_text("TEXT SPEED", 1 * TILE_SIZE, 1 * TILE_SIZE, Rgba::BLACK, fb);
+    let speed_str = match state.options.text_speed {
+        pokered_core::options_menu::TextSpeed::Fast => " FAST  MEDIUM SLOW",
+        pokered_core::options_menu::TextSpeed::Medium => " FAST  MEDIUM SLOW",
+        pokered_core::options_menu::TextSpeed::Slow => " FAST  MEDIUM SLOW",
+    };
+    draw_text(speed_str, 1 * TILE_SIZE, 3 * TILE_SIZE, Rgba::BLACK, fb);
 
-    let style_text = format!("BATTLE STYLE: {:?}", state.options.battle_style);
-    draw_text(&style_text, 10, 80, Rgba::BLACK, fb);
+    // Speed cursor: FAST at X=1, MEDIUM at X=7, SLOW at X=14
+    let speed_cursor_x = match state.options.text_speed {
+        pokered_core::options_menu::TextSpeed::Fast => 1,
+        pokered_core::options_menu::TextSpeed::Medium => 7,
+        pokered_core::options_menu::TextSpeed::Slow => 14,
+    };
+    draw_text(
+        ">",
+        speed_cursor_x * TILE_SIZE,
+        3 * TILE_SIZE,
+        Rgba::BLACK,
+        fb,
+    );
 
-    let row_text = format!("Cursor: {:?}", state.row);
-    draw_text(&row_text, 10, 110, Rgba::BLACK, fb);
+    // Section 2: BATTLE ANIMATION at tile (1,6), ON/OFF at tile (1,7)
+    draw_text(
+        "BATTLE ANIMATION",
+        1 * TILE_SIZE,
+        6 * TILE_SIZE,
+        Rgba::BLACK,
+        fb,
+    );
+    draw_text(
+        " ON       OFF",
+        1 * TILE_SIZE,
+        8 * TILE_SIZE,
+        Rgba::BLACK,
+        fb,
+    );
+    let anim_cursor_x = match state.options.battle_animation {
+        pokered_core::options_menu::BattleAnimation::On => 1,
+        pokered_core::options_menu::BattleAnimation::Off => 10,
+    };
+    draw_text(
+        ">",
+        anim_cursor_x * TILE_SIZE,
+        8 * TILE_SIZE,
+        Rgba::BLACK,
+        fb,
+    );
 
-    draw_text("B: Close", 10, 130, Rgba::BLACK, fb);
+    // Section 3: BATTLE STYLE at tile (1,11), SHIFT/SET at tile (1,12)
+    draw_text(
+        "BATTLE STYLE",
+        1 * TILE_SIZE,
+        11 * TILE_SIZE,
+        Rgba::BLACK,
+        fb,
+    );
+    draw_text(
+        " SHIFT    SET",
+        1 * TILE_SIZE,
+        13 * TILE_SIZE,
+        Rgba::BLACK,
+        fb,
+    );
+    let style_cursor_x = match state.options.battle_style {
+        pokered_core::options_menu::BattleStyle::Shift => 1,
+        pokered_core::options_menu::BattleStyle::Set => 10,
+    };
+    draw_text(
+        ">",
+        style_cursor_x * TILE_SIZE,
+        13 * TILE_SIZE,
+        Rgba::BLACK,
+        fb,
+    );
+
+    // CANCEL at tile (2, 16)
+    draw_text("CANCEL", 2 * TILE_SIZE, 16 * TILE_SIZE, Rgba::BLACK, fb);
 }
 
 fn draw_save_menu(state: &SaveMenuState, fb: &mut FrameBuffer) {
     fb.clear(Rgba::WHITE);
-    draw_text("SAVE GAME", 50, 10, Rgba::BLACK, fb);
 
-    let phase_text = format!("Phase: {:?}", state.phase);
-    draw_text(&phase_text, 10, 40, Rgba::BLACK, fb);
+    // PrintSaveScreenText: hlcoord 4,0 / b=8, c=14
+    // Info at hlcoord 5,2: PLAYER / BADGES / #DEX / TIME
+    draw_text_box(fb, 4 * TILE_SIZE, 0, 14, 8, Rgba::BLACK);
 
-    let cursor_text = format!("Cursor: {:?}", state.cursor);
-    draw_text(&cursor_text, 10, 60, Rgba::BLACK, fb);
-
-    let info = format!(
-        "{} Badges:{} Dex:{}",
-        state.info.player_name, state.info.num_badges, state.info.pokedex_owned
+    draw_text("PLAYER", 5 * TILE_SIZE, 2 * TILE_SIZE, Rgba::BLACK, fb);
+    draw_text(
+        &state.info.player_name,
+        12 * TILE_SIZE,
+        2 * TILE_SIZE,
+        Rgba::BLACK,
+        fb,
     );
-    draw_text(&info, 10, 80, Rgba::BLACK, fb);
 
+    draw_text("BADGES", 5 * TILE_SIZE, 4 * TILE_SIZE, Rgba::BLACK, fb);
+    let badges = format!("{}", state.info.num_badges);
+    draw_text(&badges, 17 * TILE_SIZE, 4 * TILE_SIZE, Rgba::BLACK, fb);
+
+    draw_text("#DEX", 5 * TILE_SIZE, 6 * TILE_SIZE, Rgba::BLACK, fb);
+    let dex = format!("{}", state.info.pokedex_owned);
+    draw_text(&dex, 16 * TILE_SIZE, 6 * TILE_SIZE, Rgba::BLACK, fb);
+
+    draw_text("TIME", 5 * TILE_SIZE, 8 * TILE_SIZE, Rgba::BLACK, fb);
     let time = format!(
-        "Time: {:02}:{:02}",
+        "{:>3}:{:02}",
         state.info.play_time_hours, state.info.play_time_minutes
     );
-    draw_text(&time, 10, 100, Rgba::BLACK, fb);
+    draw_text(&time, 13 * TILE_SIZE, 8 * TILE_SIZE, Rgba::BLACK, fb);
+
+    // "Would you like to SAVE?" dialog below
+    draw_text_box(fb, 0, 11 * TILE_SIZE, 18, 4, Rgba::BLACK);
+    draw_text(
+        "Would you like to",
+        1 * TILE_SIZE,
+        12 * TILE_SIZE,
+        Rgba::BLACK,
+        fb,
+    );
+    draw_text(
+        "SAVE the game?",
+        1 * TILE_SIZE,
+        14 * TILE_SIZE,
+        Rgba::BLACK,
+        fb,
+    );
+
+    // YES/NO cursor
+    let yes_no_x = 15_u32;
+    draw_text_box(fb, yes_no_x * TILE_SIZE, 7 * TILE_SIZE, 3, 2, Rgba::BLACK);
+    draw_text(
+        "YES",
+        (yes_no_x + 1) * TILE_SIZE,
+        8 * TILE_SIZE,
+        Rgba::BLACK,
+        fb,
+    );
+    draw_text(
+        "NO",
+        (yes_no_x + 1) * TILE_SIZE,
+        9 * TILE_SIZE,
+        Rgba::BLACK,
+        fb,
+    );
+    let cursor_y = if state.cursor == pokered_core::save_menu::YesNoChoice::Yes {
+        8
+    } else {
+        9
+    };
+    draw_text(
+        ">",
+        yes_no_x * TILE_SIZE,
+        cursor_y * TILE_SIZE,
+        Rgba::BLACK,
+        fb,
+    );
 }
 
 fn screen_target_to_game_screen(target: &ScreenTarget) -> GameScreen {
