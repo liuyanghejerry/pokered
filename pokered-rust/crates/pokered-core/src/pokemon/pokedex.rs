@@ -29,6 +29,15 @@ impl Pokedex {
         }
     }
 
+    pub fn from_flags(owned: &[u8], seen: &[u8]) -> Self {
+        let mut dex = Self::new();
+        let len = FLAG_BYTES.min(owned.len());
+        dex.owned[..len].copy_from_slice(&owned[..len]);
+        let len = FLAG_BYTES.min(seen.len());
+        dex.seen[..len].copy_from_slice(&seen[..len]);
+        dex
+    }
+
     pub fn set_seen(&mut self, species: Species) {
         if let Some((byte, bit)) = species_to_bit(species) {
             self.seen[byte] |= bit;

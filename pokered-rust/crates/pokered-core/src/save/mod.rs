@@ -3,9 +3,15 @@ pub mod hall_of_fame;
 pub mod ser_game_data;
 pub mod ser_pokemon;
 pub mod serialization;
+pub mod sram_deser;
+pub mod sram_deser_game_data;
+pub mod sram_import;
+pub mod sram_layout;
 
 #[cfg(test)]
 mod save_tests;
+#[cfg(test)]
+mod sram_import_tests;
 
 use crate::pokemon::party::Party;
 use crate::pokemon::pc_box::{PcBox, PcStorage};
