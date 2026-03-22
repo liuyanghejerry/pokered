@@ -1,10 +1,16 @@
+use std::path::PathBuf;
+
+use clap::{Parser, Subcommand, ValueEnum};
 use pokered_core::battle::{BattleInput, BattleScreen};
 use pokered_core::data::maps::MapId;
 use pokered_core::data::wild_data::GameVersion;
 use pokered_core::game_state::{GameScreen, GameState, ScreenAction};
 use pokered_core::main_menu::{MainMenuState, MenuInput};
 use pokered_core::naming_screen::NamingInput;
-use pokered_core::oak_speech::{OakSpeechInput, OakSpeechResult, OakSpeechState};
+use pokered_core::oak_speech::{
+    OakSpeechInput, OakSpeechPhase, OakSpeechResult, OakSpeechState, DEFAULT_PLAYER_NAMES,
+    DEFAULT_RIVAL_NAMES,
+};
 use pokered_core::options_menu::{GameOptions, OptionsInput, OptionsMenuResult, OptionsMenuState};
 use pokered_core::overworld::{OverworldInput, OverworldScreen};
 use pokered_core::save_menu::{SaveMenuResult, SaveMenuState, SaveScreenInfo, YesNoInput};
@@ -13,10 +19,57 @@ use pokered_core::title_screen::TitleScreenState;
 use pokered_renderer::embedded_font::draw_text;
 use pokered_renderer::input::{GbButton, InputState};
 use pokered_renderer::palette::{Palette, GRAYSCALE_PALETTE};
-use pokered_renderer::resource::{AssetRoot, ResourceManager};
+use pokered_renderer::resource::{AssetCategory, AssetRoot, ResourceManager};
 use pokered_renderer::tile::TileSet;
 use pokered_renderer::window::{run, GameLoop, GameWindowConfig};
 use pokered_renderer::{FrameBuffer, Rgba, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE};
+
+#[derive(Parser)]
+#[command(name = "pokered", about = "Pokémon Red/Blue — Rust Rewrite")]
+struct Cli {
+    #[command(subcommand)]
+    command: Option<Commands>,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Run the game in windowed mode (default)
+    Run,
+    /// Capture a screenshot of a specific game screen
+    Screenshot {
+        /// Which screen to capture
+        #[arg(short, long)]
+        screen: ScreenTarget,
+        /// Output PNG file path
+        #[arg(short, long, default_value = "screenshot.png")]
+        output: PathBuf,
+        /// Number of frames to advance before capturing (for animation)
+        #[arg(short, long, default_value_t = 5)]
+        frames: u32,
+    },
+    /// Capture screenshots of all game screens
+    ScreenshotAll {
+        /// Output directory for PNG files
+        #[arg(short, long, default_value = "screenshots")]
+        output_dir: PathBuf,
+        /// Number of frames to advance before capturing each screen
+        #[arg(short, long, default_value_t = 5)]
+        frames: u32,
+    },
+}
+
+#[derive(Clone, ValueEnum)]
+enum ScreenTarget {
+    Copyright,
+    Title,
+    MainMenu,
+    Oak,
+    Overworld,
+    Battle,
+    StartMenu,
+    Options,
+    Save,
+}
 
 struct PokemonGame {
     state: GameState,
@@ -348,6 +401,55 @@ fn blit_tileset(
     }
 }
 
+fn draw_text_box(fb: &mut FrameBuffer, bx: u32, by: u32, bw: u32, bh: u32, color: Rgba) {
+    let px_w = (bw + 2) * TILE_SIZE;
+    let px_h = (bh + 2) * TILE_SIZE;
+
+    for x in bx..bx + px_w {
+        if x < SCREEN_WIDTH && by < SCREEN_HEIGHT {
+            fb.set_pixel(x, by, color);
+        }
+    }
+    let bot = by + px_h - 1;
+    for x in bx..bx + px_w {
+        if x < SCREEN_WIDTH && bot < SCREEN_HEIGHT {
+            fb.set_pixel(x, bot, color);
+        }
+    }
+    for y in by..by + px_h {
+        if bx < SCREEN_WIDTH && y < SCREEN_HEIGHT {
+            fb.set_pixel(bx, y, color);
+        }
+    }
+    let right = bx + px_w - 1;
+    for y in by..by + px_h {
+        if right < SCREEN_WIDTH && y < SCREEN_HEIGHT {
+            fb.set_pixel(right, y, color);
+        }
+    }
+
+    for y in (by + 1)..(by + px_h - 1) {
+        for x in (bx + 1)..(bx + px_w - 1) {
+            if x < SCREEN_WIDTH && y < SCREEN_HEIGHT {
+                fb.set_pixel(x, y, Rgba::WHITE);
+            }
+        }
+    }
+}
+
+fn draw_centered_sprite(
+    fb: &mut FrameBuffer,
+    tileset: &TileSet,
+    sprite_w: u32,
+    _sprite_h: u32,
+    pal: &Palette,
+) {
+    let tiles_per_row = sprite_w / TILE_SIZE;
+    let sx = (SCREEN_WIDTH.saturating_sub(sprite_w)) / 2;
+    let sy = 32_u32;
+    blit_tileset(fb, tileset, sx, sy, tiles_per_row, pal);
+}
+
 fn draw_title_screen(
     state: &TitleScreenState,
     is_copyright: bool,
@@ -432,25 +534,11 @@ fn draw_oak_speech(
     fb.clear(Rgba::WHITE);
     let pal = &GRAYSCALE_PALETTE;
 
-    if let Some(ref mut rm) = res {
-        if let Ok(cached) = rm.load_intro("gengar") {
-            let ts = cached.tileset.clone();
-            let tpr = cached.source_size.0 / TILE_SIZE;
-            let gx = (SCREEN_WIDTH.saturating_sub(cached.source_size.0)) / 2;
-            blit_tileset(fb, &ts, gx, 8, tpr, pal);
-        }
-
-        if let Ok(cached) = rm.load_intro("red_nidorino_1") {
-            let ts = cached.tileset.clone();
-            let tpr = cached.source_size.0 / TILE_SIZE;
-            let nx = SCREEN_WIDTH
-                .saturating_sub(cached.source_size.0)
-                .saturating_sub(8);
-            blit_tileset(fb, &ts, nx, 48, tpr, pal);
-        }
-    }
-
-    draw_text("OAK'S SPEECH", 40, 10, Rgba::BLACK, fb);
+    // GB screen is 20×18 tiles. Text box: 18 inner tiles wide, 4 tall, at tile row 12 → pixel 96
+    let text_box_x = 0_u32;
+    let text_box_y = 12 * TILE_SIZE;
+    let text_box_w = 18_u32;
+    let text_box_h = 4_u32;
 
     if let Some(naming) = &state.naming_screen {
         draw_text("NAME ENTRY", 45, 30, Rgba::BLACK, fb);
@@ -468,11 +556,149 @@ fn draw_oak_speech(
             naming.cursor_col()
         );
         draw_text(&cursor_marker, 10, 134, Rgba::BLACK, fb);
-    } else if let Some(text) = state.current_intro_text() {
-        draw_text(text, 20, 60, Rgba::BLACK, fb);
-    } else {
-        let phase_text = format!("{:?}", state.phase);
-        draw_text(&phase_text, 10, 60, Rgba::BLACK, fb);
+        return;
+    }
+
+    match &state.phase {
+        OakSpeechPhase::Intro { .. } => {
+            if let Some(ref mut rm) = res {
+                if let Ok(cached) = rm.load_trainer("prof.oak") {
+                    let ts = cached.tileset.clone();
+                    let w = cached.source_size.0;
+                    let h = cached.source_size.1;
+                    draw_centered_sprite(fb, &ts, w, h, pal);
+                }
+            }
+            draw_text_box(
+                fb,
+                text_box_x,
+                text_box_y,
+                text_box_w,
+                text_box_h,
+                Rgba::BLACK,
+            );
+            if let Some(text) = state.current_intro_text() {
+                draw_text(
+                    text,
+                    text_box_x + TILE_SIZE,
+                    text_box_y + TILE_SIZE,
+                    Rgba::BLACK,
+                    fb,
+                );
+            }
+        }
+        OakSpeechPhase::ShowNidorino { .. } => {
+            if let Some(ref mut rm) = res {
+                if let Ok(cached) = rm.load_pokemon_front("nidorino") {
+                    let ts = cached.tileset.clone();
+                    let w = cached.source_size.0;
+                    let h = cached.source_size.1;
+                    draw_centered_sprite(fb, &ts, w, h, pal);
+                }
+            }
+            draw_text_box(
+                fb,
+                text_box_x,
+                text_box_y,
+                text_box_w,
+                text_box_h,
+                Rgba::BLACK,
+            );
+            draw_text(
+                "This world is",
+                text_box_x + TILE_SIZE,
+                text_box_y + TILE_SIZE,
+                Rgba::BLACK,
+                fb,
+            );
+            draw_text(
+                "inhabited by POKeMON!",
+                text_box_x + TILE_SIZE,
+                text_box_y + TILE_SIZE * 3,
+                Rgba::BLACK,
+                fb,
+            );
+        }
+        OakSpeechPhase::PlayerNameChoice { cursor } => {
+            if let Some(ref mut rm) = res {
+                if let Ok(cached) = rm.load(AssetCategory::Player, "red") {
+                    let ts = cached.tileset.clone();
+                    let w = cached.source_size.0;
+                    let h = cached.source_size.1;
+                    draw_centered_sprite(fb, &ts, w, h, pal);
+                }
+            }
+            draw_text_box(
+                fb,
+                text_box_x,
+                text_box_y,
+                text_box_w,
+                text_box_h,
+                Rgba::BLACK,
+            );
+            draw_text(
+                "Your name?",
+                text_box_x + TILE_SIZE,
+                text_box_y + TILE_SIZE,
+                Rgba::BLACK,
+                fb,
+            );
+            for (i, name) in DEFAULT_PLAYER_NAMES.iter().enumerate() {
+                let prefix = if i == *cursor { ">" } else { " " };
+                let label = format!("{}{}", prefix, name);
+                draw_text(&label, 8, 8 + (i as u32 * 12), Rgba::BLACK, fb);
+            }
+        }
+        OakSpeechPhase::PlayerNaming => {}
+        OakSpeechPhase::RivalNameChoice { cursor } => {
+            if let Some(ref mut rm) = res {
+                if let Ok(cached) = rm.load_trainer("rival1") {
+                    let ts = cached.tileset.clone();
+                    let w = cached.source_size.0;
+                    let h = cached.source_size.1;
+                    draw_centered_sprite(fb, &ts, w, h, pal);
+                }
+            }
+            draw_text_box(
+                fb,
+                text_box_x,
+                text_box_y,
+                text_box_w,
+                text_box_h,
+                Rgba::BLACK,
+            );
+            draw_text(
+                "His name?",
+                text_box_x + TILE_SIZE,
+                text_box_y + TILE_SIZE,
+                Rgba::BLACK,
+                fb,
+            );
+            for (i, name) in DEFAULT_RIVAL_NAMES.iter().enumerate() {
+                let prefix = if i == *cursor { ">" } else { " " };
+                let label = format!("{}{}", prefix, name);
+                draw_text(&label, 8, 8 + (i as u32 * 12), Rgba::BLACK, fb);
+            }
+        }
+        OakSpeechPhase::RivalNaming => {}
+        OakSpeechPhase::ShrinkPlayer { wait_frames } => {
+            if let Some(ref mut rm) = res {
+                let shrink_name = if *wait_frames > 30 {
+                    "shrink1"
+                } else {
+                    "shrink2"
+                };
+                if let Ok(cached) = rm.load(AssetCategory::Player, shrink_name) {
+                    let ts = cached.tileset.clone();
+                    let w = cached.source_size.0;
+                    let h = cached.source_size.1;
+                    draw_centered_sprite(fb, &ts, w, h, pal);
+                }
+            }
+        }
+        OakSpeechPhase::Done => {
+            draw_text("...", 70, 70, Rgba::BLACK, fb);
+        }
     }
 }
 
@@ -618,25 +844,125 @@ fn draw_save_menu(state: &SaveMenuState, fb: &mut FrameBuffer) {
     draw_text(&time, 10, 100, Rgba::BLACK, fb);
 }
 
+fn screen_target_to_game_screen(target: &ScreenTarget) -> GameScreen {
+    match target {
+        ScreenTarget::Copyright => GameScreen::CopyrightSplash,
+        ScreenTarget::Title => GameScreen::TitleScreen,
+        ScreenTarget::MainMenu => GameScreen::MainMenu,
+        ScreenTarget::Oak => GameScreen::OakSpeech,
+        ScreenTarget::Overworld => GameScreen::Overworld,
+        ScreenTarget::Battle => GameScreen::Battle,
+        ScreenTarget::StartMenu => GameScreen::StartMenu,
+        ScreenTarget::Options => GameScreen::OptionsMenu,
+        ScreenTarget::Save => GameScreen::SaveMenu,
+    }
+}
+
+fn screen_name(screen: &GameScreen) -> &'static str {
+    match screen {
+        GameScreen::CopyrightSplash => "copyright",
+        GameScreen::TitleScreen => "title",
+        GameScreen::MainMenu => "main_menu",
+        GameScreen::OakSpeech => "oak_speech",
+        GameScreen::Overworld => "overworld",
+        GameScreen::Battle => "battle",
+        GameScreen::StartMenu => "start_menu",
+        GameScreen::OptionsMenu => "options",
+        GameScreen::SaveMenu => "save",
+    }
+}
+
+const ALL_SCREENS: &[GameScreen] = &[
+    GameScreen::CopyrightSplash,
+    GameScreen::TitleScreen,
+    GameScreen::MainMenu,
+    GameScreen::OakSpeech,
+    GameScreen::Overworld,
+    GameScreen::Battle,
+    GameScreen::StartMenu,
+    GameScreen::OptionsMenu,
+    GameScreen::SaveMenu,
+];
+
+fn capture_screen(game: &mut PokemonGame, target: GameScreen, frames: u32) -> FrameBuffer {
+    game.handle_transition(target);
+    let input = InputState::new();
+    for _ in 0..frames {
+        game.update(&input);
+    }
+    let mut fb = FrameBuffer::new(Rgba::WHITE);
+    game.draw(&mut fb);
+    fb
+}
+
+fn cmd_screenshot(target: &ScreenTarget, output: &PathBuf, frames: u32) {
+    let version = GameVersion::Red;
+    let mut game = PokemonGame::new(version);
+    let screen = screen_target_to_game_screen(target);
+    println!(
+        "Capturing screen: {} ({} frames)...",
+        screen_name(&screen),
+        frames
+    );
+    let fb = capture_screen(&mut game, screen, frames);
+    fb.save_png(output).expect("Failed to save PNG");
+    println!("Saved: {}", output.display());
+}
+
+fn cmd_screenshot_all(output_dir: &PathBuf, frames: u32) {
+    std::fs::create_dir_all(output_dir).expect("Failed to create output directory");
+    let version = GameVersion::Red;
+    let mut game = PokemonGame::new(version);
+    for &screen in ALL_SCREENS {
+        let name = screen_name(&screen);
+        let path = output_dir.join(format!("{}.png", name));
+        println!("Capturing: {}...", name);
+        let fb = capture_screen(&mut game, screen, frames);
+        fb.save_png(&path).expect("Failed to save PNG");
+        println!("  -> {}", path.display());
+    }
+    println!(
+        "Done. {} screenshots saved to {}",
+        ALL_SCREENS.len(),
+        output_dir.display()
+    );
+}
+
 fn main() {
+    let cli = Cli::parse();
     let version = GameVersion::Red;
 
-    let config = GameWindowConfig {
-        title: format!(
-            "Pokémon {} - Rust",
-            match version {
-                GameVersion::Red => "Red",
-                GameVersion::Blue => "Blue",
+    match cli.command {
+        None | Some(Commands::Run) => {
+            let config = GameWindowConfig {
+                title: format!(
+                    "Pokémon {} - Rust",
+                    match version {
+                        GameVersion::Red => "Red",
+                        GameVersion::Blue => "Blue",
+                    }
+                ),
+                scale: 3,
+                resizable: true,
+            };
+            let game = PokemonGame::new(version);
+            match run(config, game) {
+                Ok(()) => println!("Game exited normally"),
+                Err(e) => eprintln!("Error: {}", e),
             }
-        ),
-        scale: 3,
-        resizable: true,
-    };
-
-    let game = PokemonGame::new(version);
-
-    match run(config, game) {
-        Ok(()) => println!("Game exited normally"),
-        Err(e) => eprintln!("Error: {}", e),
+        }
+        Some(Commands::Screenshot {
+            ref screen,
+            ref output,
+            frames,
+        }) => {
+            cmd_screenshot(screen, output, frames);
+        }
+        Some(Commands::ScreenshotAll {
+            ref output_dir,
+            frames,
+        }) => {
+            cmd_screenshot_all(output_dir, frames);
+        }
     }
 }

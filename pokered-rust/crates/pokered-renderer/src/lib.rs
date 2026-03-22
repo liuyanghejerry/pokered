@@ -157,6 +157,19 @@ impl FrameBuffer {
         self.data[offset..offset + src_bytes].copy_from_slice(&src[..src_bytes]);
         true
     }
+
+    /// Save the framebuffer as a PNG file.
+    ///
+    /// Uses the `image` crate to encode the raw RGBA data.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn save_png(&self, path: &std::path::Path) -> std::io::Result<()> {
+        use image::{ImageBuffer, Rgba as ImgRgba};
+        let img: ImageBuffer<ImgRgba<u8>, _> =
+            ImageBuffer::from_raw(SCREEN_WIDTH, SCREEN_HEIGHT, self.data.clone())
+                .expect("FrameBuffer data size mismatch");
+        img.save(path)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+    }
 }
 
 impl Default for FrameBuffer {
