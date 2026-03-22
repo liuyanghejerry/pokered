@@ -12,7 +12,7 @@ use pokered_core::oak_speech::{
     DEFAULT_RIVAL_NAMES,
 };
 use pokered_core::options_menu::{GameOptions, OptionsInput, OptionsMenuResult, OptionsMenuState};
-use pokered_core::overworld::{OverworldInput, OverworldScreen};
+use pokered_core::overworld::{Direction, OverworldInput, OverworldScreen};
 use pokered_core::save_menu::{SaveMenuResult, SaveMenuState, SaveScreenInfo, YesNoInput};
 use pokered_core::start_menu::{StartMenuAction, StartMenuInput, StartMenuState};
 use pokered_core::title_screen::TitleScreenState;
@@ -739,6 +739,34 @@ fn draw_oak_speech(
     }
 }
 
+/// Blit a single tile from a tileset at the given screen position.
+fn blit_single_tile(
+    fb: &mut FrameBuffer,
+    tileset: &TileSet,
+    tile_idx: usize,
+    px: u32,
+    py: u32,
+    palette: &Palette,
+) {
+    if tile_idx >= tileset.len() {
+        return;
+    }
+    let tile = tileset.get(tile_idx);
+    for row in 0..TILE_SIZE {
+        let rgba_row = tile.render_row(row as usize, palette);
+        for col in 0..TILE_SIZE {
+            let sx = px + col;
+            let sy = py + row;
+            if sx < SCREEN_WIDTH && sy < SCREEN_HEIGHT {
+                let c = rgba_row[col as usize];
+                if c != Rgba::TRANSPARENT {
+                    fb.set_pixel(sx, sy, c);
+                }
+            }
+        }
+    }
+}
+
 fn draw_overworld(
     screen: &OverworldScreen,
     res: &mut Option<ResourceManager>,
@@ -747,26 +775,96 @@ fn draw_overworld(
     fb.clear(Rgba::WHITE);
     let pal = &GRAYSCALE_PALETTE;
 
+    let player_tx = screen.state.player.x as i32;
+    let player_ty = screen.state.player.y as i32;
+    let screen_center_tx = 9_i32;
+    let screen_center_ty = 8_i32;
+
     if let Some(ref mut rm) = res {
         if let Ok(cached) = rm.load_tileset("overworld") {
             let ts = cached.tileset.clone();
-            let tpr = cached.source_size.0 / TILE_SIZE;
-            blit_tileset(fb, &ts, 0, 0, tpr, pal);
+
+            let view_origin_tx = player_tx - screen_center_tx;
+            let view_origin_ty = player_ty - screen_center_ty;
+
+            for sy in 0..18_i32 {
+                for sx in 0..20_i32 {
+                    let world_tx = view_origin_tx + sx;
+                    let world_ty = view_origin_ty + sy;
+                    let tile_idx = demo_overworld_tile(world_tx, world_ty, ts.len());
+                    let px = (sx as u32) * TILE_SIZE;
+                    let py = (sy as u32) * TILE_SIZE;
+                    blit_single_tile(fb, &ts, tile_idx, px, py, pal);
+                }
+            }
         }
 
-        // Player sprite centered on screen (tile 4,4 → pixel 32,32 in a 10x9 visible area)
-        // GB screen = 20x18 tiles, player centered at (10,9) → pixel (80, 72)
+        // Player sprite: 16×96 sheet = 6 frames of 16×16 (2×2 tiles each)
+        // Frame order: down(0), down-walk(1), up(2), up-walk(3), left(4), left-walk(5)
         if let Ok(cached) = rm.load_sprite("red") {
             let ts = cached.tileset.clone();
+            let frame = match screen.state.player.facing {
+                Direction::Down => 0,
+                Direction::Up => 2,
+                Direction::Left => 4,
+                Direction::Right => 4,
+            };
+            let base_tile = frame * 4;
             let tpr = cached.source_size.0 / TILE_SIZE;
-            let player_px_x = (SCREEN_WIDTH.saturating_sub(cached.source_size.0)) / 2;
-            let player_px_y = (SCREEN_HEIGHT.saturating_sub(cached.source_size.1)) / 2;
-            blit_tileset(fb, &ts, player_px_x, player_px_y, tpr, pal);
+
+            let player_px_x = screen_center_tx as u32 * TILE_SIZE;
+            let player_px_y = screen_center_ty as u32 * TILE_SIZE;
+
+            for row in 0..2_u32 {
+                for col in 0..2_u32 {
+                    let tile_idx = base_tile + (row as usize * tpr as usize) + col as usize;
+                    if tile_idx < ts.len() {
+                        blit_single_tile(
+                            fb,
+                            &ts,
+                            tile_idx,
+                            player_px_x + col * TILE_SIZE,
+                            player_px_y + row * TILE_SIZE,
+                            pal,
+                        );
+                    }
+                }
+            }
         }
     }
 
     let map_name = format!("{:?}", screen.state.current_map);
-    draw_text(&map_name, 1 * TILE_SIZE, 1 * TILE_SIZE, Rgba::BLACK, fb);
+    let name_len = map_name.len() as u32;
+    let box_w = name_len.max(4) + 2;
+    let box_x = (SCREEN_WIDTH.saturating_sub((box_w + 2) * TILE_SIZE)) / 2;
+    let box_y = 13 * TILE_SIZE;
+    draw_text_box(fb, box_x, box_y, box_w, 2, Rgba::BLACK);
+    draw_text(
+        &map_name,
+        box_x + TILE_SIZE,
+        box_y + TILE_SIZE,
+        Rgba::BLACK,
+        fb,
+    );
+}
+
+fn demo_overworld_tile(world_x: i32, world_y: i32, max_tiles: usize) -> usize {
+    let wx = world_x.rem_euclid(32) as u32;
+    let wy = world_y.rem_euclid(32) as u32;
+
+    let tile_idx = if wx == 0 || wx == 31 || wy == 0 || wy == 31 {
+        51_usize
+    } else if (wx == 15 || wx == 16) && wy > 0 && wy < 31 {
+        7_usize
+    } else if (wy == 15 || wy == 16) && wx > 0 && wx < 31 {
+        7_usize
+    } else if wx > 10 && wx < 20 && wy > 5 && wy < 10 {
+        35_usize
+    } else {
+        1_usize
+    };
+
+    tile_idx.min(max_tiles.saturating_sub(1))
 }
 
 fn draw_battle(screen: &BattleScreen, res: &mut Option<ResourceManager>, fb: &mut FrameBuffer) {

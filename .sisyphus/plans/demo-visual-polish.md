@@ -7,22 +7,13 @@
 - [x] CLI截图系统: screenshot/screenshot-all子命令
 - [x] 全部9个画面渲染坐标对齐原版ASM(hlcoord)
 
-## 里程碑 D1: 文字框使用真实瓦片边框（替换1px线条）
-**目标**: `draw_text_box()` 当前用1px线条画边框，应该用Game Boy原版的8×8瓦片边框字符
-**文件**: `pokered-rust/crates/pokered-app/src/main.rs` (draw_text_box函数)
-**参考**: `pokered-renderer/src/textbox.rs` — TextBoxFrame已有边框瓦片定义
-**验收**: 截图显示粗体瓦片边框（类似原版对话框外观）
+## 里程碑 D1: 文字框使用真实瓦片边框（替换1px线条） ✅ 已完成
+**已完成**: draw_text_box改用8×8瓦片渲染(2px圆角边框)+box_tiles模块(8种边框位图)+draw_glyph/fill_tile通用函数
+**提交**: a8da46ab
 
-## 里程碑 D2: 大地图渲染改进
-**目标**: 大地图目前只是从(0,0)铺瓦片，没有摄像机/视口逻辑，玩家精灵位置不对
-**任务**:
-- 玩家精灵居中在屏幕中央（160x144像素的中心）
-- 实现简单视口：以玩家为中心裁剪地图瓦片
-- 显示地图名称（进入时短暂显示）
-- NPC精灵在正确位置渲染
-**文件**: `pokered-rust/crates/pokered-app/src/main.rs` (draw_overworld函数)
-**参考**: `pokered-renderer/src/viewport.rs`, `pokered-core/src/overworld/`
-**验收**: 截图显示玩家居中、周围有正确地图瓦片、NPC可见
+## 里程碑 D2: 大地图渲染改进 ✅ 已完成
+**已完成**: draw_overworld重写 — blit_single_tile()瓦片渲染+demo_overworld_tile()32×32示例地图+视口以玩家为中心(20×18可见)+玩家精灵正确提取16×16帧(Direction)+地图名称弹窗居中显示
+**提交**: 待提交
 
 ## 里程碑 D3: 战斗画面动态数据
 **目标**: 战斗画面目前用硬编码的宝可梦名字/HP，应从BattleScreen状态读取
