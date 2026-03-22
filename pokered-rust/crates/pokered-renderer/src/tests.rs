@@ -3866,3 +3866,821 @@ fn color_palette_state_set_battle_transformed() {
     assert_eq!(state.sgb_obj1_palette, SgbPaletteId::MewMon); // Mewtwo
     assert_eq!(state.sgb_bg_palette, SgbPaletteId::YellowBar); // player HP bar yellow
 }
+
+// ==========================================================================
+// M5.10 — Resource loading pipeline (PNG → tiles) tests
+// ==========================================================================
+
+use crate::resource::*;
+
+// --- grayscale_to_color_index ---
+
+#[test]
+fn grayscale_white_maps_to_color_0() {
+    assert_eq!(grayscale_to_color_index(255), 0);
+}
+
+#[test]
+fn grayscale_light_gray_maps_to_color_1() {
+    assert_eq!(grayscale_to_color_index(170), 1);
+}
+
+#[test]
+fn grayscale_dark_gray_maps_to_color_2() {
+    assert_eq!(grayscale_to_color_index(85), 2);
+}
+
+#[test]
+fn grayscale_black_maps_to_color_3() {
+    assert_eq!(grayscale_to_color_index(0), 3);
+}
+
+#[test]
+fn grayscale_snapping_near_white() {
+    // 213–255 → 0
+    assert_eq!(grayscale_to_color_index(213), 0);
+    assert_eq!(grayscale_to_color_index(240), 0);
+}
+
+#[test]
+fn grayscale_snapping_near_light_gray() {
+    // 128–212 → 1
+    assert_eq!(grayscale_to_color_index(128), 1);
+    assert_eq!(grayscale_to_color_index(212), 1);
+}
+
+#[test]
+fn grayscale_snapping_near_dark_gray() {
+    // 43–127 → 2
+    assert_eq!(grayscale_to_color_index(43), 2);
+    assert_eq!(grayscale_to_color_index(127), 2);
+}
+
+#[test]
+fn grayscale_snapping_near_black() {
+    // 0–42 → 3
+    assert_eq!(grayscale_to_color_index(42), 3);
+    assert_eq!(grayscale_to_color_index(1), 3);
+}
+
+// --- grayscale_to_color_index_strict ---
+
+#[test]
+fn strict_grayscale_exact_values() {
+    assert_eq!(grayscale_to_color_index_strict(255), Some(0));
+    assert_eq!(grayscale_to_color_index_strict(170), Some(1));
+    assert_eq!(grayscale_to_color_index_strict(85), Some(2));
+    assert_eq!(grayscale_to_color_index_strict(0), Some(3));
+}
+
+#[test]
+fn strict_grayscale_rejects_non_standard() {
+    assert_eq!(grayscale_to_color_index_strict(128), None);
+    assert_eq!(grayscale_to_color_index_strict(200), None);
+    assert_eq!(grayscale_to_color_index_strict(50), None);
+    assert_eq!(grayscale_to_color_index_strict(1), None);
+}
+
+// --- bw_to_color_index ---
+
+#[test]
+fn bw_white_maps_to_color_0() {
+    assert_eq!(bw_to_color_index(255), 0);
+    assert_eq!(bw_to_color_index(128), 0);
+}
+
+#[test]
+fn bw_black_maps_to_color_3() {
+    assert_eq!(bw_to_color_index(0), 3);
+    assert_eq!(bw_to_color_index(127), 3);
+}
+
+// --- png_to_2bpp with synthetic image ---
+
+#[test]
+fn png_to_2bpp_single_white_tile() {
+    // Create an 8×8 all-white image
+    let img =
+        image::DynamicImage::ImageLuma8(image::GrayImage::from_pixel(8, 8, image::Luma([255])));
+    let data = png_to_2bpp(&img).unwrap();
+    assert_eq!(data.len(), 16); // 1 tile × 16 bytes
+                                // All white = color 0 → all bits 0
+    for byte in &data {
+        assert_eq!(*byte, 0x00);
+    }
+}
+
+#[test]
+fn png_to_2bpp_single_black_tile() {
+    // Create an 8×8 all-black image
+    let img = image::DynamicImage::ImageLuma8(image::GrayImage::from_pixel(8, 8, image::Luma([0])));
+    let data = png_to_2bpp(&img).unwrap();
+    assert_eq!(data.len(), 16);
+    // All black = color 3 → both lo and hi bytes = 0xFF
+    for byte in &data {
+        assert_eq!(*byte, 0xFF);
+    }
+}
+
+#[test]
+fn png_to_2bpp_alternating_colors() {
+    // Create an 8×8 image where first row alternates white(255)/black(0)
+    let mut img = image::GrayImage::from_pixel(8, 8, image::Luma([255]));
+    // Set odd columns of first row to black
+    for col in (1..8).step_by(2) {
+        img.put_pixel(col, 0, image::Luma([0]));
+    }
+    let dyn_img = image::DynamicImage::ImageLuma8(img);
+    let data = png_to_2bpp(&dyn_img).unwrap();
+
+    // First row: pixels are [0, 3, 0, 3, 0, 3, 0, 3]
+    // lo byte: bits 7,5,3,1 = 0; bits 6,4,2,0 = 1 → 0b01010101 = 0x55
+    // hi byte: same → 0x55
+    assert_eq!(data[0], 0x55); // lo
+    assert_eq!(data[1], 0x55); // hi
+}
+
+#[test]
+fn png_to_2bpp_light_gray_tile() {
+    // All light gray (170) → color 1 → lo=1, hi=0
+    let img =
+        image::DynamicImage::ImageLuma8(image::GrayImage::from_pixel(8, 8, image::Luma([170])));
+    let data = png_to_2bpp(&img).unwrap();
+    for row in 0..8 {
+        assert_eq!(data[row * 2], 0xFF); // lo = all 1s (color 1, bit 0 = 1)
+        assert_eq!(data[row * 2 + 1], 0x00); // hi = all 0s (color 1, bit 1 = 0)
+    }
+}
+
+#[test]
+fn png_to_2bpp_dark_gray_tile() {
+    // All dark gray (85) → color 2 → lo=0, hi=1
+    let img =
+        image::DynamicImage::ImageLuma8(image::GrayImage::from_pixel(8, 8, image::Luma([85])));
+    let data = png_to_2bpp(&img).unwrap();
+    for row in 0..8 {
+        assert_eq!(data[row * 2], 0x00); // lo = all 0s (color 2, bit 0 = 0)
+        assert_eq!(data[row * 2 + 1], 0xFF); // hi = all 1s (color 2, bit 1 = 1)
+    }
+}
+
+#[test]
+fn png_to_2bpp_multi_tile() {
+    // 16×8 image = 2 tiles side by side
+    let mut img = image::GrayImage::from_pixel(16, 8, image::Luma([255])); // all white
+                                                                           // Make second tile all black
+    for y in 0..8 {
+        for x in 8..16 {
+            img.put_pixel(x, y, image::Luma([0]));
+        }
+    }
+    let dyn_img = image::DynamicImage::ImageLuma8(img);
+    let data = png_to_2bpp(&dyn_img).unwrap();
+    assert_eq!(data.len(), 32); // 2 tiles
+
+    // First tile: all white (all zeros)
+    for i in 0..16 {
+        assert_eq!(data[i], 0x00);
+    }
+    // Second tile: all black (all 0xFF)
+    for i in 16..32 {
+        assert_eq!(data[i], 0xFF);
+    }
+}
+
+#[test]
+fn png_to_2bpp_2x2_tiles() {
+    // 16×16 image = 4 tiles in 2×2 arrangement
+    // Tile order should be: (0,0), (1,0), (0,1), (1,1) — row-major
+    let mut img = image::GrayImage::from_pixel(16, 16, image::Luma([255])); // all white
+                                                                            // Make tile (1,0) = top-right all black
+    for y in 0..8 {
+        for x in 8..16 {
+            img.put_pixel(x, y, image::Luma([0]));
+        }
+    }
+    let dyn_img = image::DynamicImage::ImageLuma8(img);
+    let data = png_to_2bpp(&dyn_img).unwrap();
+    assert_eq!(data.len(), 64); // 4 tiles
+
+    // Tile 0 (0,0): white
+    for i in 0..16 {
+        assert_eq!(data[i], 0x00);
+    }
+    // Tile 1 (1,0): black
+    for i in 16..32 {
+        assert_eq!(data[i], 0xFF);
+    }
+    // Tile 2 (0,1): white
+    for i in 32..48 {
+        assert_eq!(data[i], 0x00);
+    }
+    // Tile 3 (1,1): white
+    for i in 48..64 {
+        assert_eq!(data[i], 0x00);
+    }
+}
+
+#[test]
+fn png_to_2bpp_rejects_non_multiple_of_8() {
+    let img =
+        image::DynamicImage::ImageLuma8(image::GrayImage::from_pixel(10, 8, image::Luma([255])));
+    let result = png_to_2bpp(&img);
+    assert!(result.is_err());
+    assert!(matches!(
+        result.unwrap_err(),
+        ResourceError::InvalidDimensions {
+            width: 10,
+            height: 8
+        }
+    ));
+}
+
+// --- png_to_1bpp ---
+
+#[test]
+fn png_to_1bpp_all_white() {
+    let img =
+        image::DynamicImage::ImageLuma8(image::GrayImage::from_pixel(8, 8, image::Luma([255])));
+    let data = png_to_1bpp(&img).unwrap();
+    assert_eq!(data.len(), 8); // 1 tile × 8 bytes
+    for byte in &data {
+        assert_eq!(*byte, 0x00); // all white → all bits 0
+    }
+}
+
+#[test]
+fn png_to_1bpp_all_black() {
+    let img = image::DynamicImage::ImageLuma8(image::GrayImage::from_pixel(8, 8, image::Luma([0])));
+    let data = png_to_1bpp(&img).unwrap();
+    assert_eq!(data.len(), 8);
+    for byte in &data {
+        assert_eq!(*byte, 0xFF); // all black → all bits 1
+    }
+}
+
+#[test]
+fn png_to_1bpp_checkerboard() {
+    // First row: alternating white/black pixels
+    let mut img = image::GrayImage::from_pixel(8, 8, image::Luma([255]));
+    for col in (0..8).step_by(2) {
+        img.put_pixel(col, 0, image::Luma([0]));
+    }
+    let dyn_img = image::DynamicImage::ImageLuma8(img);
+    let data = png_to_1bpp(&dyn_img).unwrap();
+    // First row: black(0), white(255), black(0), white(255), ... → 0b10101010 = 0xAA
+    assert_eq!(data[0], 0xAA);
+}
+
+#[test]
+fn png_to_1bpp_rejects_non_multiple_of_8() {
+    let img =
+        image::DynamicImage::ImageLuma8(image::GrayImage::from_pixel(7, 8, image::Luma([255])));
+    assert!(png_to_1bpp(&img).is_err());
+}
+
+// --- png_to_tileset_2bpp ---
+
+#[test]
+fn png_to_tileset_2bpp_produces_correct_tile_count() {
+    // 16×16 → 4 tiles
+    let img =
+        image::DynamicImage::ImageLuma8(image::GrayImage::from_pixel(16, 16, image::Luma([255])));
+    let ts = png_to_tileset_2bpp(&img).unwrap();
+    assert_eq!(ts.len(), 4);
+}
+
+#[test]
+fn png_to_tileset_1bpp_produces_correct_tile_count() {
+    // 128×64 → 128 tiles (like the font)
+    let img =
+        image::DynamicImage::ImageLuma8(image::GrayImage::from_pixel(128, 64, image::Luma([255])));
+    let ts = png_to_tileset_1bpp(&img).unwrap();
+    assert_eq!(ts.len(), 128);
+}
+
+// --- PokemonSpriteSize ---
+
+#[test]
+fn pokemon_sprite_size_small() {
+    let s = PokemonSpriteSize::Small;
+    assert_eq!(s.tiles(), 5);
+    assert_eq!(s.pixels(), 40);
+}
+
+#[test]
+fn pokemon_sprite_size_medium() {
+    let s = PokemonSpriteSize::Medium;
+    assert_eq!(s.tiles(), 6);
+    assert_eq!(s.pixels(), 48);
+}
+
+#[test]
+fn pokemon_sprite_size_large() {
+    let s = PokemonSpriteSize::Large;
+    assert_eq!(s.tiles(), 7);
+    assert_eq!(s.pixels(), 56);
+}
+
+#[test]
+fn pokemon_sprite_size_from_dimensions() {
+    assert_eq!(
+        PokemonSpriteSize::from_dimensions(40, 40),
+        Some(PokemonSpriteSize::Small)
+    );
+    assert_eq!(
+        PokemonSpriteSize::from_dimensions(48, 48),
+        Some(PokemonSpriteSize::Medium)
+    );
+    assert_eq!(
+        PokemonSpriteSize::from_dimensions(56, 56),
+        Some(PokemonSpriteSize::Large)
+    );
+    assert_eq!(PokemonSpriteSize::from_dimensions(32, 32), None);
+    assert_eq!(PokemonSpriteSize::from_dimensions(64, 64), None);
+}
+
+#[test]
+fn pokemon_sprite_back_constants() {
+    assert_eq!(PokemonSpriteSize::BACK_TILES, 4);
+    assert_eq!(PokemonSpriteSize::BACK_PIXELS, 32);
+}
+
+// --- AssetCategory ---
+
+#[test]
+fn asset_category_subdir_tileset() {
+    assert_eq!(AssetCategory::Tileset.subdir(), "tilesets");
+}
+
+#[test]
+fn asset_category_subdir_pokemon_front() {
+    assert_eq!(AssetCategory::PokemonFront.subdir(), "pokemon/front");
+}
+
+#[test]
+fn asset_category_subdir_pokemon_front_rg() {
+    assert_eq!(AssetCategory::PokemonFrontRG.subdir(), "pokemon/front_rg");
+}
+
+#[test]
+fn asset_category_subdir_pokemon_back() {
+    assert_eq!(AssetCategory::PokemonBack.subdir(), "pokemon/back");
+}
+
+#[test]
+fn asset_category_subdir_font() {
+    assert_eq!(AssetCategory::Font.subdir(), "font");
+}
+
+#[test]
+fn asset_category_subdir_trainer() {
+    assert_eq!(AssetCategory::Trainer.subdir(), "trainers");
+}
+
+#[test]
+fn asset_category_font_is_1bpp() {
+    assert!(AssetCategory::Font.is_1bpp());
+}
+
+#[test]
+fn asset_category_tileset_is_not_1bpp() {
+    assert!(!AssetCategory::Tileset.is_1bpp());
+    assert!(!AssetCategory::Sprite.is_1bpp());
+    assert!(!AssetCategory::PokemonFront.is_1bpp());
+    assert!(!AssetCategory::Trainer.is_1bpp());
+    assert!(!AssetCategory::Battle.is_1bpp());
+}
+
+// --- AssetRoot integration tests (use actual gfx/ directory) ---
+
+/// Helper to get the pokered gfx root for integration tests.
+/// Skips if gfx/ is not found (e.g., CI without full checkout).
+fn get_test_asset_root() -> Option<AssetRoot> {
+    // The pokered repo root is at ../../.. from the crate root
+    // Or we can just try the known absolute path pattern
+    let candidates = [
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../gfx"),
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../gfx"),
+    ];
+    for candidate in &candidates {
+        if candidate.is_dir() {
+            return AssetRoot::new(candidate).ok();
+        }
+    }
+    None
+}
+
+#[test]
+fn asset_root_from_parent_finds_gfx() {
+    let manifest = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    // pokered root is at ../../../ relative to pokered-rust/crates/pokered-renderer
+    let pokered_root = manifest.join("../../..");
+    if pokered_root.join("gfx").is_dir() {
+        let root = AssetRoot::from_parent(&pokered_root).unwrap();
+        assert!(root.gfx_dir().is_dir());
+    }
+}
+
+#[test]
+fn asset_root_resolve_path() {
+    if let Some(root) = get_test_asset_root() {
+        let path = root.resolve(AssetCategory::Tileset, "overworld.png");
+        assert!(path.to_str().unwrap().contains("tilesets/overworld.png"));
+    }
+}
+
+#[test]
+fn asset_root_resolve_checked_existing_file() {
+    if let Some(root) = get_test_asset_root() {
+        let result = root.resolve_checked(AssetCategory::Tileset, "overworld.png");
+        assert!(result.is_ok(), "overworld.png should exist: {:?}", result);
+    }
+}
+
+#[test]
+fn asset_root_resolve_checked_missing_file() {
+    if let Some(root) = get_test_asset_root() {
+        let result = root.resolve_checked(AssetCategory::Tileset, "nonexistent.png");
+        assert!(result.is_err());
+    }
+}
+
+#[test]
+fn asset_root_list_pngs_tilesets() {
+    if let Some(root) = get_test_asset_root() {
+        let pngs = root.list_pngs(AssetCategory::Tileset).unwrap();
+        assert!(!pngs.is_empty(), "tilesets should have PNGs");
+        // All should end in .png
+        for p in &pngs {
+            assert_eq!(p.extension().unwrap(), "png");
+        }
+    }
+}
+
+#[test]
+fn asset_root_list_pngs_pokemon_front() {
+    if let Some(root) = get_test_asset_root() {
+        let pngs = root.list_pngs(AssetCategory::PokemonFront).unwrap();
+        assert!(
+            pngs.len() > 100,
+            "should have 151+ pokemon front sprites, got {}",
+            pngs.len()
+        );
+    }
+}
+
+#[test]
+fn asset_root_list_pngs_sorted() {
+    if let Some(root) = get_test_asset_root() {
+        let pngs = root.list_pngs(AssetCategory::Sprite).unwrap();
+        let sorted: Vec<_> = {
+            let mut v = pngs.clone();
+            v.sort();
+            v
+        };
+        assert_eq!(pngs, sorted, "list_pngs should return sorted paths");
+    }
+}
+
+// --- Real PNG loading tests ---
+
+#[test]
+fn load_overworld_tileset_png() {
+    if let Some(root) = get_test_asset_root() {
+        let path = root.resolve(AssetCategory::Tileset, "overworld.png");
+        if path.is_file() {
+            let ts = load_tileset_from_png(&path).unwrap();
+            // overworld.png is 128×48 = 16×6 tiles = 96 tiles
+            assert_eq!(ts.len(), 96, "overworld tileset should have 96 tiles");
+        }
+    }
+}
+
+#[test]
+fn load_font_png_1bpp() {
+    if let Some(root) = get_test_asset_root() {
+        let path = root.resolve(AssetCategory::Font, "font.png");
+        if path.is_file() {
+            let ts = load_tileset_from_png_1bpp(&path).unwrap();
+            // font.png is 128×64 = 16×8 tiles = 128 tiles
+            assert_eq!(ts.len(), 128, "font should have 128 tiles");
+        }
+    }
+}
+
+#[test]
+fn load_sprite_red_png() {
+    if let Some(root) = get_test_asset_root() {
+        let path = root.resolve(AssetCategory::Sprite, "red.png");
+        if path.is_file() {
+            let ts = load_tileset_from_png(&path).unwrap();
+            // red.png is 16×96 = 2×12 tiles = 24 tiles (4 frames × 6 tiles each for walking sprite)
+            assert_eq!(ts.len(), 24, "red sprite should have 24 tiles");
+        }
+    }
+}
+
+#[test]
+fn load_pokemon_front_bulbasaur() {
+    if let Some(root) = get_test_asset_root() {
+        let path = root.resolve(AssetCategory::PokemonFront, "bulbasaur.png");
+        if path.is_file() {
+            let loaded = LoadedPng::load(&path).unwrap();
+            assert_eq!(loaded.dimensions, (40, 40));
+            let size = PokemonSpriteSize::from_dimensions(40, 40);
+            assert_eq!(size, Some(PokemonSpriteSize::Small));
+            let ts = loaded.to_tileset(false).unwrap();
+            assert_eq!(ts.len(), 25); // 5×5 tiles
+        }
+    }
+}
+
+#[test]
+fn load_pokemon_front_charizard() {
+    if let Some(root) = get_test_asset_root() {
+        let path = root.resolve(AssetCategory::PokemonFront, "charizard.png");
+        if path.is_file() {
+            let loaded = LoadedPng::load(&path).unwrap();
+            assert_eq!(loaded.dimensions, (56, 56));
+            let size = PokemonSpriteSize::from_dimensions(56, 56);
+            assert_eq!(size, Some(PokemonSpriteSize::Large));
+            let ts = loaded.to_tileset(false).unwrap();
+            assert_eq!(ts.len(), 49); // 7×7 tiles
+        }
+    }
+}
+
+#[test]
+fn load_pokemon_back_bulbasaur() {
+    if let Some(root) = get_test_asset_root() {
+        let path = root.resolve(AssetCategory::PokemonBack, "bulbasaurb.png");
+        if path.is_file() {
+            let loaded = LoadedPng::load(&path).unwrap();
+            assert_eq!(loaded.dimensions, (32, 32));
+            let ts = loaded.to_tileset(false).unwrap();
+            assert_eq!(ts.len(), 16); // 4×4 tiles
+        }
+    }
+}
+
+// --- ResourceManager tests ---
+
+#[test]
+fn resource_manager_new_empty_cache() {
+    if let Some(root) = get_test_asset_root() {
+        let mgr = ResourceManager::new(root);
+        assert_eq!(mgr.cache_size(), 0);
+    }
+}
+
+#[test]
+fn resource_manager_load_tileset() {
+    if let Some(root) = get_test_asset_root() {
+        let mut mgr = ResourceManager::new(root);
+        let result = mgr.load_tileset("overworld");
+        if let Ok(cached) = result {
+            assert_eq!(cached.source_size, (128, 48));
+            assert_eq!(cached.tile_count, 96);
+            assert_eq!(mgr.cache_size(), 1);
+        }
+    }
+}
+
+#[test]
+fn resource_manager_cache_hit() {
+    if let Some(root) = get_test_asset_root() {
+        let mut mgr = ResourceManager::new(root);
+        // First load
+        let _ = mgr.load_tileset("overworld");
+        assert_eq!(mgr.cache_size(), 1);
+        // Second load should be cached
+        let _ = mgr.load_tileset("overworld");
+        assert_eq!(mgr.cache_size(), 1); // still just 1 entry
+    }
+}
+
+#[test]
+fn resource_manager_is_cached() {
+    if let Some(root) = get_test_asset_root() {
+        let mut mgr = ResourceManager::new(root);
+        assert!(!mgr.is_cached(AssetCategory::Tileset, "overworld.png"));
+        let _ = mgr.load_tileset("overworld");
+        assert!(mgr.is_cached(AssetCategory::Tileset, "overworld.png"));
+    }
+}
+
+#[test]
+fn resource_manager_evict() {
+    if let Some(root) = get_test_asset_root() {
+        let mut mgr = ResourceManager::new(root);
+        let _ = mgr.load_tileset("overworld");
+        assert_eq!(mgr.cache_size(), 1);
+        assert!(mgr.evict(AssetCategory::Tileset, "overworld.png"));
+        assert_eq!(mgr.cache_size(), 0);
+        assert!(!mgr.is_cached(AssetCategory::Tileset, "overworld.png"));
+    }
+}
+
+#[test]
+fn resource_manager_clear_cache() {
+    if let Some(root) = get_test_asset_root() {
+        let mut mgr = ResourceManager::new(root);
+        let _ = mgr.load_tileset("overworld");
+        let _ = mgr.load_sprite("red");
+        assert!(mgr.cache_size() >= 2);
+        mgr.clear_cache();
+        assert_eq!(mgr.cache_size(), 0);
+    }
+}
+
+#[test]
+fn resource_manager_load_sprite() {
+    if let Some(root) = get_test_asset_root() {
+        let mut mgr = ResourceManager::new(root);
+        if let Ok(cached) = mgr.load_sprite("red") {
+            assert_eq!(cached.source_size, (16, 96));
+            assert_eq!(cached.tile_count, 24);
+        }
+    }
+}
+
+#[test]
+fn resource_manager_load_font() {
+    if let Some(root) = get_test_asset_root() {
+        let mut mgr = ResourceManager::new(root);
+        if let Ok(cached) = mgr.load_font("font") {
+            assert_eq!(cached.source_size, (128, 64));
+            assert_eq!(cached.tile_count, 128);
+        }
+    }
+}
+
+#[test]
+fn resource_manager_load_pokemon_front() {
+    if let Some(root) = get_test_asset_root() {
+        let mut mgr = ResourceManager::new(root);
+        if let Ok(cached) = mgr.load_pokemon_front("bulbasaur") {
+            assert_eq!(cached.source_size, (40, 40));
+            assert_eq!(cached.tile_count, 25);
+        }
+    }
+}
+
+#[test]
+fn resource_manager_load_pokemon_front_rg() {
+    if let Some(root) = get_test_asset_root() {
+        let mut mgr = ResourceManager::new(root);
+        if let Ok(cached) = mgr.load_pokemon_front_rg("bulbasaur") {
+            assert_eq!(cached.source_size, (40, 40));
+            assert_eq!(cached.tile_count, 25);
+        }
+    }
+}
+
+#[test]
+fn resource_manager_load_pokemon_back() {
+    if let Some(root) = get_test_asset_root() {
+        let mut mgr = ResourceManager::new(root);
+        if let Ok(cached) = mgr.load_pokemon_back("bulbasaurb") {
+            assert_eq!(cached.source_size, (32, 32));
+            assert_eq!(cached.tile_count, 16);
+        }
+    }
+}
+
+#[test]
+fn resource_manager_load_trainer() {
+    if let Some(root) = get_test_asset_root() {
+        let mut mgr = ResourceManager::new(root);
+        if let Ok(cached) = mgr.load_trainer("beauty") {
+            // Trainer sprites are typically 56×56 = 7×7 = 49 tiles
+            assert!(cached.tile_count > 0);
+        }
+    }
+}
+
+#[test]
+fn resource_manager_load_battle() {
+    if let Some(root) = get_test_asset_root() {
+        let mut mgr = ResourceManager::new(root);
+        if let Ok(cached) = mgr.load_battle("move_anim_0") {
+            assert!(cached.tile_count > 0);
+        }
+    }
+}
+
+#[test]
+fn resource_manager_load_nonexistent() {
+    if let Some(root) = get_test_asset_root() {
+        let mut mgr = ResourceManager::new(root);
+        let result = mgr.load_tileset("nonexistent_tileset_xyz");
+        assert!(result.is_err());
+    }
+}
+
+#[test]
+fn resource_manager_generic_load() {
+    if let Some(root) = get_test_asset_root() {
+        let mut mgr = ResourceManager::new(root);
+        if let Ok(cached) = mgr.load(AssetCategory::TownMap, "town_map") {
+            assert!(cached.tile_count > 0);
+        }
+    }
+}
+
+#[test]
+fn resource_manager_ensure_png_ext() {
+    if let Some(root) = get_test_asset_root() {
+        let mut mgr = ResourceManager::new(root);
+        // Should work with or without .png extension
+        let r1_ok = mgr.load_tileset("overworld").is_ok();
+        let r2_ok = mgr.load_tileset("overworld.png").is_ok();
+        // Both should succeed (or both fail if file missing)
+        assert_eq!(r1_ok, r2_ok);
+        assert_eq!(mgr.cache_size(), 1);
+    }
+}
+
+// --- LoadedPng tests ---
+
+#[test]
+fn loaded_png_tiles_x_and_y() {
+    if let Some(root) = get_test_asset_root() {
+        let path = root.resolve(AssetCategory::Tileset, "overworld.png");
+        if path.is_file() {
+            let loaded = LoadedPng::load(&path).unwrap();
+            assert_eq!(loaded.tiles_x(), 16); // 128 / 8
+            assert_eq!(loaded.tiles_y(), 6); // 48 / 8
+        }
+    }
+}
+
+#[test]
+fn loaded_png_missing_file() {
+    let result = LoadedPng::load("/nonexistent/path/to/file.png");
+    assert!(result.is_err());
+}
+
+// --- 2bpp roundtrip: png_to_2bpp then TileSet::from_2bpp ---
+
+#[test]
+fn png_to_2bpp_roundtrip_with_tileset() {
+    // Create a synthetic image with known pixel values
+    let mut img = image::GrayImage::new(8, 8);
+    // Row 0: all four colors: 255, 170, 85, 0, 255, 170, 85, 0
+    let colors = [255u8, 170, 85, 0, 255, 170, 85, 0];
+    for (col, &val) in colors.iter().enumerate() {
+        img.put_pixel(col as u32, 0, image::Luma([val]));
+    }
+    // Rows 1-7: all white
+    for y in 1..8 {
+        for x in 0..8 {
+            img.put_pixel(x, y, image::Luma([255]));
+        }
+    }
+
+    let dyn_img = image::DynamicImage::ImageLuma8(img);
+    let data_2bpp = png_to_2bpp(&dyn_img).unwrap();
+    let ts = crate::tile::TileSet::from_2bpp(&data_2bpp);
+    assert_eq!(ts.len(), 1);
+
+    let tile = ts.get(0);
+    // Row 0: color indices [0, 1, 2, 3, 0, 1, 2, 3]
+    assert_eq!(tile.pixels[0], [0, 1, 2, 3, 0, 1, 2, 3]);
+    // Rows 1-7: all color 0
+    for row in 1..8 {
+        assert_eq!(tile.pixels[row], [0; 8]);
+    }
+}
+
+// --- 1bpp roundtrip ---
+
+#[test]
+fn png_to_1bpp_roundtrip_with_tileset() {
+    let mut img = image::GrayImage::new(8, 8);
+    // Row 0: alternating B/W: 0, 255, 0, 255, 0, 255, 0, 255
+    for col in 0..8 {
+        let val = if col % 2 == 0 { 0u8 } else { 255 };
+        img.put_pixel(col, 0, image::Luma([val]));
+    }
+    // Rows 1-7: all white
+    for y in 1..8 {
+        for x in 0..8 {
+            img.put_pixel(x, y, image::Luma([255]));
+        }
+    }
+
+    let dyn_img = image::DynamicImage::ImageLuma8(img);
+    let data = png_to_1bpp(&dyn_img).unwrap();
+    let ts = crate::tile::TileSet::from_1bpp(&data);
+    assert_eq!(ts.len(), 1);
+
+    let tile = ts.get(0);
+    // Row 0: 1bpp black=color 3, white=color 0 → [3, 0, 3, 0, 3, 0, 3, 0]
+    assert_eq!(tile.pixels[0], [3, 0, 3, 0, 3, 0, 3, 0]);
+    // Rows 1-7: all white = color 0
+    for row in 1..8 {
+        assert_eq!(tile.pixels[row], [0; 8]);
+    }
+}

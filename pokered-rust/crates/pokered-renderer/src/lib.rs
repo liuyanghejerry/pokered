@@ -9,6 +9,7 @@ pub mod battle_scene;
 pub mod input;
 pub mod menu;
 pub mod palette;
+pub mod resource;
 pub mod sprite;
 pub mod text_renderer;
 pub mod textbox;
