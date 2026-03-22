@@ -23,17 +23,19 @@ A faithful reimplementation of Pokémon Red and Blue in Rust, based on the [pret
 
 ## Architecture
 
-The project is organized as a Cargo workspace with 5 crates, each with a clear responsibility:
+The project is organized as a Cargo workspace with 7 crates, each with a clear responsibility:
 
 ```
 pokered-rust/
 ├── Cargo.toml              # Workspace root
+├── run-wasm/               # Helper for cargo-run-wasm (WASM dev server)
 └── crates/
     ├── pokered-data/       # Static game data (species, moves, maps, items, trainers)
     ├── pokered-core/       # Pure game logic engine (battle, overworld, events, menus)
     ├── pokered-renderer/   # Graphics rendering (framebuffer, tiles, sprites, UI)
     ├── pokered-audio/      # Sound engine (APU emulation, music sequencer, SFX)
-    └── pokered-app/        # Main executable (window creation, game loop, input)
+    ├── pokered-app/        # Native desktop executable (window creation, game loop, input)
+    └── pokered-web/        # WebAssembly build (browser canvas, async GPU init)
 ```
 
 ### Crate Details
@@ -44,22 +46,23 @@ pokered-rust/
 | **pokered-core** | Pure game logic with zero I/O. Battle engine (damage calc, AI, status effects, stat stages), overworld (movement, collisions, warps, HM effects), event/script engine, menu state machines, save system, link battle/trade protocols | `pokered-data`, `serde`, `rand` |
 | **pokered-renderer** | GPU-accelerated rendering into a 160×144 RGBA framebuffer. Tile/sprite rendering, text engine, menu boxes, battle scenes, screen transitions, palette management | `pokered-data`, `pokered-core`, `pixels` 0.15, `winit` 0.30, `image` |
 | **pokered-audio** | Game Boy APU emulation with 4 sound channels (2× pulse, wave, noise). Music sequencer, SFX playback, audio mixing | `pokered-data`, `bitflags` |
-| **pokered-app** | Entry point. Creates the window, runs the game loop, dispatches input events, coordinates core↔renderer↔audio | All above + `anyhow`, `tracing` |
+| **pokered-app** | Native entry point. Creates the window, runs the game loop, dispatches input events, coordinates core↔renderer↔audio | All above + `anyhow`, `tracing` |
+| **pokered-web** | WebAssembly entry point. Async Pixels init, DOM canvas attachment, browser resize, wasm-bindgen integration | `pokered-core`, `pokered-renderer`, `pixels`, `winit`, `wasm-bindgen`, `web-sys` |
 
 ### Dependency Graph
 
 ```
-pokered-app
-├── pokered-core
-│   └── pokered-data
-├── pokered-renderer
-│   ├── pokered-core
-│   └── pokered-data
-└── pokered-audio
-    └── pokered-data
+pokered-app (native)          pokered-web (wasm/native)
+├── pokered-core              ├── pokered-core
+│   └── pokered-data          │   └── pokered-data
+├── pokered-renderer          ├── pokered-renderer
+│   ├── pokered-core          │   ├── pokered-core
+│   └── pokered-data          │   └── pokered-data
+└── pokered-audio             └── pokered-audio
+    └── pokered-data              └── pokered-data
 ```
 
-> **Design principle**: `pokered-core` and `pokered-data` have no platform dependencies. All platform-specific code lives in `pokered-renderer` (GPU), `pokered-audio` (sound), and `pokered-app` (windowing).
+> **Design principle**: `pokered-core` and `pokered-data` have no platform dependencies. All platform-specific code lives in `pokered-renderer` (GPU), `pokered-audio` (sound), `pokered-app` (native windowing), and `pokered-web` (browser/WASM).
 
 ---
 
@@ -270,6 +273,58 @@ WINIT_UNIX_BACKEND=wayland cargo run --release
 | `WINIT_UNIX_BACKEND` | `x11`, `wayland` | Force display server on Linux |
 | `RUST_LOG` | `info`, `debug`, `trace` | Set log verbosity (requires `tracing` subscriber) |
 
+### WebAssembly (Browser)
+
+The game can also run in a web browser via WebAssembly. A separate `pokered-web` crate provides the WASM-compatible entry point with async GPU initialization and DOM canvas integration.
+
+#### Prerequisites
+
+```bash
+# Add the wasm32 compilation target
+rustup target add wasm32-unknown-unknown
+
+# Install cargo-run-wasm (build + serve helper)
+cargo install cargo-run-wasm
+```
+
+#### Build & Run
+
+```bash
+cd pokered-rust
+
+# Build and serve the web version (opens browser automatically)
+cargo run-wasm -p pokered-web
+
+# Or build the WASM binary only (for custom deployment)
+cargo build -p pokered-web --target wasm32-unknown-unknown --release
+```
+
+The `cargo run-wasm` command compiles the game to WASM, generates an HTML page with the `<canvas>` element, and starts a local development server.
+
+#### Build Only (Cross-Compilation)
+
+```bash
+# Debug build
+cargo build -p pokered-web --target wasm32-unknown-unknown
+
+# Release build (smaller, faster WASM binary)
+cargo build -p pokered-web --target wasm32-unknown-unknown --release
+```
+
+#### Technical Notes
+
+- Uses `PixelsBuilder::build_async()` for WASM-compatible GPU surface creation
+- Texture format is set to `Rgba8Unorm` on web targets (browsers don't support `Rgba8UnormSrgb`)
+- The canvas is automatically attached to the document body and resized with the browser viewport
+- `getrandom` crate uses the `js` feature for browser-compatible random number generation
+- The `pokered-renderer::window` module (native-only) is excluded on wasm32 via `cfg` gating
+- Title screen shows `[Web Build]` label to distinguish from native builds
+
+#### Browser Requirements
+
+- Modern browser with WebGPU support (Chrome 113+, Edge 113+, Firefox Nightly with flag)
+- Falls back to WebGL2 if WebGPU is not available (via wgpu's automatic backend selection)
+
 ---
 
 ## Running Tests
@@ -420,11 +475,17 @@ pokered-rust/
 │   │       ├── sequencer.rs            # Music sequence playback
 │   │       └── sfx.rs                  # Sound effect playback
 │   │
-│   └── pokered-app/                    # Main executable
+│   └── pokered-app/                    # Native desktop executable
 │       └── src/
 │           └── main.rs                 # Entry point, game loop
 │
-└── scripts/                            # Build/data generation scripts
+├── crates/pokered-web/                 # WebAssembly build
+│   └── src/
+│       └── main.rs                     # WASM entry point, async Pixels, DOM canvas
+│
+└── run-wasm/                           # cargo-run-wasm helper
+    └── src/
+        └── main.rs                     # Delegates to cargo_run_wasm
 ```
 
 ---

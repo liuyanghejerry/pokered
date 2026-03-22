@@ -18,6 +18,7 @@ pub mod tile;
 pub mod tilemap;
 pub mod transition;
 pub mod viewport;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod window;
 pub mod window_layer;
 
