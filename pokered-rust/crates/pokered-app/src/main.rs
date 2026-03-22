@@ -12,8 +12,11 @@ use pokered_core::start_menu::{StartMenuAction, StartMenuInput, StartMenuState};
 use pokered_core::title_screen::TitleScreenState;
 use pokered_renderer::embedded_font::draw_text;
 use pokered_renderer::input::{GbButton, InputState};
+use pokered_renderer::palette::{Palette, GRAYSCALE_PALETTE};
+use pokered_renderer::resource::{AssetRoot, ResourceManager};
+use pokered_renderer::tile::TileSet;
 use pokered_renderer::window::{run, GameLoop, GameWindowConfig};
-use pokered_renderer::{FrameBuffer, Rgba};
+use pokered_renderer::{FrameBuffer, Rgba, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE};
 
 struct PokemonGame {
     state: GameState,
@@ -29,6 +32,7 @@ struct PokemonGame {
     rival_name: String,
     frame_count: u64,
     exit_requested: bool,
+    resources: Option<ResourceManager>,
 }
 
 impl PokemonGame {
@@ -52,6 +56,20 @@ impl PokemonGame {
             false,
             false,
         );
+
+        // Try to auto-detect asset root (walks up from CWD to find gfx/)
+        let resources = match AssetRoot::auto_detect() {
+            Ok(root) => {
+                println!("Asset root found: {:?}", root.gfx_dir());
+                Some(ResourceManager::new(root))
+            }
+            Err(e) => {
+                eprintln!("Warning: Could not find gfx/ directory: {}", e);
+                eprintln!("Falling back to text-only placeholder rendering.");
+                None
+            }
+        };
+
         Self {
             state,
             title_screen,
@@ -66,6 +84,7 @@ impl PokemonGame {
             rival_name: "BLUE".to_string(),
             frame_count: 0,
             exit_requested: false,
+            resources,
         }
     }
 
@@ -262,19 +281,24 @@ impl GameLoop for PokemonGame {
 
         match self.state.screen {
             GameScreen::CopyrightSplash | GameScreen::TitleScreen => {
-                draw_title_screen(&self.title_screen, frame_buffer);
+                draw_title_screen(
+                    &self.title_screen,
+                    self.state.screen == GameScreen::CopyrightSplash,
+                    &mut self.resources,
+                    frame_buffer,
+                );
             }
             GameScreen::MainMenu => {
                 draw_main_menu(&self.main_menu, frame_buffer);
             }
             GameScreen::OakSpeech => {
-                draw_oak_speech(&self.oak_speech, frame_buffer);
+                draw_oak_speech(&self.oak_speech, &mut self.resources, frame_buffer);
             }
             GameScreen::Overworld => {
-                draw_overworld(&self.overworld, frame_buffer);
+                draw_overworld(&self.overworld, &mut self.resources, frame_buffer);
             }
             GameScreen::Battle => {
-                draw_battle(&self.battle, frame_buffer);
+                draw_battle(&self.battle, &mut self.resources, frame_buffer);
             }
             GameScreen::StartMenu => {
                 draw_start_menu(&self.start_menu, &self.player_name, frame_buffer);
@@ -293,7 +317,43 @@ impl GameLoop for PokemonGame {
     }
 }
 
-fn draw_title_screen(state: &TitleScreenState, fb: &mut FrameBuffer) {
+fn blit_tileset(
+    fb: &mut FrameBuffer,
+    tileset: &TileSet,
+    x: u32,
+    y: u32,
+    tiles_per_row: u32,
+    palette: &Palette,
+) {
+    let total = tileset.len();
+    for idx in 0..total {
+        let tile = tileset.get(idx);
+        let tx = (idx as u32) % tiles_per_row;
+        let ty = (idx as u32) / tiles_per_row;
+        let px = x + tx * TILE_SIZE;
+        let py = y + ty * TILE_SIZE;
+        for row in 0..TILE_SIZE {
+            let rgba_row = tile.render_row(row as usize, palette);
+            for col in 0..TILE_SIZE {
+                let sx = px + col;
+                let sy = py + row;
+                if sx < SCREEN_WIDTH && sy < SCREEN_HEIGHT {
+                    let c = rgba_row[col as usize];
+                    if c != Rgba::TRANSPARENT {
+                        fb.set_pixel(sx, sy, c);
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn draw_title_screen(
+    state: &TitleScreenState,
+    is_copyright: bool,
+    res: &mut Option<ResourceManager>,
+    fb: &mut FrameBuffer,
+) {
     let fade = state.fade_progress();
     let bg_color = if fade > 0.0 {
         let v = (255.0 * (1.0 - fade)) as u8;
@@ -303,17 +363,51 @@ fn draw_title_screen(state: &TitleScreenState, fb: &mut FrameBuffer) {
     };
     fb.clear(bg_color);
 
-    let phase_text = format!("Title Screen: {:?}", state.phase);
-    draw_text(&phase_text, 10, 10, Rgba::BLACK, fb);
+    let pal = &GRAYSCALE_PALETTE;
 
-    let mon_text = format!("Current Mon: {:?}", state.current_mon);
-    draw_text(&mon_text, 10, 30, Rgba::BLACK, fb);
+    if let Some(ref mut rm) = res {
+        if is_copyright {
+            if let Ok(copyright) = rm.load_splash("copyright") {
+                let cw = copyright.source_size.0;
+                let ch = copyright.source_size.1;
+                let tiles_per_row = cw / TILE_SIZE;
+                let cx = (SCREEN_WIDTH.saturating_sub(cw)) / 2;
+                let cy = (SCREEN_HEIGHT.saturating_sub(ch)) / 2;
+                blit_tileset(fb, &copyright.tileset.clone(), cx, cy, tiles_per_row, pal);
+            }
+            return;
+        }
 
-    let scroll_text = format!("Scroll Y: {}", state.scroll_y);
-    draw_text(&scroll_text, 10, 50, Rgba::BLACK, fb);
+        if let Ok(logo) = rm.load_title("pokemon_logo") {
+            let lw = logo.source_size.0;
+            let tiles_per_row = lw / TILE_SIZE;
+            let logo_ts = logo.tileset.clone();
+            let lx = (SCREEN_WIDTH.saturating_sub(lw)) / 2;
+            blit_tileset(fb, &logo_ts, lx, 2, tiles_per_row, pal);
+        }
 
-    draw_text("Press any button to continue", 10, 100, Rgba::BLACK, fb);
-    draw_text("Press ESC to exit", 10, 115, Rgba::BLACK, fb);
+        if let Ok(ver) = rm.load_title("red_version") {
+            let vw = ver.source_size.0;
+            let tiles_per_row = vw / TILE_SIZE;
+            let ver_ts = ver.tileset.clone();
+            let vx = (SCREEN_WIDTH.saturating_sub(vw)) / 2;
+            blit_tileset(fb, &ver_ts, vx, 58, tiles_per_row, pal);
+        }
+
+        if let Ok(player) = rm.load_title("player") {
+            let pw = player.source_size.0;
+            let tiles_per_row = pw / TILE_SIZE;
+            let player_ts = player.tileset.clone();
+            let player_x = SCREEN_WIDTH.saturating_sub(pw).saturating_sub(8);
+            blit_tileset(fb, &player_ts, player_x, 68, tiles_per_row, pal);
+        }
+    } else {
+        let phase_text = format!("Title Screen: {:?}", state.phase);
+        draw_text(&phase_text, 10, 10, Rgba::BLACK, fb);
+        draw_text("Press any button to continue", 10, 100, Rgba::BLACK, fb);
+    }
+
+    draw_text("Press START", 36, 130, Rgba::BLACK, fb);
 }
 
 fn draw_main_menu(state: &MainMenuState, fb: &mut FrameBuffer) {
@@ -330,8 +424,32 @@ fn draw_main_menu(state: &MainMenuState, fb: &mut FrameBuffer) {
     draw_text("A/Start: Confirm", 10, 130, Rgba::BLACK, fb);
 }
 
-fn draw_oak_speech(state: &OakSpeechState, fb: &mut FrameBuffer) {
+fn draw_oak_speech(
+    state: &OakSpeechState,
+    res: &mut Option<ResourceManager>,
+    fb: &mut FrameBuffer,
+) {
     fb.clear(Rgba::WHITE);
+    let pal = &GRAYSCALE_PALETTE;
+
+    if let Some(ref mut rm) = res {
+        if let Ok(cached) = rm.load_intro("gengar") {
+            let ts = cached.tileset.clone();
+            let tpr = cached.source_size.0 / TILE_SIZE;
+            let gx = (SCREEN_WIDTH.saturating_sub(cached.source_size.0)) / 2;
+            blit_tileset(fb, &ts, gx, 8, tpr, pal);
+        }
+
+        if let Ok(cached) = rm.load_intro("red_nidorino_1") {
+            let ts = cached.tileset.clone();
+            let tpr = cached.source_size.0 / TILE_SIZE;
+            let nx = SCREEN_WIDTH
+                .saturating_sub(cached.source_size.0)
+                .saturating_sub(8);
+            blit_tileset(fb, &ts, nx, 48, tpr, pal);
+        }
+    }
+
     draw_text("OAK'S SPEECH", 40, 10, Rgba::BLACK, fb);
 
     if let Some(naming) = &state.naming_screen {
@@ -358,8 +476,32 @@ fn draw_oak_speech(state: &OakSpeechState, fb: &mut FrameBuffer) {
     }
 }
 
-fn draw_overworld(screen: &OverworldScreen, fb: &mut FrameBuffer) {
+fn draw_overworld(
+    screen: &OverworldScreen,
+    res: &mut Option<ResourceManager>,
+    fb: &mut FrameBuffer,
+) {
     fb.clear(Rgba::WHITE);
+    let pal = &GRAYSCALE_PALETTE;
+
+    if let Some(ref mut rm) = res {
+        if let Ok(cached) = rm.load_tileset("overworld") {
+            let ts = cached.tileset.clone();
+            let tpr = cached.source_size.0 / TILE_SIZE;
+            blit_tileset(fb, &ts, 0, 0, tpr, pal);
+        }
+
+        if let Ok(cached) = rm.load_sprite("red") {
+            let ts = cached.tileset.clone();
+            let tpr = cached.source_size.0 / TILE_SIZE;
+            let px = screen.state.player.x as u32 * 16;
+            let py = screen.state.player.y as u32 * 16;
+            let sx = px.min(SCREEN_WIDTH.saturating_sub(cached.source_size.0));
+            let sy = py.min(SCREEN_HEIGHT.saturating_sub(cached.source_size.1));
+            blit_tileset(fb, &ts, sx, sy, tpr, pal);
+        }
+    }
+
     let pos_text = format!(
         "Map: {:?}  Pos: ({}, {})",
         screen.state.current_map, screen.state.player.x, screen.state.player.y
@@ -374,9 +516,34 @@ fn draw_overworld(screen: &OverworldScreen, fb: &mut FrameBuffer) {
     draw_text("Start: Menu", 10, 115, Rgba::BLACK, fb);
 }
 
-fn draw_battle(screen: &BattleScreen, fb: &mut FrameBuffer) {
+fn draw_battle(screen: &BattleScreen, res: &mut Option<ResourceManager>, fb: &mut FrameBuffer) {
     fb.clear(Rgba::WHITE);
-    draw_text("BATTLE", 55, 10, Rgba::BLACK, fb);
+    let pal = &GRAYSCALE_PALETTE;
+
+    if let Some(ref mut rm) = res {
+        if let Ok(cached) = rm.load_pokemon_front("pikachu") {
+            let ts = cached.tileset.clone();
+            let tpr = cached.source_size.0 / TILE_SIZE;
+            let ex = SCREEN_WIDTH
+                .saturating_sub(cached.source_size.0)
+                .saturating_sub(8);
+            blit_tileset(fb, &ts, ex, 8, tpr, pal);
+        }
+
+        if let Ok(cached) = rm.load_pokemon_back("charmander") {
+            let ts = cached.tileset.clone();
+            let tpr = cached.source_size.0 / TILE_SIZE;
+            blit_tileset(fb, &ts, 16, 48, tpr, pal);
+        }
+
+        if let Ok(cached) = rm.load_battle("battle_hud_1") {
+            let ts = cached.tileset.clone();
+            let tpr = cached.source_size.0 / TILE_SIZE;
+            blit_tileset(fb, &ts, 0, 96, tpr, pal);
+        }
+    } else {
+        draw_text("BATTLE", 55, 10, Rgba::BLACK, fb);
+    }
 
     let phase_text = format!("Phase: {:?}", screen.phase);
     draw_text(&phase_text, 10, 30, Rgba::BLACK, fb);
