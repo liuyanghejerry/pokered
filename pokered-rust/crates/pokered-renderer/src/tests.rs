@@ -3377,3 +3377,492 @@ fn health_bar_color_red() {
     assert_eq!(get_health_bar_color(0), 2);
     assert_eq!(get_health_bar_color(9), 2);
 }
+
+// ============================================================================
+// M5.9: SGB/CGB Palette System Tests
+// ============================================================================
+
+#[test]
+fn sgb_palette_id_enum_values() {
+    assert_eq!(SgbPaletteId::Route as u8, 0x00);
+    assert_eq!(SgbPaletteId::Pallet as u8, 0x01);
+    assert_eq!(SgbPaletteId::Viridian as u8, 0x02);
+    assert_eq!(SgbPaletteId::Pewter as u8, 0x03);
+    assert_eq!(SgbPaletteId::Cerulean as u8, 0x04);
+    assert_eq!(SgbPaletteId::Lavender as u8, 0x05);
+    assert_eq!(SgbPaletteId::Vermilion as u8, 0x06);
+    assert_eq!(SgbPaletteId::Celadon as u8, 0x07);
+    assert_eq!(SgbPaletteId::Fuchsia as u8, 0x08);
+    assert_eq!(SgbPaletteId::Cinnabar as u8, 0x09);
+    assert_eq!(SgbPaletteId::Indigo as u8, 0x0A);
+    assert_eq!(SgbPaletteId::Saffron as u8, 0x0B);
+    assert_eq!(SgbPaletteId::TownMap as u8, 0x0C);
+    assert_eq!(SgbPaletteId::Logo1 as u8, 0x0D);
+    assert_eq!(SgbPaletteId::MewMon as u8, 0x10);
+    assert_eq!(SgbPaletteId::GreenMon as u8, 0x16);
+    assert_eq!(SgbPaletteId::YellowMon as u8, 0x18);
+    assert_eq!(SgbPaletteId::GrayMon as u8, 0x19);
+    assert_eq!(SgbPaletteId::Black as u8, 0x1E);
+    assert_eq!(SgbPaletteId::GreenBar as u8, 0x1F);
+    assert_eq!(SgbPaletteId::YellowBar as u8, 0x20);
+    assert_eq!(SgbPaletteId::RedBar as u8, 0x21);
+    assert_eq!(SgbPaletteId::Cave as u8, 0x23);
+    assert_eq!(SgbPaletteId::GameFreak as u8, 0x24);
+}
+
+#[test]
+fn sgb_palette_id_from_u8_valid() {
+    assert_eq!(SgbPaletteId::from_u8(0x00), Some(SgbPaletteId::Route));
+    assert_eq!(SgbPaletteId::from_u8(0x01), Some(SgbPaletteId::Pallet));
+    assert_eq!(SgbPaletteId::from_u8(0x24), Some(SgbPaletteId::GameFreak));
+}
+
+#[test]
+fn sgb_palette_id_from_u8_invalid() {
+    assert_eq!(SgbPaletteId::from_u8(0x25), None);
+    assert_eq!(SgbPaletteId::from_u8(0xFF), None);
+}
+
+#[test]
+fn sgb_palette_id_roundtrip() {
+    for i in 0..NUM_SGB_PALS as u8 {
+        let id = SgbPaletteId::from_u8(i).unwrap();
+        assert_eq!(id.as_u8(), i);
+    }
+}
+
+#[test]
+fn num_sgb_pals_correct() {
+    assert_eq!(NUM_SGB_PALS, 37);
+}
+
+#[test]
+fn set_pal_command_enum_values() {
+    assert_eq!(SetPalCommand::BattleBlack as u8, 0x00);
+    assert_eq!(SetPalCommand::Battle as u8, 0x01);
+    assert_eq!(SetPalCommand::TownMap as u8, 0x02);
+    assert_eq!(SetPalCommand::StatusScreen as u8, 0x03);
+    assert_eq!(SetPalCommand::Pokedex as u8, 0x04);
+    assert_eq!(SetPalCommand::Slots as u8, 0x05);
+    assert_eq!(SetPalCommand::TitleScreen as u8, 0x06);
+    assert_eq!(SetPalCommand::NidorinoIntro as u8, 0x07);
+    assert_eq!(SetPalCommand::Generic as u8, 0x08);
+    assert_eq!(SetPalCommand::Overworld as u8, 0x09);
+    assert_eq!(SetPalCommand::PartyMenu as u8, 0x0A);
+    assert_eq!(SetPalCommand::PokemonWholeScreen as u8, 0x0B);
+    assert_eq!(SetPalCommand::GameFreakIntro as u8, 0x0C);
+    assert_eq!(SetPalCommand::TrainerCard as u8, 0x0D);
+}
+
+#[test]
+fn set_pal_command_from_u8_valid() {
+    assert_eq!(
+        SetPalCommand::from_u8(0x00),
+        Some(SetPalCommand::BattleBlack)
+    );
+    assert_eq!(SetPalCommand::from_u8(0x09), Some(SetPalCommand::Overworld));
+    assert_eq!(
+        SetPalCommand::from_u8(0x0D),
+        Some(SetPalCommand::TrainerCard)
+    );
+}
+
+#[test]
+fn set_pal_command_from_u8_invalid() {
+    assert_eq!(SetPalCommand::from_u8(0x0E), None);
+    assert_eq!(SetPalCommand::from_u8(0xFC), None);
+    assert_eq!(SetPalCommand::from_u8(0xFF), None);
+}
+
+#[test]
+fn set_pal_special_constants() {
+    assert_eq!(SET_PAL_PARTY_MENU_HP_BARS, 0xFC);
+    assert_eq!(SET_PAL_DEFAULT, 0xFF);
+}
+
+#[test]
+fn sgb_color_to_rgba_white() {
+    let c = SgbColor::new(31, 31, 31);
+    let rgba = c.to_rgba();
+    // (31 << 3) | (31 >> 2) = 248 | 7 = 255
+    assert_eq!(rgba.0, [255, 255, 255, 255]);
+}
+
+#[test]
+fn sgb_color_to_rgba_black() {
+    let c = SgbColor::new(0, 0, 0);
+    let rgba = c.to_rgba();
+    assert_eq!(rgba.0, [0, 0, 0, 255]);
+}
+
+#[test]
+fn sgb_color_to_rgba_mid() {
+    let c = SgbColor::new(15, 15, 15);
+    let rgba = c.to_rgba();
+    // (15 << 3) | (15 >> 2) = 120 | 3 = 123
+    assert_eq!(rgba.0, [123, 123, 123, 255]);
+}
+
+#[test]
+fn sgb_color_to_rgba_specific() {
+    // PAL_ROUTE color0 is (31,29,31) in Red
+    let c = SgbColor::new(31, 29, 31);
+    let rgba = c.to_rgba();
+    // r: 255, g: (29<<3)|(29>>2) = 232|7 = 239, b: 255
+    assert_eq!(rgba.0[0], 255);
+    assert_eq!(rgba.0[1], 239);
+    assert_eq!(rgba.0[2], 255);
+}
+
+#[test]
+fn super_palettes_red_count() {
+    assert_eq!(SUPER_PALETTES_RED.len(), NUM_SGB_PALS);
+}
+
+#[test]
+fn super_palettes_blue_count() {
+    assert_eq!(SUPER_PALETTES_BLUE.len(), NUM_SGB_PALS);
+}
+
+#[test]
+fn super_palettes_red_route_color0() {
+    // PAL_ROUTE color0 = (31,29,31)
+    let entry = &SUPER_PALETTES_RED[SgbPaletteId::Route as usize];
+    assert_eq!(entry[0], SgbColor::new(31, 29, 31));
+}
+
+#[test]
+fn super_palettes_red_route_color3() {
+    // PAL_ROUTE color3 = (3,2,2)
+    let entry = &SUPER_PALETTES_RED[SgbPaletteId::Route as usize];
+    assert_eq!(entry[3], SgbColor::new(3, 2, 2));
+}
+
+#[test]
+fn super_palettes_red_vs_blue_logo1_differ() {
+    let red_logo1 = &SUPER_PALETTES_RED[SgbPaletteId::Logo1 as usize];
+    let blue_logo1 = &SUPER_PALETTES_BLUE[SgbPaletteId::Logo1 as usize];
+    // color2 and color3 differ between Red and Blue
+    assert_ne!(red_logo1[2], blue_logo1[2]);
+    assert_ne!(red_logo1[3], blue_logo1[3]);
+}
+
+#[test]
+fn super_palettes_red_vs_blue_slots2_differ() {
+    let red = &SUPER_PALETTES_RED[SgbPaletteId::Slots2 as usize];
+    let blue = &SUPER_PALETTES_BLUE[SgbPaletteId::Slots2 as usize];
+    // color2 differs: Red=(25,17,21), Blue=(16,19,29)
+    assert_ne!(red[2], blue[2]);
+}
+
+#[test]
+fn super_palettes_red_vs_blue_pallet_same() {
+    // PAL_PALLET should be identical in both versions
+    let red = &SUPER_PALETTES_RED[SgbPaletteId::Pallet as usize];
+    let blue = &SUPER_PALETTES_BLUE[SgbPaletteId::Pallet as usize];
+    assert_eq!(red, blue);
+}
+
+#[test]
+fn super_palettes_helper_selects_version() {
+    let red = super_palettes(true);
+    let blue = super_palettes(false);
+    let red_logo1 = &red[SgbPaletteId::Logo1 as usize];
+    let blue_logo1 = &blue[SgbPaletteId::Logo1 as usize];
+    assert_eq!(red_logo1, &SUPER_PALETTES_RED[SgbPaletteId::Logo1 as usize]);
+    assert_eq!(
+        blue_logo1,
+        &SUPER_PALETTES_BLUE[SgbPaletteId::Logo1 as usize]
+    );
+    assert_ne!(red_logo1, blue_logo1);
+}
+
+#[test]
+fn lookup_sgb_palette_returns_correct_entry() {
+    let entry = lookup_sgb_palette(SgbPaletteId::Cave, true);
+    assert_eq!(entry, &SUPER_PALETTES_RED[SgbPaletteId::Cave as usize]);
+}
+
+#[test]
+fn sgb_entry_to_palette_conversion() {
+    let entry = &SUPER_PALETTES_RED[SgbPaletteId::Route as usize];
+    let pal = sgb_entry_to_palette(entry);
+    // Verify color0 is the RGBA conversion of (31,29,31)
+    assert_eq!(pal.colors[0], SgbColor::new(31, 29, 31).to_rgba());
+    assert_eq!(pal.colors[3], SgbColor::new(3, 2, 2).to_rgba());
+}
+
+#[test]
+fn monster_palettes_count() {
+    assert_eq!(MONSTER_PALETTES.len(), NUM_POKEMON_PLUS_ONE);
+    assert_eq!(NUM_POKEMON_PLUS_ONE, 152);
+}
+
+#[test]
+fn monster_palette_bulbasaur() {
+    assert_eq!(monster_palette(1), SgbPaletteId::GreenMon);
+}
+
+#[test]
+fn monster_palette_charmander() {
+    assert_eq!(monster_palette(4), SgbPaletteId::RedMon);
+}
+
+#[test]
+fn monster_palette_squirtle() {
+    assert_eq!(monster_palette(7), SgbPaletteId::CyanMon);
+}
+
+#[test]
+fn monster_palette_pikachu() {
+    assert_eq!(monster_palette(25), SgbPaletteId::YellowMon);
+}
+
+#[test]
+fn monster_palette_gengar() {
+    assert_eq!(monster_palette(94), SgbPaletteId::PurpleMon);
+}
+
+#[test]
+fn monster_palette_mewtwo() {
+    assert_eq!(monster_palette(150), SgbPaletteId::MewMon);
+}
+
+#[test]
+fn monster_palette_mew() {
+    assert_eq!(monster_palette(151), SgbPaletteId::MewMon);
+}
+
+#[test]
+fn monster_palette_missingno() {
+    assert_eq!(monster_palette(0), SgbPaletteId::MewMon);
+}
+
+#[test]
+fn monster_palette_out_of_range_fallback() {
+    // Index >= 152 should fallback to MISSINGNO (MewMon)
+    assert_eq!(monster_palette(200), SgbPaletteId::MewMon);
+    assert_eq!(monster_palette(255), SgbPaletteId::MewMon);
+}
+
+#[test]
+fn determine_palette_id_normal() {
+    assert_eq!(determine_palette_id(1, false), SgbPaletteId::GreenMon); // Bulbasaur
+    assert_eq!(determine_palette_id(25, false), SgbPaletteId::YellowMon); // Pikachu
+}
+
+#[test]
+fn determine_palette_id_transformed() {
+    // Any transformed Pokémon → PAL_GRAYMON (Ditto's palette)
+    assert_eq!(determine_palette_id(1, true), SgbPaletteId::GrayMon);
+    assert_eq!(determine_palette_id(25, true), SgbPaletteId::GrayMon);
+    assert_eq!(determine_palette_id(150, true), SgbPaletteId::GrayMon);
+}
+
+#[test]
+fn overworld_palette_cemetery_tileset() {
+    assert_eq!(
+        overworld_palette_for_map(TILESET_CEMETERY, 0x00, 0x00),
+        SgbPaletteId::GrayMon
+    );
+    assert_eq!(
+        overworld_palette_for_map(TILESET_CEMETERY, 0x50, 0x05),
+        SgbPaletteId::GrayMon
+    );
+}
+
+#[test]
+fn overworld_palette_cavern_tileset() {
+    assert_eq!(
+        overworld_palette_for_map(TILESET_CAVERN, 0x00, 0x00),
+        SgbPaletteId::Cave
+    );
+    assert_eq!(
+        overworld_palette_for_map(TILESET_CAVERN, 0x50, 0x05),
+        SgbPaletteId::Cave
+    );
+}
+
+#[test]
+fn overworld_palette_pallet_town() {
+    // Pallet Town map_id = 0x00, tileset != cemetery/cavern
+    // town = 0x00 < NUM_CITY_MAPS → palette = 0+1 = 1 = PAL_PALLET
+    assert_eq!(
+        overworld_palette_for_map(0, 0x00, 0x00),
+        SgbPaletteId::Pallet
+    );
+}
+
+#[test]
+fn overworld_palette_viridian_city() {
+    // Viridian City map_id = 0x01
+    assert_eq!(
+        overworld_palette_for_map(0, 0x01, 0x00),
+        SgbPaletteId::Viridian
+    );
+}
+
+#[test]
+fn overworld_palette_saffron_city() {
+    // Saffron City map_id = 0x0A (last city before NUM_CITY_MAPS=0x0B)
+    assert_eq!(
+        overworld_palette_for_map(0, 0x0A, 0x00),
+        SgbPaletteId::Saffron
+    );
+}
+
+#[test]
+fn overworld_palette_route() {
+    // A route map_id (>= NUM_CITY_MAPS but < FIRST_INDOOR_MAP)
+    assert_eq!(
+        overworld_palette_for_map(0, 0x0B, 0x00),
+        SgbPaletteId::Route
+    );
+    assert_eq!(
+        overworld_palette_for_map(0, 0x20, 0x00),
+        SgbPaletteId::Route
+    );
+}
+
+#[test]
+fn overworld_palette_indoor_pallet_town() {
+    // Indoor map (>= FIRST_INDOOR_MAP), last_map = Pallet Town (0x00)
+    assert_eq!(
+        overworld_palette_for_map(0, 0x25, 0x00),
+        SgbPaletteId::Pallet
+    );
+}
+
+#[test]
+fn overworld_palette_indoor_celadon() {
+    // Indoor map, last_map = Celadon City (map_id 0x06)
+    // Palette = 0x06 + 1 = 0x07 = Celadon
+    assert_eq!(
+        overworld_palette_for_map(0, 0x30, 0x06),
+        SgbPaletteId::Celadon
+    );
+}
+
+#[test]
+fn overworld_palette_indoor_route() {
+    // Indoor map, last_map = route (>= NUM_CITY_MAPS)
+    assert_eq!(
+        overworld_palette_for_map(0, 0x30, 0x0C),
+        SgbPaletteId::Route
+    );
+}
+
+#[test]
+fn overworld_palette_cerulean_cave() {
+    // Cerulean Cave 2F (0xE2) and 1F (0xE4) → PAL_CAVE
+    assert_eq!(
+        overworld_palette_for_map(0, MAP_CERULEAN_CAVE_2F, 0x00),
+        SgbPaletteId::Cave
+    );
+    assert_eq!(
+        overworld_palette_for_map(0, MAP_CERULEAN_CAVE_1F, 0x00),
+        SgbPaletteId::Cave
+    );
+    // Map 0xE3 (Cerulean Cave B1F) also in range
+    assert_eq!(overworld_palette_for_map(0, 0xE3, 0x00), SgbPaletteId::Cave);
+}
+
+#[test]
+fn overworld_palette_loreleis_room() {
+    assert_eq!(
+        overworld_palette_for_map(0, MAP_LORELEIS_ROOM, 0x00),
+        SgbPaletteId::Pallet
+    );
+}
+
+#[test]
+fn overworld_palette_brunos_room() {
+    assert_eq!(
+        overworld_palette_for_map(0, MAP_BRUNOS_ROOM, 0x00),
+        SgbPaletteId::Cave
+    );
+}
+
+#[test]
+fn hp_bar_to_sgb_palette_values() {
+    assert_eq!(hp_bar_to_sgb_palette(0), SgbPaletteId::GreenBar);
+    assert_eq!(hp_bar_to_sgb_palette(1), SgbPaletteId::YellowBar);
+    assert_eq!(hp_bar_to_sgb_palette(2), SgbPaletteId::RedBar);
+    assert_eq!(hp_bar_to_sgb_palette(3), SgbPaletteId::RedBar); // fallback
+}
+
+#[test]
+fn color_palette_state_new_defaults() {
+    let state = ColorPaletteState::new(PaletteMode::Dmg, true);
+    assert_eq!(state.mode, PaletteMode::Dmg);
+    assert_eq!(state.is_red, true);
+    assert_eq!(state.sgb_bg_palette, SgbPaletteId::Route);
+    assert_eq!(state.sgb_obj0_palette, SgbPaletteId::Route);
+    assert_eq!(state.sgb_obj1_palette, SgbPaletteId::Route);
+    assert_eq!(state.default_command, SetPalCommand::Generic);
+}
+
+#[test]
+fn color_palette_state_dmg_mode_uses_dmg_palette() {
+    let state = ColorPaletteState::new(PaletteMode::Dmg, true);
+    let bg = state.bg_palette();
+    let expected = PaletteState::default().bg_palette();
+    assert_eq!(bg.colors, expected.colors);
+}
+
+#[test]
+fn color_palette_state_sgb_mode_uses_sgb_palette() {
+    let mut state = ColorPaletteState::new(PaletteMode::Sgb, true);
+    state.sgb_bg_palette = SgbPaletteId::Cave;
+    let bg = state.bg_palette();
+    let expected = sgb_entry_to_palette(lookup_sgb_palette(SgbPaletteId::Cave, true));
+    assert_eq!(bg.colors, expected.colors);
+}
+
+#[test]
+fn color_palette_state_grayscale_mode() {
+    let state = ColorPaletteState::new(PaletteMode::Grayscale, true);
+    let bg = state.bg_palette();
+    // Should use GRAYSCALE_PALETTE as base
+    let mut ps = PaletteState::default();
+    ps.base = GRAYSCALE_PALETTE;
+    assert_eq!(bg.colors, ps.bg_palette().colors);
+}
+
+#[test]
+fn color_palette_state_pocket_mode() {
+    let state = ColorPaletteState::new(PaletteMode::Pocket, true);
+    let bg = state.bg_palette();
+    let mut ps = PaletteState::default();
+    ps.base = POCKET_PALETTE;
+    assert_eq!(bg.colors, ps.bg_palette().colors);
+}
+
+#[test]
+fn color_palette_state_set_overworld() {
+    let mut state = ColorPaletteState::new(PaletteMode::Sgb, true);
+    state.set_overworld_palette(0, 0x00, 0x00); // Pallet Town
+    assert_eq!(state.sgb_bg_palette, SgbPaletteId::Pallet);
+    assert_eq!(state.default_command, SetPalCommand::Overworld);
+}
+
+#[test]
+fn color_palette_state_set_battle() {
+    let mut state = ColorPaletteState::new(PaletteMode::Sgb, true);
+    // Bulbasaur (1, not transformed) vs Pikachu (25, not transformed), HP bars green
+    state.set_battle_palette(1, false, 25, false, 0, 0);
+    assert_eq!(state.sgb_obj0_palette, SgbPaletteId::GreenMon); // Bulbasaur
+    assert_eq!(state.sgb_obj1_palette, SgbPaletteId::YellowMon); // Pikachu
+    assert_eq!(state.sgb_bg_palette, SgbPaletteId::GreenBar); // HP bar green
+    assert_eq!(state.default_command, SetPalCommand::Battle);
+}
+
+#[test]
+fn color_palette_state_set_battle_transformed() {
+    let mut state = ColorPaletteState::new(PaletteMode::Sgb, true);
+    // Ditto transformed as Pikachu vs Mewtwo, HP bar yellow/red
+    state.set_battle_palette(25, true, 150, false, 1, 2);
+    assert_eq!(state.sgb_obj0_palette, SgbPaletteId::GrayMon); // transformed → GrayMon
+    assert_eq!(state.sgb_obj1_palette, SgbPaletteId::MewMon); // Mewtwo
+    assert_eq!(state.sgb_bg_palette, SgbPaletteId::YellowBar); // player HP bar yellow
+}
