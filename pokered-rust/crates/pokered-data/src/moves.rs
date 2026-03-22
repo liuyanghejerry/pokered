@@ -196,6 +196,12 @@ pub fn move_id_from_u8(val: u8) -> MoveId {
     <MoveId as num_traits::FromPrimitive>::from_u8(val).unwrap_or(MoveId::Pound)
 }
 
+impl MoveId {
+    pub fn from_id(id: u8) -> Self {
+        num_traits::FromPrimitive::from_u8(id).unwrap_or(MoveId::None)
+    }
+}
+
 #[derive(
     Debug,
     Clone,

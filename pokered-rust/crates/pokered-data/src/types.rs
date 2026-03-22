@@ -48,6 +48,10 @@ impl PokemonType {
     pub fn is_special(self) -> bool {
         (self as u8) >= 0x14
     }
+
+    pub fn from_id(id: u8) -> Self {
+        num_traits::FromPrimitive::from_u8(id).unwrap_or(PokemonType::Normal)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

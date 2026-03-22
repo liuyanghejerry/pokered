@@ -183,6 +183,10 @@ impl Species {
         let v = self as u8;
         v >= 1 && v <= NUM_POKEMON
     }
+
+    pub fn from_index_id(id: u8) -> Self {
+        num_traits::FromPrimitive::from_u8(id).unwrap_or(Species::None)
+    }
 }
 
 #[derive(

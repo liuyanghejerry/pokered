@@ -8,6 +8,7 @@ pub mod naming_screen;
 pub mod options_menu;
 pub mod overworld;
 pub mod pokemon;
+pub mod save;
 pub mod save_menu;
 pub mod slots;
 pub mod start_menu;

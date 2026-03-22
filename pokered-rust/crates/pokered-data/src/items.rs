@@ -109,6 +109,10 @@ pub enum ItemId {
 pub const NUM_ITEMS: u8 = 0x53;
 
 impl ItemId {
+    pub fn from_id(id: u8) -> Self {
+        num_traits::FromPrimitive::from_u8(id).unwrap_or(ItemId::NoItem)
+    }
+
     pub fn is_badge(self) -> bool {
         let v = self as u8;
         v >= 0x15 && v <= 0x1C

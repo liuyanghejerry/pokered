@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 pub const TEXT_DELAY_FAST: u8 = 1;
 pub const TEXT_DELAY_MEDIUM: u8 = 3;
 pub const TEXT_DELAY_SLOW: u8 = 5;
@@ -5,7 +7,7 @@ pub const TEXT_DELAY_MASK: u8 = 0b111;
 pub const BIT_BATTLE_SHIFT: u8 = 6;
 pub const BIT_BATTLE_ANIMATION: u8 = 7;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TextSpeed {
     Fast,
     Medium,
@@ -46,7 +48,7 @@ impl TextSpeed {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BattleAnimation {
     On,
     Off,
@@ -61,7 +63,7 @@ impl BattleAnimation {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BattleStyle {
     Shift,
     Set,
@@ -76,7 +78,7 @@ impl BattleStyle {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GameOptions {
     pub text_speed: TextSpeed,
     pub battle_animation: BattleAnimation,

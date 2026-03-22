@@ -752,7 +752,7 @@ cargo test -p pokered-core -- battle  # 战斗测试通过
 
 **目标：** 实现存档和多人功能
 
-- [ ] **M8.1** 实现存档系统 (兼容原版校验和算法)
+- [x] **M8.1** 实现存档系统 (兼容原版校验和算法) ✅ — save/模块(7个文件): mod.rs(SaveData结构体+compute_checksum/validate_checksum/serialize_checksummed_region/clear)、game_data.rs(GameData~60字段匹配wMainData+MapPosition/MapHeader/MapConnection/WarpEntry/PlayTime/DayCareMon辅助结构)、ser_pokemon.rs(Box/Party精灵二进制序列化+状态字节转换+名称序列化+精灵数据)、ser_game_data.rs(serialize_game_data_into按wMainData二进制顺序写入全字段+BCD编码money/coins+条件map_connections)、serialization.rs(SaveError枚举+SRAM_BANK_SIZE常量)、hall_of_fame.rs(HofMon/HofTeam/HallOfFame+push_team容量50淘汰最旧)、save_tests.rs(31测试); 依赖变更: Species/PokemonType/MoveId/ItemId新增from_id方法、GameOptions添加Serialize/Deserialize派生; 31个新测试，总计2109测试通过
 - [ ] **M8.2** 实现原版存档导入
 - [ ] **M8.3** 实现网络对战 (替代串口通信)
 - [ ] **M8.4** 实现网络交换
