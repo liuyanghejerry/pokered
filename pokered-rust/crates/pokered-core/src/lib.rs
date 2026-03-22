@@ -5,6 +5,7 @@ pub mod game_state;
 pub mod items;
 pub mod main_menu;
 pub mod naming_screen;
+pub mod options_menu;
 pub mod overworld;
 pub mod pokemon;
 pub mod save_menu;
@@ -18,6 +19,9 @@ mod main_menu_tests;
 
 #[cfg(test)]
 mod naming_screen_tests;
+
+#[cfg(test)]
+mod options_menu_tests;
 
 #[cfg(test)]
 mod save_menu_tests;
