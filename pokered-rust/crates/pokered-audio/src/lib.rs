@@ -15,6 +15,7 @@ pub mod commands;
 pub mod effects;
 pub mod music_data;
 pub mod sequencer;
+pub mod sfx_data;
 
 #[cfg(test)]
 mod tests;
@@ -24,6 +25,9 @@ mod sequencer_tests;
 
 #[cfg(test)]
 mod music_data_tests;
+
+#[cfg(test)]
+mod sfx_data_tests;
 
 // ── Constants ────────────────────────────────────────────────────────────
 
