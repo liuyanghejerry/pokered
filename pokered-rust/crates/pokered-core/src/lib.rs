@@ -3,6 +3,7 @@ pub use pokered_data as data;
 pub mod battle;
 pub mod game_state;
 pub mod items;
+pub mod link;
 pub mod main_menu;
 pub mod naming_screen;
 pub mod options_menu;

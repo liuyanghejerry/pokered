@@ -1,0 +1,74 @@
+use crate::pokemon::party::Party;
+use serde::{Deserialize, Serialize};
+
+pub const LINK_RANDOM_LIST_SIZE: usize = 10;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum LinkAction {
+    UseMove(u8),
+    Switch(u8),
+    Run,
+    Struggle,
+    NoAction,
+}
+
+impl LinkAction {
+    pub fn to_wire_byte(self) -> u8 {
+        match self {
+            LinkAction::UseMove(idx) => idx,
+            LinkAction::Switch(pokemon_idx) => pokemon_idx + 4,
+            LinkAction::Run => 0x0F,
+            LinkAction::Struggle => 0x0E,
+            LinkAction::NoAction => 0x0D,
+        }
+    }
+
+    pub fn from_wire_byte(byte: u8) -> Self {
+        match byte {
+            0x0F => LinkAction::Run,
+            0x0E => LinkAction::Struggle,
+            0x0D => LinkAction::NoAction,
+            b if b >= 4 => LinkAction::Switch(b - 4),
+            b => LinkAction::UseMove(b),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PartyExchangeData {
+    pub trainer_name: Vec<u8>,
+    pub party: Party,
+    pub random_numbers: [u8; LINK_RANDOM_LIST_SIZE],
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum NetworkMessage {
+    Hello { version: u8 },
+    HelloAck { version: u8 },
+
+    RequestBattle,
+    AcceptBattle,
+    DeclineBattle,
+
+    PartyData(PartyExchangeData),
+
+    TurnAction(LinkAction),
+
+    Disconnect,
+}
+
+impl NetworkMessage {
+    pub const PROTOCOL_VERSION: u8 = 1;
+
+    pub fn hello() -> Self {
+        NetworkMessage::Hello {
+            version: Self::PROTOCOL_VERSION,
+        }
+    }
+
+    pub fn hello_ack() -> Self {
+        NetworkMessage::HelloAck {
+            version: Self::PROTOCOL_VERSION,
+        }
+    }
+}
