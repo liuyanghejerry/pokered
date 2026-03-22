@@ -982,3 +982,308 @@ fn sprite_layer_clear() {
     layer.clear();
     assert_eq!(layer.entries.len(), 0);
 }
+
+// =====================================================
+// M5.4 — Text renderer & TextBox tests
+// =====================================================
+
+use crate::text_renderer::{
+    write_tiles_at, ScreenTileBuffer, SCREEN_TILES_X, SCREEN_TILES_Y, SCREEN_TILE_COUNT,
+};
+use crate::textbox::{
+    TextBoxFrame, TILE_BOTTOM_LEFT, TILE_BOTTOM_RIGHT, TILE_DOWN_ARROW, TILE_HORIZONTAL,
+    TILE_SPACE, TILE_TOP_LEFT, TILE_TOP_RIGHT, TILE_VERTICAL,
+};
+
+#[test]
+fn screen_tile_buffer_new_filled_with_space() {
+    let buf = ScreenTileBuffer::new();
+    for i in 0..SCREEN_TILE_COUNT {
+        assert_eq!(buf.tiles[i], 0x7F);
+    }
+}
+
+#[test]
+fn screen_tile_buffer_default_same_as_new() {
+    let a = ScreenTileBuffer::new();
+    let b = ScreenTileBuffer::default();
+    assert_eq!(a.tiles, b.tiles);
+}
+
+#[test]
+fn screen_tile_buffer_get_set() {
+    let mut buf = ScreenTileBuffer::new();
+    buf.set(5, 3, 0x42);
+    assert_eq!(buf.get(5, 3), 0x42);
+    assert_eq!(buf.get(4, 3), 0x7F);
+    assert_eq!(buf.get(5, 2), 0x7F);
+}
+
+#[test]
+fn screen_tile_buffer_get_out_of_bounds() {
+    let buf = ScreenTileBuffer::new();
+    assert_eq!(buf.get(20, 0), 0x7F);
+    assert_eq!(buf.get(0, 18), 0x7F);
+    assert_eq!(buf.get(100, 100), 0x7F);
+}
+
+#[test]
+fn screen_tile_buffer_set_out_of_bounds_ignored() {
+    let mut buf = ScreenTileBuffer::new();
+    buf.set(20, 0, 0xFF);
+    buf.set(0, 18, 0xFF);
+    for i in 0..SCREEN_TILE_COUNT {
+        assert_eq!(buf.tiles[i], 0x7F);
+    }
+}
+
+#[test]
+fn screen_tile_buffer_fill() {
+    let mut buf = ScreenTileBuffer::new();
+    buf.fill(0xAB);
+    for i in 0..SCREEN_TILE_COUNT {
+        assert_eq!(buf.tiles[i], 0xAB);
+    }
+}
+
+#[test]
+fn screen_tile_buffer_set_row() {
+    let mut buf = ScreenTileBuffer::new();
+    let row = [1, 2, 3, 4, 5];
+    buf.set_row(2, &row);
+    assert_eq!(buf.get(0, 2), 1);
+    assert_eq!(buf.get(4, 2), 5);
+    assert_eq!(buf.get(5, 2), 0x7F);
+    assert_eq!(buf.get(0, 1), 0x7F);
+}
+
+#[test]
+fn screen_tile_buffer_set_row_full_width() {
+    let mut buf = ScreenTileBuffer::new();
+    let row: Vec<u8> = (0..20).collect();
+    buf.set_row(0, &row);
+    for i in 0..20u32 {
+        assert_eq!(buf.get(i, 0), i as u8);
+    }
+}
+
+#[test]
+fn screen_tile_buffer_set_row_out_of_bounds() {
+    let mut buf = ScreenTileBuffer::new();
+    buf.set_row(18, &[1, 2, 3]);
+    for i in 0..SCREEN_TILE_COUNT {
+        assert_eq!(buf.tiles[i], 0x7F);
+    }
+}
+
+#[test]
+fn screen_tile_buffer_copy_from_flat() {
+    let mut buf = ScreenTileBuffer::new();
+    let mut data = vec![0xAA; SCREEN_TILE_COUNT];
+    data[0] = 0x01;
+    data[359] = 0x02;
+    buf.copy_from_flat(&data);
+    assert_eq!(buf.get(0, 0), 0x01);
+    assert_eq!(buf.get(19, 17), 0x02);
+    assert_eq!(buf.get(1, 0), 0xAA);
+}
+
+#[test]
+fn screen_tile_buffer_copy_from_flat_partial() {
+    let mut buf = ScreenTileBuffer::new();
+    buf.copy_from_flat(&[0x10, 0x20, 0x30]);
+    assert_eq!(buf.get(0, 0), 0x10);
+    assert_eq!(buf.get(1, 0), 0x20);
+    assert_eq!(buf.get(2, 0), 0x30);
+    assert_eq!(buf.get(3, 0), 0x7F);
+}
+
+#[test]
+fn screen_tile_buffer_render_pixel_check() {
+    let ts = TileSet::blank(256);
+    let buf = ScreenTileBuffer::new();
+    let mut fb = FrameBuffer::new(Rgba::rgb(0xFF, 0, 0));
+    buf.render(&mut fb, &ts, &GRAYSCALE_PALETTE);
+    assert_eq!(fb.get_pixel(0, 0), Some(Rgba::rgb(0xFF, 0xFF, 0xFF)));
+}
+
+#[test]
+fn screen_tile_buffer_render_region() {
+    let ts = TileSet::blank(256);
+    let buf = ScreenTileBuffer::new();
+    let mut fb = FrameBuffer::new(Rgba::rgb(0xFF, 0, 0));
+    buf.render_region(&mut fb, &ts, &GRAYSCALE_PALETTE, 0, 0, 1, 1);
+    assert_eq!(fb.get_pixel(0, 0), Some(Rgba::rgb(0xFF, 0xFF, 0xFF)));
+    assert_eq!(fb.get_pixel(8, 0), Some(Rgba::rgb(0xFF, 0, 0)));
+}
+
+#[test]
+fn write_tiles_at_basic() {
+    let mut buf = ScreenTileBuffer::new();
+    write_tiles_at(&mut buf, 3, 5, &[0x80, 0x81, 0x82]);
+    assert_eq!(buf.get(3, 5), 0x80);
+    assert_eq!(buf.get(4, 5), 0x81);
+    assert_eq!(buf.get(5, 5), 0x82);
+    assert_eq!(buf.get(6, 5), 0x7F);
+    assert_eq!(buf.get(2, 5), 0x7F);
+}
+
+#[test]
+fn write_tiles_at_clips_to_screen_width() {
+    let mut buf = ScreenTileBuffer::new();
+    write_tiles_at(&mut buf, 18, 0, &[0xA0, 0xA1, 0xA2, 0xA3]);
+    assert_eq!(buf.get(18, 0), 0xA0);
+    assert_eq!(buf.get(19, 0), 0xA1);
+}
+
+#[test]
+fn textbox_standard_dialog() {
+    let f = TextBoxFrame::standard_dialog();
+    assert_eq!(f.x, 0);
+    assert_eq!(f.y, 12);
+    assert_eq!(f.width, 20);
+    assert_eq!(f.height, 6);
+}
+
+#[test]
+fn textbox_text_start() {
+    let f = TextBoxFrame::standard_dialog();
+    assert_eq!(f.text_start(), (1, 14));
+}
+
+#[test]
+fn textbox_second_line_start() {
+    let f = TextBoxFrame::standard_dialog();
+    assert_eq!(f.second_line_start(), (1, 16));
+}
+
+#[test]
+fn textbox_draw_frame_corners() {
+    let f = TextBoxFrame::standard_dialog();
+    let mut buf = ScreenTileBuffer::new();
+    f.draw_frame(&mut buf);
+    assert_eq!(buf.get(0, 12), TILE_TOP_LEFT);
+    assert_eq!(buf.get(19, 12), TILE_TOP_RIGHT);
+    assert_eq!(buf.get(0, 17), TILE_BOTTOM_LEFT);
+    assert_eq!(buf.get(19, 17), TILE_BOTTOM_RIGHT);
+}
+
+#[test]
+fn textbox_draw_frame_horizontal_edges() {
+    let f = TextBoxFrame::standard_dialog();
+    let mut buf = ScreenTileBuffer::new();
+    f.draw_frame(&mut buf);
+    for tx in 1..19 {
+        assert_eq!(buf.get(tx, 12), TILE_HORIZONTAL, "top edge at tx={tx}");
+        assert_eq!(buf.get(tx, 17), TILE_HORIZONTAL, "bottom edge at tx={tx}");
+    }
+}
+
+#[test]
+fn textbox_draw_frame_vertical_edges() {
+    let f = TextBoxFrame::standard_dialog();
+    let mut buf = ScreenTileBuffer::new();
+    f.draw_frame(&mut buf);
+    for ty in 13..17 {
+        assert_eq!(buf.get(0, ty), TILE_VERTICAL, "left edge at ty={ty}");
+        assert_eq!(buf.get(19, ty), TILE_VERTICAL, "right edge at ty={ty}");
+    }
+}
+
+#[test]
+fn textbox_draw_frame_interior_is_space() {
+    let f = TextBoxFrame::standard_dialog();
+    let mut buf = ScreenTileBuffer::new();
+    buf.fill(0x00);
+    f.draw_frame(&mut buf);
+    for ty in 13..17 {
+        for tx in 1..19 {
+            assert_eq!(buf.get(tx, ty), TILE_SPACE, "interior at ({tx},{ty})");
+        }
+    }
+}
+
+#[test]
+fn textbox_clear_inner() {
+    let f = TextBoxFrame::standard_dialog();
+    let mut buf = ScreenTileBuffer::new();
+    f.draw_frame(&mut buf);
+    buf.set(5, 14, 0x42);
+    buf.set(10, 15, 0x43);
+    f.clear_inner(&mut buf);
+    assert_eq!(buf.get(5, 14), TILE_SPACE);
+    assert_eq!(buf.get(10, 15), TILE_SPACE);
+    assert_eq!(buf.get(0, 12), TILE_TOP_LEFT);
+    assert_eq!(buf.get(19, 17), TILE_BOTTOM_RIGHT);
+}
+
+#[test]
+fn textbox_clear_all() {
+    let f = TextBoxFrame::standard_dialog();
+    let mut buf = ScreenTileBuffer::new();
+    f.draw_frame(&mut buf);
+    f.clear(&mut buf);
+    for ty in 12..18 {
+        for tx in 0..20 {
+            assert_eq!(buf.get(tx, ty), TILE_SPACE, "at ({tx},{ty})");
+        }
+    }
+}
+
+#[test]
+fn textbox_show_hide_down_arrow() {
+    let f = TextBoxFrame::standard_dialog();
+    let mut buf = ScreenTileBuffer::new();
+    f.draw_frame(&mut buf);
+    f.show_down_arrow(&mut buf);
+    assert_eq!(buf.get(18, 16), TILE_DOWN_ARROW);
+    f.hide_down_arrow(&mut buf);
+    assert_eq!(buf.get(18, 16), TILE_SPACE);
+}
+
+#[test]
+fn textbox_small_box() {
+    let f = TextBoxFrame::new(5, 2, 6, 4);
+    let mut buf = ScreenTileBuffer::new();
+    f.draw_frame(&mut buf);
+    assert_eq!(buf.get(5, 2), TILE_TOP_LEFT);
+    assert_eq!(buf.get(10, 2), TILE_TOP_RIGHT);
+    assert_eq!(buf.get(5, 5), TILE_BOTTOM_LEFT);
+    assert_eq!(buf.get(10, 5), TILE_BOTTOM_RIGHT);
+    for tx in 6..10 {
+        assert_eq!(buf.get(tx, 2), TILE_HORIZONTAL);
+        assert_eq!(buf.get(tx, 5), TILE_HORIZONTAL);
+    }
+    for ty in 3..5 {
+        assert_eq!(buf.get(5, ty), TILE_VERTICAL);
+        assert_eq!(buf.get(10, ty), TILE_VERTICAL);
+    }
+}
+
+#[test]
+fn textbox_minimum_size() {
+    let f = TextBoxFrame::new(0, 0, 2, 2);
+    let mut buf = ScreenTileBuffer::new();
+    buf.fill(0x00);
+    f.draw_frame(&mut buf);
+    assert_eq!(buf.get(0, 0), TILE_TOP_LEFT);
+    assert_eq!(buf.get(1, 0), TILE_TOP_RIGHT);
+    assert_eq!(buf.get(0, 1), TILE_BOTTOM_LEFT);
+    assert_eq!(buf.get(1, 1), TILE_BOTTOM_RIGHT);
+}
+
+#[test]
+fn textbox_too_small_noop() {
+    let f = TextBoxFrame::new(0, 0, 1, 1);
+    let mut buf = ScreenTileBuffer::new();
+    buf.fill(0x00);
+    f.draw_frame(&mut buf);
+    assert_eq!(buf.get(0, 0), 0x00);
+}
+
+#[test]
+fn screen_tile_constants() {
+    assert_eq!(SCREEN_TILES_X, 20);
+    assert_eq!(SCREEN_TILES_Y, 18);
+    assert_eq!(SCREEN_TILE_COUNT, 360);
+}

@@ -7,6 +7,8 @@
 pub mod input;
 pub mod palette;
 pub mod sprite;
+pub mod text_renderer;
+pub mod textbox;
 pub mod tile;
 pub mod tilemap;
 pub mod viewport;
