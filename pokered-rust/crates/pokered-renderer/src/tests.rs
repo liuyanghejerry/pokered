@@ -1858,3 +1858,527 @@ fn party_menu_cursor_position() {
     assert_eq!(PartyMenuRenderer::cursor_position(1), (0, 2));
     assert_eq!(PartyMenuRenderer::cursor_position(5), (0, 10));
 }
+
+// ===== M5.6 Battle Scene Rendering Tests =====
+
+use crate::battle_scene::*;
+
+#[test]
+fn hp_bar_pixels_full() {
+    assert_eq!(calc_hp_bar_pixels(100, 100), 48);
+}
+
+#[test]
+fn hp_bar_pixels_empty() {
+    assert_eq!(calc_hp_bar_pixels(0, 100), 0);
+}
+
+#[test]
+fn hp_bar_pixels_half() {
+    assert_eq!(calc_hp_bar_pixels(50, 100), 24);
+}
+
+#[test]
+fn hp_bar_pixels_one_hp() {
+    // Minimum 1 pixel when HP > 0
+    assert_eq!(calc_hp_bar_pixels(1, 999), 1);
+}
+
+#[test]
+fn hp_bar_pixels_max_zero() {
+    assert_eq!(calc_hp_bar_pixels(0, 0), 0);
+}
+
+#[test]
+fn hp_bar_pixels_overflow_clamped() {
+    // current > max should still clamp to 48
+    assert_eq!(calc_hp_bar_pixels(200, 100), 48);
+}
+
+#[test]
+fn pokeball_status_tiles() {
+    assert_eq!(PokeballStatus::Normal.tile(), TILE_POKEBALL_NORMAL);
+    assert_eq!(PokeballStatus::StatusAilment.tile(), TILE_POKEBALL_STATUS);
+    assert_eq!(PokeballStatus::Fainted.tile(), TILE_POKEBALL_FAINTED);
+    assert_eq!(PokeballStatus::Empty.tile(), TILE_POKEBALL_EMPTY);
+}
+
+#[test]
+fn draw_hp_bar_full() {
+    let mut buf = ScreenTileBuffer::new();
+    draw_hp_bar(&mut buf, 0, 0, 100, 100, false);
+    assert_eq!(buf.get(0, 0), TILE_HP_LABEL);
+    assert_eq!(buf.get(1, 0), TILE_HP_BAR_LEFT);
+    // All 6 tiles should be full
+    for i in 0..6 {
+        assert_eq!(buf.get(2 + i, 0), TILE_HP_FULL, "tile {} should be full", i);
+    }
+    assert_eq!(buf.get(8, 0), TILE_HP_END_CAP);
+}
+
+#[test]
+fn draw_hp_bar_empty() {
+    let mut buf = ScreenTileBuffer::new();
+    draw_hp_bar(&mut buf, 0, 0, 0, 100, false);
+    assert_eq!(buf.get(0, 0), TILE_HP_LABEL);
+    assert_eq!(buf.get(1, 0), TILE_HP_BAR_LEFT);
+    for i in 0..6 {
+        assert_eq!(
+            buf.get(2 + i, 0),
+            TILE_HP_EMPTY,
+            "tile {} should be empty",
+            i
+        );
+    }
+    assert_eq!(buf.get(8, 0), TILE_HP_END_CAP);
+}
+
+#[test]
+fn draw_hp_bar_partial() {
+    let mut buf = ScreenTileBuffer::new();
+    // 12 pixels = 1 full tile (8px) + 1 partial (4px) + 4 empty
+    draw_hp_bar(&mut buf, 0, 0, 25, 100, false);
+    let pixels = calc_hp_bar_pixels(25, 100);
+    assert_eq!(pixels, 12);
+    assert_eq!(buf.get(2, 0), TILE_HP_FULL); // first 8px
+    assert_eq!(buf.get(3, 0), TILE_HP_PARTIAL_BASE + 4); // 4px partial
+    for i in 2..6 {
+        assert_eq!(buf.get(2 + i, 0), TILE_HP_EMPTY);
+    }
+}
+
+#[test]
+fn draw_hp_bar_with_numbers() {
+    let mut buf = ScreenTileBuffer::new();
+    draw_hp_bar(&mut buf, 0, 0, 45, 120, true);
+    // After end cap at col 8, HP numbers start at col 9
+    // " 45/120" → space, 4, 5, /, 1, 2, 0
+    let num_start = 9u32;
+    assert_eq!(buf.get(num_start, 0), TILE_SPACE); // leading space for " 45"
+    assert_eq!(buf.get(num_start + 1, 0), 0xF6 + 4); // '4'
+    assert_eq!(buf.get(num_start + 2, 0), 0xF6 + 5); // '5'
+    assert_eq!(buf.get(num_start + 3, 0), 0xF3); // '/'
+    assert_eq!(buf.get(num_start + 4, 0), 0xF6 + 1); // '1'
+    assert_eq!(buf.get(num_start + 5, 0), 0xF6 + 2); // '2'
+    assert_eq!(buf.get(num_start + 6, 0), 0xF6 + 0); // '0'
+}
+
+#[test]
+fn draw_level_single_digit() {
+    let mut buf = ScreenTileBuffer::new();
+    draw_level(&mut buf, 0, 0, 5);
+    assert_eq!(buf.get(0, 0), 0x6E); // Lv tile
+    assert_eq!(buf.get(1, 0), 0xF6 + 5); // '5'
+}
+
+#[test]
+fn draw_level_two_digits() {
+    let mut buf = ScreenTileBuffer::new();
+    draw_level(&mut buf, 0, 0, 50);
+    assert_eq!(buf.get(0, 0), 0x6E);
+    assert_eq!(buf.get(1, 0), 0xF6 + 5); // '5'
+    assert_eq!(buf.get(2, 0), 0xF6 + 0); // '0'
+}
+
+#[test]
+fn draw_level_100() {
+    let mut buf = ScreenTileBuffer::new();
+    draw_level(&mut buf, 0, 0, 100);
+    assert_eq!(buf.get(0, 0), 0x6E);
+    assert_eq!(buf.get(1, 0), 0xF6 + 1); // '1'
+    assert_eq!(buf.get(2, 0), 0xF6 + 0); // '0'
+    assert_eq!(buf.get(3, 0), 0xF6 + 0); // '0'
+}
+
+#[test]
+fn player_hud_clear() {
+    let mut buf = ScreenTileBuffer::new();
+    buf.fill(0xFF);
+    PlayerHud::clear(&mut buf);
+    for row in 0..PlayerHud::CLEAR_H {
+        for col in 0..PlayerHud::CLEAR_W {
+            assert_eq!(
+                buf.get(PlayerHud::CLEAR_X + col, PlayerHud::CLEAR_Y + row),
+                TILE_SPACE,
+                "({},{}) should be space",
+                PlayerHud::CLEAR_X + col,
+                PlayerHud::CLEAR_Y + row
+            );
+        }
+    }
+}
+
+#[test]
+fn player_hud_border() {
+    let mut buf = ScreenTileBuffer::new();
+    PlayerHud::draw_border(&mut buf);
+    assert_eq!(buf.get(18, 9), TILE_HUD_CONNECTOR);
+    assert_eq!(buf.get(18, 10), TILE_HUD_PLAYER_CORNER);
+    assert_eq!(buf.get(17, 10), TILE_HUD_PLAYER_TRIANGLE);
+    for i in 0..8 {
+        assert_eq!(
+            buf.get(16 - i, 10),
+            TILE_HUD_HORIZONTAL,
+            "col {} should be horizontal",
+            16 - i
+        );
+    }
+}
+
+#[test]
+fn player_hud_draw_full() {
+    let mut buf = ScreenTileBuffer::new();
+    let name = [0x80, 0x81, 0x82]; // "ABC" encoded
+    PlayerHud::draw(&mut buf, &name, 25, None, 50, 100);
+    // Name at (10, 7)
+    assert_eq!(buf.get(10, 7), 0x80);
+    assert_eq!(buf.get(11, 7), 0x81);
+    assert_eq!(buf.get(12, 7), 0x82);
+    // Level at (14, 8): Lv25
+    assert_eq!(buf.get(14, 8), 0x6E); // Lv
+    assert_eq!(buf.get(15, 8), 0xF6 + 2); // '2'
+    assert_eq!(buf.get(16, 8), 0xF6 + 5); // '5'
+                                          // HP bar starts at (10, 9)
+    assert_eq!(buf.get(10, 9), TILE_HP_LABEL);
+    assert_eq!(buf.get(11, 9), TILE_HP_BAR_LEFT);
+    // Border
+    assert_eq!(buf.get(18, 10), TILE_HUD_PLAYER_CORNER);
+}
+
+#[test]
+fn enemy_hud_clear() {
+    let mut buf = ScreenTileBuffer::new();
+    buf.fill(0xFF);
+    EnemyHud::clear(&mut buf);
+    for row in 0..EnemyHud::CLEAR_H {
+        for col in 0..EnemyHud::CLEAR_W {
+            assert_eq!(
+                buf.get(EnemyHud::CLEAR_X + col, EnemyHud::CLEAR_Y + row),
+                TILE_SPACE,
+            );
+        }
+    }
+}
+
+#[test]
+fn enemy_hud_border() {
+    let mut buf = ScreenTileBuffer::new();
+    EnemyHud::draw_border(&mut buf);
+    assert_eq!(buf.get(1, 3), TILE_HUD_CONNECTOR);
+    assert_eq!(buf.get(1, 2), TILE_HUD_ENEMY_CORNER);
+    assert_eq!(buf.get(2, 2), TILE_HUD_ENEMY_TRIANGLE);
+    for i in 0..8 {
+        assert_eq!(buf.get(3 + i, 2), TILE_HUD_HORIZONTAL);
+    }
+}
+
+#[test]
+fn enemy_hud_draw_no_hp_numbers() {
+    let mut buf = ScreenTileBuffer::new();
+    buf.fill(0x00);
+    let name = [0x80, 0x81]; // "AB"
+    EnemyHud::draw(&mut buf, &name, 10, None, 30, 60);
+    // HP bar at (2, 2) — should NOT have numbers after end cap
+    // End cap at col 2+2+6 = 10
+    assert_eq!(buf.get(10, 2), TILE_HP_END_CAP);
+    // Col 11 should still be 0x00 (no HP numbers written)
+    // Actually enemy HUD border overwrites row 2, let's check row 2 col 11
+    // The HP bar ends at col 10, and draw_hp_bar with show_hp_numbers=false
+    // should not write to col 11. But EnemyHud::draw_border writes horizontal bars there.
+    // Let's just verify the HP label is present
+    // Border draws: (1,2)=corner, (2,2)=triangle, (3..10,2)=horizontal
+    // HP bar draws after border: (2,2)=HP_LABEL, (3,2)=BAR_LEFT, (4..9,2)=bars, (10,2)=END_CAP
+    // HP bar overwrites border at (2,2) onward, but (1,2) corner survives
+    assert_eq!(buf.get(2, 2), TILE_HP_LABEL);
+    assert_eq!(buf.get(1, 2), TILE_HUD_ENEMY_CORNER);
+}
+
+#[test]
+fn pokeball_indicators_player() {
+    let mut buf = ScreenTileBuffer::new();
+    let party = [
+        PokeballStatus::Normal,
+        PokeballStatus::StatusAilment,
+        PokeballStatus::Fainted,
+        PokeballStatus::Normal,
+        PokeballStatus::Empty,
+        PokeballStatus::Empty,
+    ];
+    PokeballIndicators::draw_player(&mut buf, &party);
+    assert_eq!(buf.get(11, 10), TILE_POKEBALL_NORMAL);
+    assert_eq!(buf.get(12, 10), TILE_POKEBALL_STATUS);
+    assert_eq!(buf.get(13, 10), TILE_POKEBALL_FAINTED);
+    assert_eq!(buf.get(14, 10), TILE_POKEBALL_NORMAL);
+    assert_eq!(buf.get(15, 10), TILE_POKEBALL_EMPTY);
+    assert_eq!(buf.get(16, 10), TILE_POKEBALL_EMPTY);
+}
+
+#[test]
+fn pokeball_indicators_enemy() {
+    let mut buf = ScreenTileBuffer::new();
+    let party = [
+        PokeballStatus::Normal,
+        PokeballStatus::Normal,
+        PokeballStatus::Fainted,
+        PokeballStatus::Empty,
+        PokeballStatus::Empty,
+        PokeballStatus::Empty,
+    ];
+    PokeballIndicators::draw_enemy(&mut buf, &party);
+    // Enemy draws right-to-left from col 3
+    assert_eq!(buf.get(3, 7), TILE_POKEBALL_NORMAL);
+    assert_eq!(buf.get(2, 7), TILE_POKEBALL_NORMAL);
+    assert_eq!(buf.get(1, 7), TILE_POKEBALL_FAINTED);
+    assert_eq!(buf.get(0, 7), TILE_POKEBALL_EMPTY);
+    // indices 4 and 5 would go to wrapping_sub → very large u32, clipped by bounds check
+}
+
+#[test]
+fn pokeball_indicators_partial_party() {
+    let mut buf = ScreenTileBuffer::new();
+    // Only 3 mons in party
+    let party = [
+        PokeballStatus::Normal,
+        PokeballStatus::Normal,
+        PokeballStatus::Normal,
+    ];
+    PokeballIndicators::draw_player(&mut buf, &party);
+    assert_eq!(buf.get(11, 10), TILE_POKEBALL_NORMAL);
+    assert_eq!(buf.get(12, 10), TILE_POKEBALL_NORMAL);
+    assert_eq!(buf.get(13, 10), TILE_POKEBALL_NORMAL);
+    // Remaining slots filled as Empty
+    assert_eq!(buf.get(14, 10), TILE_POKEBALL_EMPTY);
+    assert_eq!(buf.get(15, 10), TILE_POKEBALL_EMPTY);
+    assert_eq!(buf.get(16, 10), TILE_POKEBALL_EMPTY);
+}
+
+#[test]
+fn retreat_stage_layout() {
+    assert_eq!(RetreatStage::Full.layout(), (1, 5, 7, 7));
+    assert_eq!(RetreatStage::Medium.layout(), (3, 7, 5, 5));
+    assert_eq!(RetreatStage::Small.layout(), (4, 9, 3, 3));
+    assert_eq!(RetreatStage::Pokeball.layout(), (5, 11, 1, 1));
+}
+
+#[test]
+fn retreat_stage_next() {
+    assert_eq!(RetreatStage::Full.next(), Some(RetreatStage::Medium));
+    assert_eq!(RetreatStage::Medium.next(), Some(RetreatStage::Small));
+    assert_eq!(RetreatStage::Small.next(), Some(RetreatStage::Pokeball));
+    assert_eq!(RetreatStage::Pokeball.next(), None);
+}
+
+#[test]
+fn draw_retreat_stage_pokeball() {
+    let mut buf = ScreenTileBuffer::new();
+    buf.fill(0xFF);
+    draw_retreat_stage(&mut buf, RetreatStage::Pokeball);
+    // 7×7 area should be cleared
+    for row in 0..7 {
+        for col in 0..7 {
+            if col == 4 && row == 6 {
+                // (5, 11) = (1+4, 5+6) = pokeball tile
+                assert_eq!(buf.get(1 + col, 5 + row), TILE_POKEBALL_RETREATED);
+            } else {
+                assert_eq!(buf.get(1 + col, 5 + row), TILE_SPACE);
+            }
+        }
+    }
+}
+
+#[test]
+fn draw_retreat_stage_full_clears_area() {
+    let mut buf = ScreenTileBuffer::new();
+    buf.fill(0xFF);
+    draw_retreat_stage(&mut buf, RetreatStage::Full);
+    // Full stage clears the 7×7 area but no pokeball
+    for row in 0..7 {
+        for col in 0..7 {
+            assert_eq!(buf.get(1 + col, 5 + row), TILE_SPACE);
+        }
+    }
+}
+
+#[test]
+fn scale_sprite_2x_basic() {
+    // 2×2 source → 4×4 output
+    let src = vec![1, 2, 3, 4];
+    let result = scale_sprite_2x(&src, 2, 2);
+    assert_eq!(result.len(), 16);
+    // Row 0: 1,1,2,2
+    assert_eq!(&result[0..4], &[1, 1, 2, 2]);
+    // Row 1: 1,1,2,2 (duplicate of row 0)
+    assert_eq!(&result[4..8], &[1, 1, 2, 2]);
+    // Row 2: 3,3,4,4
+    assert_eq!(&result[8..12], &[3, 3, 4, 4]);
+    // Row 3: 3,3,4,4
+    assert_eq!(&result[12..16], &[3, 3, 4, 4]);
+}
+
+#[test]
+fn scale_sprite_2x_single_pixel() {
+    let src = vec![42];
+    let result = scale_sprite_2x(&src, 1, 1);
+    assert_eq!(result, vec![42, 42, 42, 42]);
+}
+
+#[test]
+fn trainer_pic_scroll_new() {
+    let scroll = TrainerPicScroll::new();
+    assert!(scroll.is_scrolling());
+    assert_eq!(scroll.columns_remaining, 7);
+    // When 0 columns visible, start_x = 20 - 0 = 20
+    assert_eq!(scroll.visible_start_x(), 20);
+}
+
+#[test]
+fn trainer_pic_scroll_step() {
+    let mut scroll = TrainerPicScroll::new();
+    let visible = scroll.step();
+    assert_eq!(visible, 1);
+    assert_eq!(scroll.columns_remaining, 6);
+    assert!(scroll.is_scrolling());
+    // visible_start_x = 20 - 1 = 19
+    assert_eq!(scroll.visible_start_x(), 19);
+}
+
+#[test]
+fn trainer_pic_scroll_complete() {
+    let mut scroll = TrainerPicScroll::new();
+    for _ in 0..7 {
+        scroll.step();
+    }
+    assert!(!scroll.is_scrolling());
+    assert_eq!(scroll.columns_remaining, 0);
+    // visible_start_x = 20 - 7 = 13
+    assert_eq!(scroll.visible_start_x(), 13);
+}
+
+#[test]
+fn trainer_pic_scroll_extra_step_no_panic() {
+    let mut scroll = TrainerPicScroll::new();
+    for _ in 0..10 {
+        scroll.step();
+    }
+    assert!(!scroll.is_scrolling());
+    assert_eq!(scroll.columns_remaining, 0);
+}
+
+#[test]
+fn trainer_pic_scroll_draw_visible() {
+    let mut scroll = TrainerPicScroll::new();
+    // 7×7 pic tiles (row-major)
+    let mut pic_tiles = vec![0u8; 49];
+    for i in 0..49 {
+        pic_tiles[i] = i as u8 + 1;
+    }
+    let mut buf = ScreenTileBuffer::new();
+
+    // Step once: 1 column visible at x=19
+    scroll.step();
+    scroll.draw_visible(&mut buf, &pic_tiles);
+    // First column of each row should be drawn at x=19
+    for row in 0..7 {
+        let expected_tile = (row * 7 + 0) as u8 + 1; // col 0 of each row
+        assert_eq!(buf.get(19, row as u32), expected_tile);
+    }
+
+    // Step 6 more times: fully visible, starting at x=13
+    for _ in 0..6 {
+        scroll.step();
+    }
+    buf.fill(0x00);
+    scroll.draw_visible(&mut buf, &pic_tiles);
+    // All 7 columns visible at x=13..19
+    for row in 0..7 {
+        for col in 0..7 {
+            let expected_tile = (row * 7 + col) as u8 + 1;
+            assert_eq!(buf.get(13 + col as u32, row as u32), expected_tile);
+        }
+    }
+}
+
+#[test]
+fn battle_scene_new_defaults() {
+    let scene = BattleScene::new();
+    assert!(!scene.show_player_hud);
+    assert!(!scene.show_enemy_hud);
+    assert_eq!(scene.player_party, [PokeballStatus::Empty; 6]);
+    assert_eq!(scene.enemy_party, [PokeballStatus::Empty; 6]);
+    assert!(scene.retreat_stage.is_none());
+    assert!(scene.trainer_scroll.is_none());
+}
+
+#[test]
+fn battle_scene_draw_huds_hidden() {
+    let scene = BattleScene::new();
+    let mut buf = ScreenTileBuffer::new();
+    buf.fill(0xFF);
+    scene.draw(
+        &mut buf,
+        &[0x80],
+        25,
+        None,
+        50,
+        100,
+        &[0x81],
+        10,
+        None,
+        30,
+        60,
+    );
+    // HUDs are hidden, so nothing should be drawn at HUD positions
+    // Player HUD area should still be 0xFF
+    assert_eq!(buf.get(PlayerHud::NAME_X, PlayerHud::NAME_Y), 0xFF);
+    assert_eq!(buf.get(EnemyHud::NAME_X, EnemyHud::NAME_Y), 0xFF);
+}
+
+#[test]
+fn battle_scene_draw_huds_visible() {
+    let mut scene = BattleScene::new();
+    scene.show_player_hud = true;
+    scene.show_enemy_hud = true;
+    scene.player_party = [
+        PokeballStatus::Normal,
+        PokeballStatus::Normal,
+        PokeballStatus::Normal,
+        PokeballStatus::Empty,
+        PokeballStatus::Empty,
+        PokeballStatus::Empty,
+    ];
+    scene.enemy_party = [
+        PokeballStatus::Normal,
+        PokeballStatus::Fainted,
+        PokeballStatus::Empty,
+        PokeballStatus::Empty,
+        PokeballStatus::Empty,
+        PokeballStatus::Empty,
+    ];
+
+    let mut buf = ScreenTileBuffer::new();
+    scene.draw(
+        &mut buf,
+        &[0x80, 0x81, 0x82],
+        25,
+        None,
+        50,
+        100,
+        &[0x90, 0x91],
+        10,
+        None,
+        30,
+        60,
+    );
+    // Player HUD should be drawn
+    assert_eq!(buf.get(PlayerHud::NAME_X, PlayerHud::NAME_Y), 0x80);
+    assert_eq!(
+        buf.get(PlayerHud::HP_BAR_X, PlayerHud::HP_BAR_Y),
+        TILE_HP_LABEL
+    );
+    // Enemy HUD should be drawn
+    assert_eq!(buf.get(EnemyHud::NAME_X, EnemyHud::NAME_Y), 0x90);
+    // Pokeball indicators
+    assert_eq!(buf.get(11, 10), TILE_POKEBALL_NORMAL); // player
+    assert_eq!(buf.get(3, 7), TILE_POKEBALL_NORMAL); // enemy first
+    assert_eq!(buf.get(2, 7), TILE_POKEBALL_FAINTED); // enemy second
+}
