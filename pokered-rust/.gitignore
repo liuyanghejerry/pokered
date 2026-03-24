@@ -13,3 +13,5 @@ Thumbs.db
 
 # Environment
 .env
+
+/compare_output
