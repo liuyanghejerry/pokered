@@ -1,0 +1,56 @@
+{
+  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-opencode/master/assets/oh-my-opencode.schema.json",
+  "agents": {
+    "sisyphus": {
+      "model": "bailian-coding-plan/qwen3-coder-plus"
+    },
+    "prometheus": {
+      "model": "bailian-coding-plan/qwen3-max-2026-01-23"
+    },
+    "oracle": {
+      "model": "bailian-coding-plan/qwen3-max-2026-01-23"
+    },
+    "hephaestus": {
+      "model": "bailian-coding-plan/qwen3-coder-plus"
+    },
+    "atlas": {
+      "model": "bailian-coding-plan/qwen3.5-plus"
+    },
+    "metis": {
+      "model": "bailian-coding-plan/qwen3.5-plus"
+    },
+    "momus": {
+      "model": "bailian-coding-plan/qwen3-max-2026-01-23"
+    },
+    "explore": {
+      "model": "bailian-coding-plan/qwen3-coder-next"
+    },
+    "librarian": {
+      "model": "bailian-coding-plan/qwen3-coder-next"
+    },
+    "multimodal-looker": {
+      "model": "bailian-coding-plan/qwen3.5-plus"
+    }
+  },
+
+  "categories": {
+    "quick": {
+      "model": "bailian-coding-plan/qwen3-coder-next"
+    },
+    "deep": {
+      "model": "bailian-coding-plan/qwen3-coder-plus"
+    },
+    "ultrabrain": {
+      "model": "bailian-coding-plan/qwen3-max-2026-01-23"
+    },
+    "visual-engineering": {
+      "model": "bailian-coding-plan/qwen3.5-plus"
+    },
+    "unspecified-high": {
+      "model": "bailian-coding-plan/qwen3-coder-plus"
+    },
+    "unspecified-low": {
+      "model": "bailian-coding-plan/qwen3.5-plus"
+    }
+  }
+}
