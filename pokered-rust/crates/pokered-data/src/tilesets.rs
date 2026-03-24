@@ -37,4 +37,35 @@ impl TilesetId {
             None
         }
     }
+
+    /// Returns the PNG filename (without extension) for this tileset,
+    /// matching the files in `gfx/tilesets/`.
+    pub fn tileset_name(self) -> &'static str {
+        match self {
+            TilesetId::Overworld => "overworld",
+            TilesetId::RedsHouse1 => "reds_house",
+            TilesetId::Mart => "pokecenter", // shares pokecenter.bst
+            TilesetId::Forest => "forest",
+            TilesetId::RedsHouse2 => "reds_house", // shares reds_house.bst
+            TilesetId::Dojo => "gym",              // shares gym.bst
+            TilesetId::Pokecenter => "pokecenter",
+            TilesetId::Gym => "gym",
+            TilesetId::House => "house",
+            TilesetId::ForestGate => "gate", // shares gate.bst
+            TilesetId::Museum => "gate",     // shares gate.bst
+            TilesetId::Underground => "underground",
+            TilesetId::Gate => "gate",
+            TilesetId::Ship => "ship",
+            TilesetId::ShipPort => "ship_port",
+            TilesetId::Cemetery => "cemetery",
+            TilesetId::Interior => "interior",
+            TilesetId::Cavern => "cavern",
+            TilesetId::Lobby => "lobby",
+            TilesetId::Mansion => "mansion",
+            TilesetId::Lab => "lab",
+            TilesetId::Club => "club",
+            TilesetId::Facility => "facility",
+            TilesetId::Plateau => "plateau",
+        }
+    }
 }

@@ -20,6 +20,7 @@ pub struct MapHeaderData {
     pub connection_flags: u8,
     pub width: u8,
     pub height: u8,
+    pub border_block: u8,
 }
 
 impl MapHeaderData {
@@ -49,6 +50,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 12,
         width: 10,
         height: 9,
+        border_block: 0x0b,
     }, // PalletTown
     /* 0x01 */
     MapHeaderData {
@@ -57,6 +59,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 14,
         width: 20,
         height: 18,
+        border_block: 0x0f,
     }, // ViridianCity
     /* 0x02 */
     MapHeaderData {
@@ -65,6 +68,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 5,
         width: 20,
         height: 18,
+        border_block: 0x0a,
     }, // PewterCity
     /* 0x03 */
     MapHeaderData {
@@ -73,6 +77,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 15,
         width: 20,
         height: 18,
+        border_block: 0x0f,
     }, // CeruleanCity
     /* 0x04 */
     MapHeaderData {
@@ -81,6 +86,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 14,
         width: 10,
         height: 9,
+        border_block: 0x2c,
     }, // LavenderTown
     /* 0x05 */
     MapHeaderData {
@@ -89,6 +95,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 9,
         width: 20,
         height: 18,
+        border_block: 0x43,
     }, // VermilionCity
     /* 0x06 */
     MapHeaderData {
@@ -97,6 +104,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 3,
         width: 25,
         height: 18,
+        border_block: 0x0f,
     }, // CeladonCity
     /* 0x07 */
     MapHeaderData {
@@ -105,6 +113,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 7,
         width: 20,
         height: 18,
+        border_block: 0x0f,
     }, // FuchsiaCity
     /* 0x08 */
     MapHeaderData {
@@ -113,6 +122,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 9,
         width: 10,
         height: 9,
+        border_block: 0x43,
     }, // CinnabarIsland
     /* 0x09 */
     MapHeaderData {
@@ -121,6 +131,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 4,
         width: 10,
         height: 9,
+        border_block: 0x0e,
     }, // IndigoPlateau
     /* 0x0A */
     MapHeaderData {
@@ -129,6 +140,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 15,
         width: 20,
         height: 18,
+        border_block: 0x0f,
     }, // SaffronCity
     /* 0x0B */
     MapHeaderData {
@@ -137,6 +149,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 0,
         height: 0,
+        border_block: 0x00,
     }, // UnusedMap0B
     /* 0x0C */
     MapHeaderData {
@@ -145,6 +158,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 12,
         width: 10,
         height: 18,
+        border_block: 0x0b,
     }, // Route1
     /* 0x0D */
     MapHeaderData {
@@ -153,6 +167,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 12,
         width: 10,
         height: 36,
+        border_block: 0x0f,
     }, // Route2
     /* 0x0E */
     MapHeaderData {
@@ -161,6 +176,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 10,
         width: 35,
         height: 9,
+        border_block: 0x2c,
     }, // Route3
     /* 0x0F */
     MapHeaderData {
@@ -169,6 +185,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 5,
         width: 45,
         height: 9,
+        border_block: 0x2c,
     }, // Route4
     /* 0x10 */
     MapHeaderData {
@@ -177,6 +194,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 12,
         width: 10,
         height: 18,
+        border_block: 0x0a,
     }, // Route5
     /* 0x11 */
     MapHeaderData {
@@ -185,6 +203,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 12,
         width: 10,
         height: 18,
+        border_block: 0x0f,
     }, // Route6
     /* 0x12 */
     MapHeaderData {
@@ -193,6 +212,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 3,
         width: 10,
         height: 9,
+        border_block: 0x0f,
     }, // Route7
     /* 0x13 */
     MapHeaderData {
@@ -201,6 +221,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 3,
         width: 30,
         height: 9,
+        border_block: 0x2c,
     }, // Route8
     /* 0x14 */
     MapHeaderData {
@@ -209,6 +230,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 3,
         width: 30,
         height: 9,
+        border_block: 0x2c,
     }, // Route9
     /* 0x15 */
     MapHeaderData {
@@ -217,6 +239,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 6,
         width: 10,
         height: 36,
+        border_block: 0x2c,
     }, // Route10
     /* 0x16 */
     MapHeaderData {
@@ -225,6 +248,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 3,
         width: 30,
         height: 9,
+        border_block: 0x0f,
     }, // Route11
     /* 0x17 */
     MapHeaderData {
@@ -233,6 +257,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 14,
         width: 10,
         height: 54,
+        border_block: 0x43,
     }, // Route12
     /* 0x18 */
     MapHeaderData {
@@ -241,6 +266,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 10,
         width: 30,
         height: 9,
+        border_block: 0x43,
     }, // Route13
     /* 0x19 */
     MapHeaderData {
@@ -249,6 +275,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 3,
         width: 10,
         height: 27,
+        border_block: 0x43,
     }, // Route14
     /* 0x1A */
     MapHeaderData {
@@ -257,6 +284,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 3,
         width: 30,
         height: 9,
+        border_block: 0x43,
     }, // Route15
     /* 0x1B */
     MapHeaderData {
@@ -265,6 +293,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 5,
         width: 20,
         height: 9,
+        border_block: 0x0f,
     }, // Route16
     /* 0x1C */
     MapHeaderData {
@@ -273,6 +302,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 12,
         width: 10,
         height: 72,
+        border_block: 0x43,
     }, // Route17
     /* 0x1D */
     MapHeaderData {
@@ -281,6 +311,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 9,
         width: 25,
         height: 9,
+        border_block: 0x43,
     }, // Route18
     /* 0x1E */
     MapHeaderData {
@@ -289,6 +320,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 10,
         width: 10,
         height: 27,
+        border_block: 0x43,
     }, // Route19
     /* 0x1F */
     MapHeaderData {
@@ -297,6 +329,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 3,
         width: 50,
         height: 9,
+        border_block: 0x43,
     }, // Route20
     /* 0x20 */
     MapHeaderData {
@@ -305,6 +338,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 12,
         width: 10,
         height: 45,
+        border_block: 0x43,
     }, // Route21
     /* 0x21 */
     MapHeaderData {
@@ -313,6 +347,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 9,
         width: 20,
         height: 9,
+        border_block: 0x2c,
     }, // Route22
     /* 0x22 */
     MapHeaderData {
@@ -321,6 +356,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 12,
         width: 10,
         height: 72,
+        border_block: 0x0f,
     }, // Route23
     /* 0x23 */
     MapHeaderData {
@@ -329,6 +365,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 5,
         width: 10,
         height: 18,
+        border_block: 0x2c,
     }, // Route24
     /* 0x24 */
     MapHeaderData {
@@ -337,6 +374,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 2,
         width: 30,
         height: 9,
+        border_block: 0x2c,
     }, // Route25
     /* 0x25 */
     MapHeaderData {
@@ -345,6 +383,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x00,
     }, // RedsHouse1F
     /* 0x26 */
     MapHeaderData {
@@ -353,6 +392,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x00,
     }, // RedsHouse2F
     /* 0x27 */
     MapHeaderData {
@@ -361,6 +401,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0a,
     }, // BluesHouse
     /* 0x28 */
     MapHeaderData {
@@ -369,6 +410,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 5,
         height: 6,
+        border_block: 0x03,
     }, // OaksLab
     /* 0x29 */
     MapHeaderData {
@@ -377,6 +419,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 7,
         height: 4,
+        border_block: 0x00,
     }, // ViridianPokecenter
     /* 0x2A */
     MapHeaderData {
@@ -385,6 +428,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x00,
     }, // ViridianMart
     /* 0x2B */
     MapHeaderData {
@@ -393,6 +437,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0a,
     }, // ViridianSchoolHouse
     /* 0x2C */
     MapHeaderData {
@@ -401,6 +446,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0a,
     }, // ViridianNicknameHouse
     /* 0x2D */
     MapHeaderData {
@@ -409,6 +455,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 10,
         height: 9,
+        border_block: 0x03,
     }, // ViridianGym
     /* 0x2E */
     MapHeaderData {
@@ -417,6 +464,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x7d,
     }, // DiglettsCaveRoute2
     /* 0x2F */
     MapHeaderData {
@@ -425,6 +473,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 5,
         height: 4,
+        border_block: 0x0a,
     }, // ViridianForestNorthGate
     /* 0x30 */
     MapHeaderData {
@@ -433,6 +482,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0a,
     }, // Route2TradeHouse
     /* 0x31 */
     MapHeaderData {
@@ -441,6 +491,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 5,
         height: 4,
+        border_block: 0x0a,
     }, // Route2Gate
     /* 0x32 */
     MapHeaderData {
@@ -449,6 +500,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 5,
         height: 4,
+        border_block: 0x0a,
     }, // ViridianForestSouthGate
     /* 0x33 */
     MapHeaderData {
@@ -457,6 +509,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 17,
         height: 24,
+        border_block: 0x03,
     }, // ViridianForest
     /* 0x34 */
     MapHeaderData {
@@ -465,6 +518,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 10,
         height: 4,
+        border_block: 0x00,
     }, // Museum1F
     /* 0x35 */
     MapHeaderData {
@@ -473,6 +527,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 7,
         height: 4,
+        border_block: 0x00,
     }, // Museum2F
     /* 0x36 */
     MapHeaderData {
@@ -481,6 +536,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 5,
         height: 7,
+        border_block: 0x03,
     }, // PewterGym
     /* 0x37 */
     MapHeaderData {
@@ -489,6 +545,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0a,
     }, // PewterNidoranHouse
     /* 0x38 */
     MapHeaderData {
@@ -497,6 +554,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x00,
     }, // PewterMart
     /* 0x39 */
     MapHeaderData {
@@ -505,6 +563,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0a,
     }, // PewterSpeechHouse
     /* 0x3A */
     MapHeaderData {
@@ -513,6 +572,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 7,
         height: 4,
+        border_block: 0x00,
     }, // PewterPokecenter
     /* 0x3B */
     MapHeaderData {
@@ -521,6 +581,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 20,
         height: 18,
+        border_block: 0x00,
     }, // MtMoon1F
     /* 0x3C */
     MapHeaderData {
@@ -529,6 +590,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 14,
         height: 14,
+        border_block: 0x00,
     }, // MtMoonB1F
     /* 0x3D */
     MapHeaderData {
@@ -537,6 +599,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 20,
         height: 18,
+        border_block: 0x00,
     }, // MtMoonB2F
     /* 0x3E */
     MapHeaderData {
@@ -545,6 +608,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0a,
     }, // CeruleanTrashedHouse
     /* 0x3F */
     MapHeaderData {
@@ -553,6 +617,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0a,
     }, // CeruleanTradeHouse
     /* 0x40 */
     MapHeaderData {
@@ -561,6 +626,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 7,
         height: 4,
+        border_block: 0x00,
     }, // CeruleanPokecenter
     /* 0x41 */
     MapHeaderData {
@@ -569,6 +635,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 5,
         height: 7,
+        border_block: 0x03,
     }, // CeruleanGym
     /* 0x42 */
     MapHeaderData {
@@ -577,6 +644,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0e,
     }, // BikeShop
     /* 0x43 */
     MapHeaderData {
@@ -585,6 +653,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x00,
     }, // CeruleanMart
     /* 0x44 */
     MapHeaderData {
@@ -593,6 +662,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 7,
         height: 4,
+        border_block: 0x00,
     }, // MtMoonPokecenter
     /* 0x45 */
     MapHeaderData {
@@ -601,6 +671,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x00,
     }, // CeruleanTrashedHouseCopy
     /* 0x46 */
     MapHeaderData {
@@ -609,6 +680,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 3,
+        border_block: 0x0a,
     }, // Route5Gate
     /* 0x47 */
     MapHeaderData {
@@ -617,6 +689,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0a,
     }, // UndergroundPathRoute5
     /* 0x48 */
     MapHeaderData {
@@ -625,6 +698,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0a,
     }, // Daycare
     /* 0x49 */
     MapHeaderData {
@@ -633,6 +707,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 3,
+        border_block: 0x0a,
     }, // Route6Gate
     /* 0x4A */
     MapHeaderData {
@@ -641,6 +716,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0a,
     }, // UndergroundPathRoute6
     /* 0x4B */
     MapHeaderData {
@@ -649,6 +725,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x00,
     }, // UndergroundPathRoute6Copy
     /* 0x4C */
     MapHeaderData {
@@ -657,6 +734,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 3,
         height: 4,
+        border_block: 0x0a,
     }, // Route7Gate
     /* 0x4D */
     MapHeaderData {
@@ -665,6 +743,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0a,
     }, // UndergroundPathRoute7
     /* 0x4E */
     MapHeaderData {
@@ -673,6 +752,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0a,
     }, // UndergroundPathRoute7Copy
     /* 0x4F */
     MapHeaderData {
@@ -681,6 +761,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 3,
         height: 4,
+        border_block: 0x0a,
     }, // Route8Gate
     /* 0x50 */
     MapHeaderData {
@@ -689,6 +770,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0a,
     }, // UndergroundPathRoute8
     /* 0x51 */
     MapHeaderData {
@@ -697,6 +779,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 7,
         height: 4,
+        border_block: 0x00,
     }, // RockTunnelPokecenter
     /* 0x52 */
     MapHeaderData {
@@ -705,6 +788,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 20,
         height: 18,
+        border_block: 0x00,
     }, // RockTunnel1F
     /* 0x53 */
     MapHeaderData {
@@ -713,6 +797,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 20,
         height: 18,
+        border_block: 0x2e,
     }, // PowerPlant
     /* 0x54 */
     MapHeaderData {
@@ -721,6 +806,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 5,
+        border_block: 0x00,
     }, // Route11Gate1F
     /* 0x55 */
     MapHeaderData {
@@ -729,6 +815,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x7d,
     }, // DiglettsCaveRoute11
     /* 0x56 */
     MapHeaderData {
@@ -737,6 +824,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x00,
     }, // Route11Gate2F
     /* 0x57 */
     MapHeaderData {
@@ -745,6 +833,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 5,
         height: 4,
+        border_block: 0x00,
     }, // Route12Gate1F
     /* 0x58 */
     MapHeaderData {
@@ -753,6 +842,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0d,
     }, // BillsHouse
     /* 0x59 */
     MapHeaderData {
@@ -761,6 +851,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 7,
         height: 4,
+        border_block: 0x00,
     }, // VermilionPokecenter
     /* 0x5A */
     MapHeaderData {
@@ -769,6 +860,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0d,
     }, // PokemonFanClub
     /* 0x5B */
     MapHeaderData {
@@ -777,6 +869,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x00,
     }, // VermilionMart
     /* 0x5C */
     MapHeaderData {
@@ -785,6 +878,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 5,
         height: 9,
+        border_block: 0x03,
     }, // VermilionGym
     /* 0x5D */
     MapHeaderData {
@@ -793,6 +887,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0a,
     }, // VermilionPidgeyHouse
     /* 0x5E */
     MapHeaderData {
@@ -801,6 +896,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 14,
         height: 6,
+        border_block: 0x0f,
     }, // VermilionDock
     /* 0x5F */
     MapHeaderData {
@@ -809,6 +905,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 20,
         height: 9,
+        border_block: 0x00,
     }, // SSAnne1F
     /* 0x60 */
     MapHeaderData {
@@ -817,6 +914,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 20,
         height: 9,
+        border_block: 0x00,
     }, // SSAnne2F
     /* 0x61 */
     MapHeaderData {
@@ -825,6 +923,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 10,
         height: 3,
+        border_block: 0x00,
     }, // SSAnne3F
     /* 0x62 */
     MapHeaderData {
@@ -833,6 +932,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 15,
         height: 4,
+        border_block: 0x00,
     }, // SSAnneB1F
     /* 0x63 */
     MapHeaderData {
@@ -841,6 +941,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 10,
         height: 7,
+        border_block: 0x00,
     }, // SSAnneBow
     /* 0x64 */
     MapHeaderData {
@@ -849,6 +950,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 7,
         height: 8,
+        border_block: 0x00,
     }, // SSAnneKitchen
     /* 0x65 */
     MapHeaderData {
@@ -857,6 +959,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 3,
         height: 4,
+        border_block: 0x00,
     }, // SSAnneCaptainsRoom
     /* 0x66 */
     MapHeaderData {
@@ -865,6 +968,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 12,
         height: 8,
+        border_block: 0x00,
     }, // SSAnne1FRooms
     /* 0x67 */
     MapHeaderData {
@@ -873,6 +977,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 12,
         height: 8,
+        border_block: 0x00,
     }, // SSAnne2FRooms
     /* 0x68 */
     MapHeaderData {
@@ -881,6 +986,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 12,
         height: 8,
+        border_block: 0x00,
     }, // SSAnneB1FRooms
     /* 0x69 */
     MapHeaderData {
@@ -889,6 +995,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 0,
         height: 0,
+        border_block: 0x00,
     }, // UnusedMap69
     /* 0x6A */
     MapHeaderData {
@@ -897,6 +1004,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 0,
         height: 0,
+        border_block: 0x00,
     }, // UnusedMap6A
     /* 0x6B */
     MapHeaderData {
@@ -905,6 +1013,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 0,
         height: 0,
+        border_block: 0x00,
     }, // UnusedMap6B
     /* 0x6C */
     MapHeaderData {
@@ -913,6 +1022,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 10,
         height: 9,
+        border_block: 0x00,
     }, // VictoryRoad1F
     /* 0x6D */
     MapHeaderData {
@@ -921,6 +1031,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 0,
         height: 0,
+        border_block: 0x00,
     }, // UnusedMap6D
     /* 0x6E */
     MapHeaderData {
@@ -929,6 +1040,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 0,
         height: 0,
+        border_block: 0x00,
     }, // UnusedMap6E
     /* 0x6F */
     MapHeaderData {
@@ -937,6 +1049,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 0,
         height: 0,
+        border_block: 0x00,
     }, // UnusedMap6F
     /* 0x70 */
     MapHeaderData {
@@ -945,6 +1058,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 0,
         height: 0,
+        border_block: 0x00,
     }, // UnusedMap70
     /* 0x71 */
     MapHeaderData {
@@ -953,6 +1067,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 13,
         height: 13,
+        border_block: 0x03,
     }, // LancesRoom
     /* 0x72 */
     MapHeaderData {
@@ -961,6 +1076,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 0,
         height: 0,
+        border_block: 0x00,
     }, // UnusedMap72
     /* 0x73 */
     MapHeaderData {
@@ -969,6 +1085,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 0,
         height: 0,
+        border_block: 0x00,
     }, // UnusedMap73
     /* 0x74 */
     MapHeaderData {
@@ -977,6 +1094,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 0,
         height: 0,
+        border_block: 0x00,
     }, // UnusedMap74
     /* 0x75 */
     MapHeaderData {
@@ -985,6 +1103,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 0,
         height: 0,
+        border_block: 0x00,
     }, // UnusedMap75
     /* 0x76 */
     MapHeaderData {
@@ -993,6 +1112,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 5,
         height: 4,
+        border_block: 0x03,
     }, // HallOfFame
     /* 0x77 */
     MapHeaderData {
@@ -1001,6 +1121,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 24,
+        border_block: 0x01,
     }, // UndergroundPathNorthSouth
     /* 0x78 */
     MapHeaderData {
@@ -1009,6 +1130,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x03,
     }, // ChampionsRoom
     /* 0x79 */
     MapHeaderData {
@@ -1017,6 +1139,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 25,
         height: 4,
+        border_block: 0x01,
     }, // UndergroundPathWestEast
     /* 0x7A */
     MapHeaderData {
@@ -1025,6 +1148,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 10,
         height: 4,
+        border_block: 0x00,
     }, // CeladonMart1F
     /* 0x7B */
     MapHeaderData {
@@ -1033,6 +1157,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 10,
         height: 4,
+        border_block: 0x00,
     }, // CeladonMart2F
     /* 0x7C */
     MapHeaderData {
@@ -1041,6 +1166,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 10,
         height: 4,
+        border_block: 0x00,
     }, // CeladonMart3F
     /* 0x7D */
     MapHeaderData {
@@ -1049,6 +1175,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 10,
         height: 4,
+        border_block: 0x00,
     }, // CeladonMart4F
     /* 0x7E */
     MapHeaderData {
@@ -1057,6 +1184,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 10,
         height: 4,
+        border_block: 0x42,
     }, // CeladonMartRoof
     /* 0x7F */
     MapHeaderData {
@@ -1065,6 +1193,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 2,
         height: 2,
+        border_block: 0x0f,
     }, // CeladonMartElevator
     /* 0x80 */
     MapHeaderData {
@@ -1073,6 +1202,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 6,
+        border_block: 0x00,
     }, // CeladonMansion1F
     /* 0x81 */
     MapHeaderData {
@@ -1081,6 +1211,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 6,
+        border_block: 0x00,
     }, // CeladonMansion2F
     /* 0x82 */
     MapHeaderData {
@@ -1089,6 +1220,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 6,
+        border_block: 0x00,
     }, // CeladonMansion3F
     /* 0x83 */
     MapHeaderData {
@@ -1097,6 +1229,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 6,
+        border_block: 0x09,
     }, // CeladonMansionRoof
     /* 0x84 */
     MapHeaderData {
@@ -1105,6 +1238,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0a,
     }, // CeladonMansionRoofHouse
     /* 0x85 */
     MapHeaderData {
@@ -1113,6 +1247,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 7,
         height: 4,
+        border_block: 0x00,
     }, // CeladonPokecenter
     /* 0x86 */
     MapHeaderData {
@@ -1121,6 +1256,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 5,
         height: 9,
+        border_block: 0x03,
     }, // CeladonGym
     /* 0x87 */
     MapHeaderData {
@@ -1129,6 +1265,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 10,
         height: 9,
+        border_block: 0x0f,
     }, // GameCorner
     /* 0x88 */
     MapHeaderData {
@@ -1137,6 +1274,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 10,
         height: 4,
+        border_block: 0x00,
     }, // CeladonMart5F
     /* 0x89 */
     MapHeaderData {
@@ -1145,6 +1283,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 5,
         height: 4,
+        border_block: 0x0f,
     }, // GameCornerPrizeRoom
     /* 0x8A */
     MapHeaderData {
@@ -1153,6 +1292,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 5,
         height: 4,
+        border_block: 0x0f,
     }, // CeladonDiner
     /* 0x8B */
     MapHeaderData {
@@ -1161,6 +1301,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0f,
     }, // CeladonChiefHouse
     /* 0x8C */
     MapHeaderData {
@@ -1169,6 +1310,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 7,
         height: 4,
+        border_block: 0x00,
     }, // CeladonHotel
     /* 0x8D */
     MapHeaderData {
@@ -1177,6 +1319,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 7,
         height: 4,
+        border_block: 0x00,
     }, // LavenderPokecenter
     /* 0x8E */
     MapHeaderData {
@@ -1185,6 +1328,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 10,
         height: 9,
+        border_block: 0x00,
     }, // PokemonTower1F
     /* 0x8F */
     MapHeaderData {
@@ -1193,6 +1337,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 10,
         height: 9,
+        border_block: 0x00,
     }, // PokemonTower2F
     /* 0x90 */
     MapHeaderData {
@@ -1201,6 +1346,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 10,
         height: 9,
+        border_block: 0x00,
     }, // PokemonTower3F
     /* 0x91 */
     MapHeaderData {
@@ -1209,6 +1355,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 10,
         height: 9,
+        border_block: 0x00,
     }, // PokemonTower4F
     /* 0x92 */
     MapHeaderData {
@@ -1217,6 +1364,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 10,
         height: 9,
+        border_block: 0x00,
     }, // PokemonTower5F
     /* 0x93 */
     MapHeaderData {
@@ -1225,6 +1373,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 10,
         height: 9,
+        border_block: 0x00,
     }, // PokemonTower6F
     /* 0x94 */
     MapHeaderData {
@@ -1233,6 +1382,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 10,
         height: 9,
+        border_block: 0x00,
     }, // PokemonTower7F
     /* 0x95 */
     MapHeaderData {
@@ -1241,6 +1391,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0a,
     }, // MrFujisHouse
     /* 0x96 */
     MapHeaderData {
@@ -1249,6 +1400,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x00,
     }, // LavenderMart
     /* 0x97 */
     MapHeaderData {
@@ -1257,6 +1409,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0a,
     }, // LavenderCuboneHouse
     /* 0x98 */
     MapHeaderData {
@@ -1265,6 +1418,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x00,
     }, // FuchsiaMart
     /* 0x99 */
     MapHeaderData {
@@ -1273,6 +1427,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0a,
     }, // FuchsiaBillsGrandpasHouse
     /* 0x9A */
     MapHeaderData {
@@ -1281,6 +1436,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 7,
         height: 4,
+        border_block: 0x00,
     }, // FuchsiaPokecenter
     /* 0x9B */
     MapHeaderData {
@@ -1289,6 +1445,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 5,
         height: 4,
+        border_block: 0x17,
     }, // WardensHouse
     /* 0x9C */
     MapHeaderData {
@@ -1297,6 +1454,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 3,
+        border_block: 0x0a,
     }, // SafariZoneGate
     /* 0x9D */
     MapHeaderData {
@@ -1305,6 +1463,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 5,
         height: 9,
+        border_block: 0x03,
     }, // FuchsiaGym
     /* 0x9E */
     MapHeaderData {
@@ -1313,6 +1472,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 7,
         height: 4,
+        border_block: 0x17,
     }, // FuchsiaMeetingRoom
     /* 0x9F */
     MapHeaderData {
@@ -1321,6 +1481,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 15,
         height: 9,
+        border_block: 0x00,
     }, // SeafoamIslandsB1F
     /* 0xA0 */
     MapHeaderData {
@@ -1329,6 +1490,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 15,
         height: 9,
+        border_block: 0x00,
     }, // SeafoamIslandsB2F
     /* 0xA1 */
     MapHeaderData {
@@ -1337,6 +1499,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 15,
         height: 9,
+        border_block: 0x00,
     }, // SeafoamIslandsB3F
     /* 0xA2 */
     MapHeaderData {
@@ -1345,6 +1508,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 15,
         height: 9,
+        border_block: 0x00,
     }, // SeafoamIslandsB4F
     /* 0xA3 */
     MapHeaderData {
@@ -1353,6 +1517,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0a,
     }, // VermilionOldRodHouse
     /* 0xA4 */
     MapHeaderData {
@@ -1361,6 +1526,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0c,
     }, // FuchsiaGoodRodHouse
     /* 0xA5 */
     MapHeaderData {
@@ -1369,6 +1535,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 15,
         height: 14,
+        border_block: 0x00,
     }, // PokemonMansion1F
     /* 0xA6 */
     MapHeaderData {
@@ -1377,6 +1544,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 10,
         height: 9,
+        border_block: 0x2e,
     }, // CinnabarGym
     /* 0xA7 */
     MapHeaderData {
@@ -1385,6 +1553,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 9,
         height: 4,
+        border_block: 0x17,
     }, // CinnabarLab
     /* 0xA8 */
     MapHeaderData {
@@ -1393,6 +1562,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x17,
     }, // CinnabarLabTradeRoom
     /* 0xA9 */
     MapHeaderData {
@@ -1401,6 +1571,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x17,
     }, // CinnabarLabMetronomeRoom
     /* 0xAA */
     MapHeaderData {
@@ -1409,6 +1580,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x17,
     }, // CinnabarLabFossilRoom
     /* 0xAB */
     MapHeaderData {
@@ -1417,6 +1589,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 7,
         height: 4,
+        border_block: 0x00,
     }, // CinnabarPokecenter
     /* 0xAC */
     MapHeaderData {
@@ -1425,6 +1598,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x00,
     }, // CinnabarMart
     /* 0xAD */
     MapHeaderData {
@@ -1433,6 +1607,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x00,
     }, // CinnabarMartCopy
     /* 0xAE */
     MapHeaderData {
@@ -1441,6 +1616,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 8,
         height: 6,
+        border_block: 0x00,
     }, // IndigoPlateauLobby
     /* 0xAF */
     MapHeaderData {
@@ -1449,6 +1625,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x00,
     }, // CopycatsHouse1F
     /* 0xB0 */
     MapHeaderData {
@@ -1457,6 +1634,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x00,
     }, // CopycatsHouse2F
     /* 0xB1 */
     MapHeaderData {
@@ -1465,6 +1643,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 5,
         height: 6,
+        border_block: 0x03,
     }, // FightingDojo
     /* 0xB2 */
     MapHeaderData {
@@ -1473,6 +1652,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 10,
         height: 9,
+        border_block: 0x2e,
     }, // SaffronGym
     /* 0xB3 */
     MapHeaderData {
@@ -1481,6 +1661,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0a,
     }, // SaffronPidgeyHouse
     /* 0xB4 */
     MapHeaderData {
@@ -1489,6 +1670,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x00,
     }, // SaffronMart
     /* 0xB5 */
     MapHeaderData {
@@ -1497,6 +1679,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 15,
         height: 9,
+        border_block: 0x00,
     }, // SilphCo1F
     /* 0xB6 */
     MapHeaderData {
@@ -1505,6 +1688,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 7,
         height: 4,
+        border_block: 0x00,
     }, // SaffronPokecenter
     /* 0xB7 */
     MapHeaderData {
@@ -1513,6 +1697,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0a,
     }, // MrPsychicsHouse
     /* 0xB8 */
     MapHeaderData {
@@ -1521,6 +1706,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 5,
+        border_block: 0x00,
     }, // Route15Gate1F
     /* 0xB9 */
     MapHeaderData {
@@ -1529,6 +1715,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x00,
     }, // Route15Gate2F
     /* 0xBA */
     MapHeaderData {
@@ -1537,6 +1724,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 7,
+        border_block: 0x00,
     }, // Route16Gate1F
     /* 0xBB */
     MapHeaderData {
@@ -1545,6 +1733,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x00,
     }, // Route16Gate2F
     /* 0xBC */
     MapHeaderData {
@@ -1553,6 +1742,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0a,
     }, // Route16FlyHouse
     /* 0xBD */
     MapHeaderData {
@@ -1561,6 +1751,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0a,
     }, // Route12SuperRodHouse
     /* 0xBE */
     MapHeaderData {
@@ -1569,6 +1760,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 5,
+        border_block: 0x00,
     }, // Route18Gate1F
     /* 0xBF */
     MapHeaderData {
@@ -1577,6 +1769,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x00,
     }, // Route18Gate2F
     /* 0xC0 */
     MapHeaderData {
@@ -1585,6 +1778,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 15,
         height: 9,
+        border_block: 0x00,
     }, // SeafoamIslands1F
     /* 0xC1 */
     MapHeaderData {
@@ -1593,6 +1787,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 5,
         height: 4,
+        border_block: 0x0a,
     }, // Route22Gate
     /* 0xC2 */
     MapHeaderData {
@@ -1601,6 +1796,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 15,
         height: 9,
+        border_block: 0x00,
     }, // VictoryRoad2F
     /* 0xC3 */
     MapHeaderData {
@@ -1609,6 +1805,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x00,
     }, // Route12Gate2F
     /* 0xC4 */
     MapHeaderData {
@@ -1617,6 +1814,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0a,
     }, // VermilionTradeHouse
     /* 0xC5 */
     MapHeaderData {
@@ -1625,6 +1823,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 20,
         height: 18,
+        border_block: 0x19,
     }, // DiglettsCave
     /* 0xC6 */
     MapHeaderData {
@@ -1633,6 +1832,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 15,
         height: 9,
+        border_block: 0x00,
     }, // VictoryRoad3F
     /* 0xC7 */
     MapHeaderData {
@@ -1641,6 +1841,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 15,
         height: 14,
+        border_block: 0x00,
     }, // RocketHideoutB1F
     /* 0xC8 */
     MapHeaderData {
@@ -1649,6 +1850,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 15,
         height: 14,
+        border_block: 0x00,
     }, // RocketHideoutB2F
     /* 0xC9 */
     MapHeaderData {
@@ -1657,6 +1859,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 15,
         height: 14,
+        border_block: 0x00,
     }, // RocketHideoutB3F
     /* 0xCA */
     MapHeaderData {
@@ -1665,6 +1868,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 15,
         height: 12,
+        border_block: 0x00,
     }, // RocketHideoutB4F
     /* 0xCB */
     MapHeaderData {
@@ -1673,6 +1877,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 3,
         height: 4,
+        border_block: 0x0f,
     }, // RocketHideoutElevator
     /* 0xCC */
     MapHeaderData {
@@ -1681,6 +1886,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 0,
         height: 0,
+        border_block: 0x00,
     }, // UnusedMapCC
     /* 0xCD */
     MapHeaderData {
@@ -1689,6 +1895,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 0,
         height: 0,
+        border_block: 0x00,
     }, // UnusedMapCD
     /* 0xCE */
     MapHeaderData {
@@ -1697,6 +1904,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 0,
         height: 0,
+        border_block: 0x00,
     }, // UnusedMapCE
     /* 0xCF */
     MapHeaderData {
@@ -1705,6 +1913,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 15,
         height: 9,
+        border_block: 0x00,
     }, // SilphCo2F
     /* 0xD0 */
     MapHeaderData {
@@ -1713,6 +1922,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 15,
         height: 9,
+        border_block: 0x00,
     }, // SilphCo3F
     /* 0xD1 */
     MapHeaderData {
@@ -1721,6 +1931,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 15,
         height: 9,
+        border_block: 0x00,
     }, // SilphCo4F
     /* 0xD2 */
     MapHeaderData {
@@ -1729,6 +1940,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 15,
         height: 9,
+        border_block: 0x00,
     }, // SilphCo5F
     /* 0xD3 */
     MapHeaderData {
@@ -1737,6 +1949,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 13,
         height: 9,
+        border_block: 0x00,
     }, // SilphCo6F
     /* 0xD4 */
     MapHeaderData {
@@ -1745,6 +1958,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 13,
         height: 9,
+        border_block: 0x00,
     }, // SilphCo7F
     /* 0xD5 */
     MapHeaderData {
@@ -1753,6 +1967,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 13,
         height: 9,
+        border_block: 0x00,
     }, // SilphCo8F
     /* 0xD6 */
     MapHeaderData {
@@ -1761,6 +1976,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 15,
         height: 14,
+        border_block: 0x00,
     }, // PokemonMansion2F
     /* 0xD7 */
     MapHeaderData {
@@ -1769,6 +1985,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 15,
         height: 9,
+        border_block: 0x00,
     }, // PokemonMansion3F
     /* 0xD8 */
     MapHeaderData {
@@ -1777,6 +1994,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 15,
         height: 14,
+        border_block: 0x00,
     }, // PokemonMansionB1F
     /* 0xD9 */
     MapHeaderData {
@@ -1785,6 +2003,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 15,
         height: 13,
+        border_block: 0x00,
     }, // SafariZoneEast
     /* 0xDA */
     MapHeaderData {
@@ -1793,6 +2012,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 20,
         height: 18,
+        border_block: 0x00,
     }, // SafariZoneNorth
     /* 0xDB */
     MapHeaderData {
@@ -1801,6 +2021,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 15,
         height: 13,
+        border_block: 0x00,
     }, // SafariZoneWest
     /* 0xDC */
     MapHeaderData {
@@ -1809,6 +2030,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 15,
         height: 13,
+        border_block: 0x00,
     }, // SafariZoneCenter
     /* 0xDD */
     MapHeaderData {
@@ -1817,6 +2039,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0a,
     }, // SafariZoneCenterRestHouse
     /* 0xDE */
     MapHeaderData {
@@ -1825,6 +2048,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x17,
     }, // SafariZoneSecretHouse
     /* 0xDF */
     MapHeaderData {
@@ -1833,6 +2057,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0a,
     }, // SafariZoneWestRestHouse
     /* 0xE0 */
     MapHeaderData {
@@ -1841,6 +2066,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0a,
     }, // SafariZoneEastRestHouse
     /* 0xE1 */
     MapHeaderData {
@@ -1849,6 +2075,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0a,
     }, // SafariZoneNorthRestHouse
     /* 0xE2 */
     MapHeaderData {
@@ -1857,6 +2084,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 15,
         height: 9,
+        border_block: 0x00,
     }, // CeruleanCave2F
     /* 0xE3 */
     MapHeaderData {
@@ -1865,6 +2093,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 15,
         height: 9,
+        border_block: 0x00,
     }, // CeruleanCaveB1F
     /* 0xE4 */
     MapHeaderData {
@@ -1873,6 +2102,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 15,
         height: 9,
+        border_block: 0x00,
     }, // CeruleanCave1F
     /* 0xE5 */
     MapHeaderData {
@@ -1881,6 +2111,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0a,
     }, // NameRatersHouse
     /* 0xE6 */
     MapHeaderData {
@@ -1889,6 +2120,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 4,
         height: 4,
+        border_block: 0x0c,
     }, // CeruleanBadgeHouse
     /* 0xE7 */
     MapHeaderData {
@@ -1897,6 +2129,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 0,
         height: 0,
+        border_block: 0x00,
     }, // UnusedMapE7
     /* 0xE8 */
     MapHeaderData {
@@ -1905,6 +2138,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 20,
         height: 18,
+        border_block: 0x00,
     }, // RockTunnelB1F
     /* 0xE9 */
     MapHeaderData {
@@ -1913,6 +2147,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 13,
         height: 9,
+        border_block: 0x00,
     }, // SilphCo9F
     /* 0xEA */
     MapHeaderData {
@@ -1921,6 +2156,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 8,
         height: 9,
+        border_block: 0x00,
     }, // SilphCo10F
     /* 0xEB */
     MapHeaderData {
@@ -1929,6 +2165,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 9,
         height: 9,
+        border_block: 0x00,
     }, // SilphCo11F
     /* 0xEC */
     MapHeaderData {
@@ -1937,6 +2174,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 2,
         height: 2,
+        border_block: 0x0f,
     }, // SilphCoElevator
     /* 0xED */
     MapHeaderData {
@@ -1945,6 +2183,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 0,
         height: 0,
+        border_block: 0x00,
     }, // UnusedMapED
     /* 0xEE */
     MapHeaderData {
@@ -1953,6 +2192,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 0,
         height: 0,
+        border_block: 0x00,
     }, // UnusedMapEE
     /* 0xEF */
     MapHeaderData {
@@ -1961,6 +2201,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 5,
         height: 4,
+        border_block: 0x0e,
     }, // TradeCenter
     /* 0xF0 */
     MapHeaderData {
@@ -1969,6 +2210,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 5,
         height: 4,
+        border_block: 0x0e,
     }, // Colosseum
     /* 0xF1 */
     MapHeaderData {
@@ -1977,6 +2219,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 0,
         height: 0,
+        border_block: 0x00,
     }, // UnusedMapF1
     /* 0xF2 */
     MapHeaderData {
@@ -1985,6 +2228,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 0,
         height: 0,
+        border_block: 0x00,
     }, // UnusedMapF2
     /* 0xF3 */
     MapHeaderData {
@@ -1993,6 +2237,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 0,
         height: 0,
+        border_block: 0x00,
     }, // UnusedMapF3
     /* 0xF4 */
     MapHeaderData {
@@ -2001,6 +2246,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 0,
         height: 0,
+        border_block: 0x00,
     }, // UnusedMapF4
     /* 0xF5 */
     MapHeaderData {
@@ -2009,6 +2255,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 5,
         height: 6,
+        border_block: 0x03,
     }, // LoreleisRoom
     /* 0xF6 */
     MapHeaderData {
@@ -2017,6 +2264,7 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 5,
         height: 6,
+        border_block: 0x03,
     }, // BrunosRoom
     /* 0xF7 */
     MapHeaderData {
@@ -2025,5 +2273,6 @@ pub const MAP_HEADER_DATA: [MapHeaderData; NUM_MAPS] = [
         connection_flags: 0,
         width: 5,
         height: 6,
+        border_block: 0x00,
     }, // AgathasRoom
 ];

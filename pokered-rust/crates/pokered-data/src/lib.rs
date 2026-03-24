@@ -1,3 +1,4 @@
+pub mod blockset_data;
 pub mod charmap;
 pub mod collision;
 pub mod elevator_data;
@@ -6,6 +7,7 @@ pub mod evos_moves;
 pub mod fly_warp_data;
 pub mod item_data;
 pub mod items;
+pub mod map_blocks;
 pub mod map_connections;
 pub mod map_data;
 pub mod map_flags;
