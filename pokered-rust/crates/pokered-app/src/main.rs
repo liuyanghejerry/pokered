@@ -11,6 +11,7 @@ use pokered_audio::CPU_CLOCK_HZ;
 use pokered_core::battle::{BattleInput, BattlePhase, BattleScreen};
 use pokered_core::data::maps::MapId;
 use pokered_core::data::wild_data::GameVersion;
+use pokered_core::data::{blockset_data, map_blocks, map_data::MAP_HEADER_DATA};
 use pokered_core::game_state::{GameScreen, GameState, ScreenAction};
 use pokered_core::main_menu::{MainMenuState, MenuInput};
 use pokered_core::naming_screen::NamingInput;
@@ -61,6 +62,15 @@ enum Commands {
         output_dir: PathBuf,
         /// Number of frames to advance before capturing each screen
         #[arg(short, long, default_value_t = 5)]
+        frames: u32,
+    },
+    /// Dump game state as JSON to stdout (for comparison with PyBoy WRAM reads)
+    DumpState {
+        /// Which screen to transition to before dumping state
+        #[arg(short, long)]
+        screen: ScreenTarget,
+        /// Number of frames to advance before dumping state
+        #[arg(short, long, default_value_t = 0)]
         frames: u32,
     },
 }
@@ -188,7 +198,7 @@ impl PokemonGame {
         // Try to auto-detect asset root (walks up from CWD to find gfx/)
         let resources = match AssetRoot::auto_detect() {
             Ok(root) => {
-                println!("Asset root found: {:?}", root.gfx_dir());
+                eprintln!("Asset root found: {:?}", root.gfx_dir());
                 Some(ResourceManager::new(root))
             }
             Err(e) => {
@@ -201,7 +211,7 @@ impl PokemonGame {
         #[cfg(not(target_arch = "wasm32"))]
         let audio = match AudioOutput::new() {
             Some(ao) => {
-                println!("Audio output initialized (cpal 44100 Hz stereo)");
+                eprintln!("Audio output initialized (cpal 44100 Hz stereo)");
                 Some(ao)
             }
             None => {
@@ -250,7 +260,12 @@ impl PokemonGame {
                 }
             }
             GameScreen::Overworld => {
-                self.overworld = OverworldScreen::new(MapId::PalletTown);
+                use pokered_core::data::fly_warp_data::NEW_GAME_WARP;
+                let mut overworld = OverworldScreen::new(NEW_GAME_WARP.map_id);
+                overworld.state.player.x = NEW_GAME_WARP.coords.x as u16;
+                overworld.state.player.y = NEW_GAME_WARP.coords.y as u16;
+                overworld.start_bedroom_dialogue(&self.player_name);
+                self.overworld = overworld;
                 #[cfg(not(target_arch = "wasm32"))]
                 if let Some(ref audio) = self.audio {
                     audio.play_music(MusicId::PALLET_TOWN);
@@ -898,17 +913,47 @@ fn draw_overworld(
     let screen_center_ty = 8_i32;
 
     if let Some(ref mut rm) = res {
-        if let Ok(cached) = rm.load_tileset("overworld") {
+        let current_map: MapId = screen.state.current_map;
+        let map_header = &MAP_HEADER_DATA[current_map as usize];
+        let tileset_id = map_header.tileset;
+        let border_block = map_header.border_block;
+        let tileset_name = tileset_id.tileset_name();
+
+        if let Ok(cached) = rm.load_tileset(tileset_name) {
             let ts = cached.tileset.clone();
 
             let view_origin_tx = player_tx - screen_center_tx;
             let view_origin_ty = player_ty - screen_center_ty;
 
+            let (map_w, map_h) = current_map.dimensions();
+            let blk = map_blocks::block_data_for_map(current_map);
+
             for sy in 0..18_i32 {
                 for sx in 0..20_i32 {
                     let world_tx = view_origin_tx + sx;
                     let world_ty = view_origin_ty + sy;
-                    let tile_idx = demo_overworld_tile(world_tx, world_ty, ts.len());
+
+                    let bx = world_tx.div_euclid(4);
+                    let by = world_ty.div_euclid(4);
+                    let sub_x = world_tx.rem_euclid(4) as usize;
+                    let sub_y = world_ty.rem_euclid(4) as usize;
+
+                    let block_id = if bx >= 0
+                        && by >= 0
+                        && (bx as u8) < map_w
+                        && (by as u8) < map_h
+                        && !blk.is_empty()
+                    {
+                        blk[(by as usize) * (map_w as usize) + (bx as usize)]
+                    } else {
+                        border_block
+                    };
+
+                    let tile_idx = blockset_data::block_tiles(tileset_id, block_id)
+                        .map(|t| t[sub_y * 4 + sub_x] as usize)
+                        .unwrap_or(0)
+                        .min(ts.len().saturating_sub(1));
+
                     let px = (sx as u32) * TILE_SIZE;
                     let py = (sy as u32) * TILE_SIZE;
                     blit_single_tile(fb, &ts, tile_idx, px, py, pal);
@@ -950,6 +995,29 @@ fn draw_overworld(
         }
     }
 
+    if let Some(ref dlg) = screen.pending_dialogue {
+        if let Some(page) = dlg.current() {
+            let text_box_x = 0_u32;
+            let text_box_y = 12 * TILE_SIZE;
+            draw_text_box(fb, text_box_x, text_box_y, 18, 4, Rgba::BLACK);
+            draw_text(
+                page.line1,
+                text_box_x + TILE_SIZE,
+                text_box_y + TILE_SIZE,
+                Rgba::BLACK,
+                fb,
+            );
+            draw_text(
+                page.line2,
+                text_box_x + TILE_SIZE,
+                text_box_y + TILE_SIZE * 3,
+                Rgba::BLACK,
+                fb,
+            );
+        }
+        return;
+    }
+
     let map_name = format!("{:?}", screen.state.current_map);
     let name_len = map_name.len() as u32;
     let box_w = name_len.max(4) + 2;
@@ -963,25 +1031,6 @@ fn draw_overworld(
         Rgba::BLACK,
         fb,
     );
-}
-
-fn demo_overworld_tile(world_x: i32, world_y: i32, max_tiles: usize) -> usize {
-    let wx = world_x.rem_euclid(32) as u32;
-    let wy = world_y.rem_euclid(32) as u32;
-
-    let tile_idx = if wx == 0 || wx == 31 || wy == 0 || wy == 31 {
-        51_usize
-    } else if (wx == 15 || wx == 16) && wy > 0 && wy < 31 {
-        7_usize
-    } else if (wy == 15 || wy == 16) && wx > 0 && wx < 31 {
-        7_usize
-    } else if wx > 10 && wx < 20 && wy > 5 && wy < 10 {
-        35_usize
-    } else {
-        1_usize
-    };
-
-    tile_idx.min(max_tiles.saturating_sub(1))
 }
 
 fn species_to_sprite_name(species_display: &str) -> String {
@@ -1395,6 +1444,41 @@ fn cmd_screenshot_all(output_dir: &PathBuf, frames: u32) {
     );
 }
 
+fn cmd_dump_state(target: &ScreenTarget, frames: u32) {
+    let version = GameVersion::Red;
+    let mut game = PokemonGame::new(version);
+    let screen = screen_target_to_game_screen(target);
+    game.handle_transition(screen);
+    let input = InputState::new();
+    for _ in 0..frames {
+        game.update(&input);
+    }
+
+    let map_id = game.overworld.state.current_map as u8;
+    let map_name = format!("{:?}", game.overworld.state.current_map);
+    let player_x = game.overworld.state.player.x;
+    let player_y = game.overworld.state.player.y;
+    let screen_name_str = format!("{:?}", game.state.screen);
+    let in_battle = matches!(game.state.screen, GameScreen::Battle);
+    let battle_phase = format!("{:?}", game.battle.phase);
+    let is_wild_battle = game.battle.is_wild;
+
+    let state = serde_json::json!({
+        "screen": screen_name_str,
+        "map_id": map_id,
+        "map_name": map_name,
+        "player_x": player_x,
+        "player_y": player_y,
+        "in_battle": in_battle,
+        "battle_phase": battle_phase,
+        "is_wild_battle": is_wild_battle,
+        "player_name": game.player_name,
+        "rival_name": game.rival_name,
+        "frame_count": game.frame_count,
+    });
+    println!("{}", serde_json::to_string_pretty(&state).unwrap());
+}
+
 fn main() {
     let cli = Cli::parse();
     let version = GameVersion::Red;
@@ -1430,6 +1514,9 @@ fn main() {
             frames,
         }) => {
             cmd_screenshot_all(output_dir, frames);
+        }
+        Some(Commands::DumpState { ref screen, frames }) => {
+            cmd_dump_state(screen, frames);
         }
     }
 }
