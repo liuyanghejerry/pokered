@@ -284,9 +284,68 @@ impl OverworldInput {
 use crate::game_state::GameScreen;
 use player_movement::{InputState as MovementInput, MoveResult};
 
+/// State machine for the new-game bedroom dialogue sequence.
+/// Mirrors the original "RED is playing the SNES!" hidden event text.
+#[derive(Debug, Clone)]
+pub struct DialoguePage {
+    pub line1: &'static str,
+    pub line2: &'static str,
+}
+
+#[derive(Debug, Clone)]
+pub struct BedroomDialogue {
+    pages: Vec<DialoguePage>,
+    current_page: usize,
+}
+
+impl BedroomDialogue {
+    /// Build the bedroom dialogue with the player's name.
+    pub fn new(player_name: &str) -> Self {
+        // The original text (data/text/text_2.asm _RedBedroomSNESText):
+        //   text "<PLAYER> is"
+        //   line "playing the SNES!"
+        //   cont "...Okay!"
+        //   cont "It's time to go!"
+        //
+        // We model it as two pages, each requiring an A-press to advance.
+        // The player name is baked into page 1 at construction time.
+        let line1 = Box::leak(format!("{} is", player_name).into_boxed_str()) as &'static str;
+        Self {
+            pages: vec![
+                DialoguePage {
+                    line1,
+                    line2: "playing the SNES!",
+                },
+                DialoguePage {
+                    line1: "...Okay!",
+                    line2: "It's time to go!",
+                },
+            ],
+            current_page: 0,
+        }
+    }
+
+    /// Returns the currently visible page, or `None` if the dialogue is done.
+    pub fn current(&self) -> Option<&DialoguePage> {
+        self.pages.get(self.current_page)
+    }
+
+    /// Advance to the next page. Returns `true` if more pages remain, `false` if done.
+    pub fn advance(&mut self) -> bool {
+        self.current_page += 1;
+        self.current_page < self.pages.len()
+    }
+
+    pub fn is_done(&self) -> bool {
+        self.current_page >= self.pages.len()
+    }
+}
+
 pub struct OverworldScreen {
     pub state: OverworldState,
     pub map_data: Option<MapData>,
+    /// Active dialogue box, if any (blocks movement and Start until dismissed).
+    pub pending_dialogue: Option<BedroomDialogue>,
 }
 
 impl OverworldScreen {
@@ -294,10 +353,28 @@ impl OverworldScreen {
         Self {
             state: OverworldState::new(start_map),
             map_data: None,
+            pending_dialogue: None,
         }
     }
 
+    /// Queue the new-game bedroom SNES dialogue.
+    pub fn start_bedroom_dialogue(&mut self, player_name: &str) {
+        self.pending_dialogue = Some(BedroomDialogue::new(player_name));
+    }
+
     pub fn update_frame(&mut self, input: OverworldInput) -> ScreenAction {
+        // While a dialogue box is active, consume A-button to advance pages;
+        // block all movement and Start input.
+        if let Some(ref mut dlg) = self.pending_dialogue {
+            if input.a {
+                if !dlg.advance() {
+                    // Last page dismissed — clear dialogue.
+                    self.pending_dialogue = None;
+                }
+            }
+            return ScreenAction::Continue;
+        }
+
         if input.start {
             return ScreenAction::Transition(GameScreen::StartMenu);
         }
