@@ -631,29 +631,70 @@ fn draw_title_screen(
             return;
         }
 
+        // Draw Pokémon logo with bounce animation
         if let Ok(logo) = rm.load_title("pokemon_logo") {
             let lw = logo.source_size.0;
             let tiles_per_row = lw / TILE_SIZE;
             let logo_ts = logo.tileset.clone();
             let lx = (SCREEN_WIDTH.saturating_sub(lw)) / 2;
-            blit_tileset(fb, &logo_ts, lx, 2, tiles_per_row, pal);
+            // Convert scroll_y (initialized at 64, modified by bounce deltas) to pixel offset
+            // Original hSCY starts at $40 (64) and is modified directly
+            // We need to map this to logo Y position: base Y + (scroll_y - 64)
+            let logo_base_y = 2_i32;
+            let logo_y_offset = (state.scroll_y as i32) - 64;
+            let logo_y = (logo_base_y + logo_y_offset).max(0) as u32;
+            blit_tileset(fb, &logo_ts, lx, logo_y, tiles_per_row, pal);
         }
 
-        if let Ok(ver) = rm.load_title("red_version") {
-            let vw = ver.source_size.0;
-            let tiles_per_row = vw / TILE_SIZE;
-            let ver_ts = ver.tileset.clone();
-            let vx = (SCREEN_WIDTH.saturating_sub(vw)) / 2;
-            blit_tileset(fb, &ver_ts, vx, 58, tiles_per_row, pal);
+        // Draw version text with scroll animation
+        if state.version_text_visible {
+            let version_name = match state.version {
+                GameVersion::Red => "red_version",
+                GameVersion::Blue => "blue_version",
+            };
+            if let Ok(ver) = rm.load_title(version_name) {
+                let vw = ver.source_size.0;
+                let tiles_per_row = vw / TILE_SIZE;
+                let ver_ts = ver.tileset.clone();
+                // Version text scrolls in from the right
+                // When version_scroll_progress = 0.0, it should be offscreen right
+                // When version_scroll_progress = 1.0, it should be at final position (centered at Y=58)
+                let final_vx = (SCREEN_WIDTH.saturating_sub(vw)) / 2;
+                let offscreen_right_x = SCREEN_WIDTH; // Start completely offscreen to the right
+                let current_vx = if state.version_scroll_progress < 1.0 {
+                    // Linear interpolation from offscreen right to final position
+                    let progress = state.version_scroll_progress;
+                    (offscreen_right_x as f32 * (1.0 - progress) + final_vx as f32 * progress)
+                        as u32
+                } else {
+                    final_vx
+                };
+                blit_tileset(fb, &ver_ts, current_vx, 58, tiles_per_row, pal);
+            }
         }
 
-        if let Ok(player) = rm.load_title("player") {
-            let pw = player.source_size.0;
+        // Draw current Pokémon sprite (not generic player)
+        if let Ok(pokemon_sprite) =
+            rm.load_pokemon_front(&state.current_mon.to_string().to_lowercase())
+        {
+            let pw = pokemon_sprite.source_size.0;
+            let ph = pokemon_sprite.source_size.1;
             let tiles_per_row = pw / TILE_SIZE;
-            let player_ts = player.tileset.clone();
-            let player_x = SCREEN_WIDTH.saturating_sub(pw).saturating_sub(8);
-            blit_tileset(fb, &player_ts, player_x, 68, tiles_per_row, pal);
+            let pokemon_ts = pokemon_sprite.tileset.clone();
+            // Position the Pokémon sprite similar to original game (around tile coordinates 5,10)
+            // Convert tile coordinates to pixels: (5*8, 10*8) = (40, 80)
+            // But adjust to center properly based on sprite size
+            let pokemon_base_x = 40_u32;
+            let pokemon_base_y = 80_u32;
+            let pokemon_x = pokemon_base_x.saturating_sub(pw / 2);
+            let pokemon_y = pokemon_base_y.saturating_sub(ph / 2);
+            blit_tileset(fb, &pokemon_ts, pokemon_x, pokemon_y, tiles_per_row, pal);
         }
+
+        // Draw copyright text: "©'95.'96.'98 GAME FREAK inc."
+        // This appears at tile coordinates (2, 17) which is (16, 136) in pixels
+        let copyright_text = "©'95.'96.'98 GAME FREAK inc.";
+        draw_text(copyright_text, 16, 136, Rgba::BLACK, fb);
     } else {
         let phase_text = format!("Title Screen: {:?}", state.phase);
         draw_text(&phase_text, 10, 10, Rgba::BLACK, fb);
@@ -729,7 +770,7 @@ fn draw_oak_speech(
     }
 
     match &state.phase {
-        OakSpeechPhase::Intro { .. } => {
+        OakSpeechPhase::Greeting { .. } => {
             if let Some(ref mut rm) = res {
                 if let Ok(cached) = rm.load_trainer("prof.oak") {
                     let ts = cached.tileset.clone();
@@ -773,20 +814,69 @@ fn draw_oak_speech(
                 text_box_h,
                 Rgba::BLACK,
             );
-            draw_text(
-                "This world is",
-                text_box_x + TILE_SIZE,
-                text_box_y + TILE_SIZE,
-                Rgba::BLACK,
+            if let Some(text) = state.current_intro_text() {
+                draw_text(
+                    text,
+                    text_box_x + TILE_SIZE,
+                    text_box_y + TILE_SIZE,
+                    Rgba::BLACK,
+                    fb,
+                );
+            }
+        }
+        OakSpeechPhase::Explanation { .. } => {
+            if let Some(ref mut rm) = res {
+                if let Ok(cached) = rm.load_trainer("prof.oak") {
+                    let ts = cached.tileset.clone();
+                    let w = cached.source_size.0;
+                    let h = cached.source_size.1;
+                    draw_centered_sprite(fb, &ts, w, h, pal);
+                }
+            }
+            draw_text_box(
                 fb,
-            );
-            draw_text(
-                "inhabited by POKeMON!",
-                text_box_x + TILE_SIZE,
-                text_box_y + TILE_SIZE * 3,
+                text_box_x,
+                text_box_y,
+                text_box_w,
+                text_box_h,
                 Rgba::BLACK,
-                fb,
             );
+            if let Some(text) = state.current_intro_text() {
+                draw_text(
+                    text,
+                    text_box_x + TILE_SIZE,
+                    text_box_y + TILE_SIZE,
+                    Rgba::BLACK,
+                    fb,
+                );
+            }
+        }
+        OakSpeechPhase::IntroducePlayer { .. } => {
+            if let Some(ref mut rm) = res {
+                if let Ok(cached) = rm.load_trainer("prof.oak") {
+                    let ts = cached.tileset.clone();
+                    let w = cached.source_size.0;
+                    let h = cached.source_size.1;
+                    draw_centered_sprite(fb, &ts, w, h, pal);
+                }
+            }
+            draw_text_box(
+                fb,
+                text_box_x,
+                text_box_y,
+                text_box_w,
+                text_box_h,
+                Rgba::BLACK,
+            );
+            if let Some(text) = state.current_intro_text() {
+                draw_text(
+                    text,
+                    text_box_x + TILE_SIZE,
+                    text_box_y + TILE_SIZE,
+                    Rgba::BLACK,
+                    fb,
+                );
+            }
         }
         OakSpeechPhase::PlayerNameChoice { cursor } => {
             if let Some(ref mut rm) = res {
@@ -819,6 +909,33 @@ fn draw_oak_speech(
             }
         }
         OakSpeechPhase::PlayerNaming => {}
+        OakSpeechPhase::IntroduceRival { .. } => {
+            if let Some(ref mut rm) = res {
+                if let Ok(cached) = rm.load_trainer("prof.oak") {
+                    let ts = cached.tileset.clone();
+                    let w = cached.source_size.0;
+                    let h = cached.source_size.1;
+                    draw_centered_sprite(fb, &ts, w, h, pal);
+                }
+            }
+            draw_text_box(
+                fb,
+                text_box_x,
+                text_box_y,
+                text_box_w,
+                text_box_h,
+                Rgba::BLACK,
+            );
+            if let Some(text) = state.current_intro_text() {
+                draw_text(
+                    text,
+                    text_box_x + TILE_SIZE,
+                    text_box_y + TILE_SIZE,
+                    Rgba::BLACK,
+                    fb,
+                );
+            }
+        }
         OakSpeechPhase::RivalNameChoice { cursor } => {
             if let Some(ref mut rm) = res {
                 if let Ok(cached) = rm.load_trainer("rival1") {
@@ -850,6 +967,33 @@ fn draw_oak_speech(
             }
         }
         OakSpeechPhase::RivalNaming => {}
+        OakSpeechPhase::FinalSpeech { .. } => {
+            if let Some(ref mut rm) = res {
+                if let Ok(cached) = rm.load_trainer("prof.oak") {
+                    let ts = cached.tileset.clone();
+                    let w = cached.source_size.0;
+                    let h = cached.source_size.1;
+                    draw_centered_sprite(fb, &ts, w, h, pal);
+                }
+            }
+            draw_text_box(
+                fb,
+                text_box_x,
+                text_box_y,
+                text_box_w,
+                text_box_h,
+                Rgba::BLACK,
+            );
+            if let Some(text) = state.current_intro_text() {
+                draw_text(
+                    text,
+                    text_box_x + TILE_SIZE,
+                    text_box_y + TILE_SIZE,
+                    Rgba::BLACK,
+                    fb,
+                );
+            }
+        }
         OakSpeechPhase::ShrinkPlayer { wait_frames } => {
             if let Some(ref mut rm) = res {
                 let shrink_name = if *wait_frames > 30 {

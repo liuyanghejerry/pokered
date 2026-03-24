@@ -18,13 +18,43 @@ pub const DEFAULT_RIVAL_NAMES: [&str; 4] = ["BLUE", "GARY", "JOHN", "NEW NAME"];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum OakSpeechPhase {
-    Intro { text_index: usize, wait_frames: u16 },
-    ShowNidorino { wait_frames: u16 },
-    PlayerNameChoice { cursor: usize },
+    /// Initial greeting (OakSpeechText1)
+    Greeting {
+        wait_frames: u16,
+    },
+    /// Show Nidorino sprite (OakSpeechText2A)
+    ShowNidorino {
+        wait_frames: u16,
+    },
+    /// Continue explanation after Nidorino (OakSpeechText2B)
+    Explanation {
+        wait_frames: u16,
+    },
+    /// Ask for player's name
+    IntroducePlayer {
+        wait_frames: u16,
+    },
+    /// Player name selection
+    PlayerNameChoice {
+        cursor: usize,
+    },
     PlayerNaming,
-    RivalNameChoice { cursor: usize },
+    /// Introduce rival
+    IntroduceRival {
+        wait_frames: u16,
+    },
+    /// Rival name selection
+    RivalNameChoice {
+        cursor: usize,
+    },
     RivalNaming,
-    ShrinkPlayer { wait_frames: u16 },
+    /// Final motivational speech (OakSpeechText3)
+    FinalSpeech {
+        wait_frames: u16,
+    },
+    ShrinkPlayer {
+        wait_frames: u16,
+    },
     Done,
 }
 
@@ -73,22 +103,50 @@ pub struct OakSpeechState {
     pub naming_screen: Option<NamingScreenState>,
 }
 
-/// Intro text lines (simplified from the original multi-page text).
-pub const INTRO_TEXTS: [&str; 5] = [
-    "Hello there!",
-    "Welcome to the",
-    "world of POKeMON!",
-    "My name is OAK!",
-    "People call me",
-];
+/// Complete Oak speech text segments from the original game.
+pub const OAK_SPEECH_TEXT1: &str = "Hello there!\n\
+     Welcome to the\n\
+     world of POKéMON!\n\n\
+     My name is OAK!\n\
+     People call me\n\
+     the POKéMON PROF!";
+
+pub const OAK_SPEECH_TEXT2A: &str = "This world is\n\
+     inhabited by\n\
+     creatures called\n\
+     POKéMON!";
+
+pub const OAK_SPEECH_TEXT2B: &str = "For some people,\n\
+     POKéMON are\n\
+     pets. Others use\n\
+     them for fights.\n\n\
+     Myself...\n\n\
+     I study POKéMON\n\
+     as a profession.";
+
+pub const INTRODUCE_PLAYER_TEXT: &str = "First, what is\n\
+     your name?";
+
+pub const INTRODUCE_RIVAL_TEXT: &str = "This is my grand-\n\
+     son. He's been\n\
+     your rival since\n\
+     you were a baby.\n\n\
+     ...Erm, what is\n\
+     his name again?";
+
+pub const OAK_SPEECH_TEXT3: &str = "<PLAYER>!\n\n\
+     Your very own\n\
+     POKéMON legend is\n\
+     about to unfold!\n\n\
+     A world of dreams\n\
+     and adventures\n\
+     with POKéMON\n\
+     awaits! Let's go!";
 
 impl OakSpeechState {
     pub fn new() -> Self {
         Self {
-            phase: OakSpeechPhase::Intro {
-                text_index: 0,
-                wait_frames: 120, // ~2 seconds per text block at 60fps
-            },
+            phase: OakSpeechPhase::Greeting { wait_frames: 180 }, // ~3 seconds at 60fps
             player_name: None,
             rival_name: None,
             naming_screen: None,
@@ -100,28 +158,40 @@ impl OakSpeechState {
     /// to `naming_screen` directly via `update_naming_frame()`.
     pub fn update_frame(&mut self, input: OakSpeechInput) -> OakSpeechResult {
         match &mut self.phase {
-            OakSpeechPhase::Intro {
-                text_index,
-                wait_frames,
-            } => {
+            OakSpeechPhase::Greeting { wait_frames } => {
                 if input.a || input.b {
-                    // Skip to next text or advance phase
                     *wait_frames = 0;
                 }
                 if *wait_frames > 0 {
                     *wait_frames -= 1;
                     return OakSpeechResult::Active;
                 }
-                // Advance to next text
-                *text_index += 1;
-                if *text_index >= INTRO_TEXTS.len() {
-                    self.phase = OakSpeechPhase::ShowNidorino { wait_frames: 90 };
-                } else {
-                    *wait_frames = 120;
-                }
+                self.phase = OakSpeechPhase::ShowNidorino { wait_frames: 120 };
                 OakSpeechResult::Active
             }
             OakSpeechPhase::ShowNidorino { wait_frames } => {
+                if input.a || input.b {
+                    *wait_frames = 0;
+                }
+                if *wait_frames > 0 {
+                    *wait_frames -= 1;
+                    return OakSpeechResult::Active;
+                }
+                self.phase = OakSpeechPhase::Explanation { wait_frames: 180 };
+                OakSpeechResult::Active
+            }
+            OakSpeechPhase::Explanation { wait_frames } => {
+                if input.a || input.b {
+                    *wait_frames = 0;
+                }
+                if *wait_frames > 0 {
+                    *wait_frames -= 1;
+                    return OakSpeechResult::Active;
+                }
+                self.phase = OakSpeechPhase::IntroducePlayer { wait_frames: 120 };
+                OakSpeechResult::Active
+            }
+            OakSpeechPhase::IntroducePlayer { wait_frames } => {
                 if input.a || input.b {
                     *wait_frames = 0;
                 }
@@ -147,7 +217,7 @@ impl OakSpeechState {
                     } else {
                         let name = DEFAULT_PLAYER_NAMES[choice].to_string();
                         self.player_name = Some(name.clone());
-                        self.phase = OakSpeechPhase::RivalNameChoice { cursor: 0 };
+                        self.phase = OakSpeechPhase::IntroduceRival { wait_frames: 120 };
                         return OakSpeechResult::PlayerNameSet(name);
                     }
                 }
@@ -156,6 +226,17 @@ impl OakSpeechState {
             OakSpeechPhase::PlayerNaming => {
                 // Input is handled via update_naming_frame(); this branch
                 // should not be reached if the caller uses it correctly.
+                OakSpeechResult::Active
+            }
+            OakSpeechPhase::IntroduceRival { wait_frames } => {
+                if input.a || input.b {
+                    *wait_frames = 0;
+                }
+                if *wait_frames > 0 {
+                    *wait_frames -= 1;
+                    return OakSpeechResult::Active;
+                }
+                self.phase = OakSpeechPhase::RivalNameChoice { cursor: 0 };
                 OakSpeechResult::Active
             }
             OakSpeechPhase::RivalNameChoice { cursor } => {
@@ -173,7 +254,7 @@ impl OakSpeechState {
                     } else {
                         let name = DEFAULT_RIVAL_NAMES[choice].to_string();
                         self.rival_name = Some(name.clone());
-                        self.phase = OakSpeechPhase::ShrinkPlayer { wait_frames: 60 };
+                        self.phase = OakSpeechPhase::FinalSpeech { wait_frames: 180 };
                         return OakSpeechResult::RivalNameSet(name);
                     }
                 }
@@ -181,6 +262,17 @@ impl OakSpeechState {
             }
             OakSpeechPhase::RivalNaming => {
                 // Input is handled via update_naming_frame()
+                OakSpeechResult::Active
+            }
+            OakSpeechPhase::FinalSpeech { wait_frames } => {
+                if input.a || input.b {
+                    *wait_frames = 0;
+                }
+                if *wait_frames > 0 {
+                    *wait_frames -= 1;
+                    return OakSpeechResult::Active;
+                }
+                self.phase = OakSpeechPhase::ShrinkPlayer { wait_frames: 60 };
                 OakSpeechResult::Active
             }
             OakSpeechPhase::ShrinkPlayer { wait_frames } => {
@@ -253,7 +345,12 @@ impl OakSpeechState {
     /// Get current intro text to display (if in Intro phase).
     pub fn current_intro_text(&self) -> Option<&'static str> {
         match &self.phase {
-            OakSpeechPhase::Intro { text_index, .. } => INTRO_TEXTS.get(*text_index).copied(),
+            OakSpeechPhase::Greeting { .. } => Some(OAK_SPEECH_TEXT1),
+            OakSpeechPhase::ShowNidorino { .. } => Some(OAK_SPEECH_TEXT2A),
+            OakSpeechPhase::Explanation { .. } => Some(OAK_SPEECH_TEXT2B),
+            OakSpeechPhase::IntroducePlayer { .. } => Some(INTRODUCE_PLAYER_TEXT),
+            OakSpeechPhase::IntroduceRival { .. } => Some(INTRODUCE_RIVAL_TEXT),
+            OakSpeechPhase::FinalSpeech { .. } => Some(OAK_SPEECH_TEXT3),
             _ => None,
         }
     }

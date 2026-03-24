@@ -3,6 +3,10 @@ mod game_flow_helpers;
 use game_flow_helpers::*;
 use pokered_core::game_state::*;
 use pokered_core::main_menu::{MainMenuState, MenuInput};
+use pokered_core::oak_speech::{
+    OakSpeechInput, OakSpeechPhase, OakSpeechResult, OakSpeechState, INTRODUCE_PLAYER_TEXT,
+    INTRODUCE_RIVAL_TEXT, OAK_SPEECH_TEXT1, OAK_SPEECH_TEXT2A, OAK_SPEECH_TEXT2B, OAK_SPEECH_TEXT3,
+};
 use pokered_core::title_screen::{TitlePhase, TitleScreenState};
 use pokered_data::wild_data::GameVersion;
 
@@ -194,24 +198,147 @@ fn full_opening_sequence_copyright_to_oak_speech() {
 }
 
 #[test]
-fn game_state_transitions_are_bidirectional() {
-    let mut game = new_game_state_red();
+fn oak_speech_complete_sequence() {
+    let mut speech = OakSpeechState::new();
 
-    game.transition_to(GameScreen::TitleScreen);
-    assert_eq!(game.screen, GameScreen::TitleScreen);
+    // Should start with greeting phase
+    assert!(matches!(speech.phase, OakSpeechPhase::Greeting { .. }));
+    assert_eq!(speech.current_intro_text(), Some(OAK_SPEECH_TEXT1));
 
-    game.transition_to(GameScreen::MainMenu);
-    assert_eq!(game.screen, GameScreen::MainMenu);
+    // Advance through Greeting phase
+    while matches!(speech.phase, OakSpeechPhase::Greeting { .. }) {
+        speech.update_frame(OakSpeechInput::none());
+    }
 
-    game.transition_to(GameScreen::TitleScreen);
-    assert_eq!(game.screen, GameScreen::TitleScreen);
+    // Should now be at ShowNidorino
+    assert!(matches!(speech.phase, OakSpeechPhase::ShowNidorino { .. }));
+    assert_eq!(speech.current_intro_text(), Some(OAK_SPEECH_TEXT2A));
 
-    game.transition_to(GameScreen::MainMenu);
-    game.transition_to(GameScreen::OakSpeech);
-    assert_eq!(game.screen, GameScreen::OakSpeech);
+    // Advance through ShowNidorino phase
+    while matches!(speech.phase, OakSpeechPhase::ShowNidorino { .. }) {
+        speech.update_frame(OakSpeechInput::none());
+    }
 
-    game.transition_to(GameScreen::Overworld);
-    assert_eq!(game.screen, GameScreen::Overworld);
+    // Should now be at Explanation
+    assert!(matches!(speech.phase, OakSpeechPhase::Explanation { .. }));
+    assert_eq!(speech.current_intro_text(), Some(OAK_SPEECH_TEXT2B));
+
+    // Advance through Explanation phase
+    while matches!(speech.phase, OakSpeechPhase::Explanation { .. }) {
+        speech.update_frame(OakSpeechInput::none());
+    }
+
+    // Should now be at IntroducePlayer
+    assert!(matches!(
+        speech.phase,
+        OakSpeechPhase::IntroducePlayer { .. }
+    ));
+    assert_eq!(speech.current_intro_text(), Some(INTRODUCE_PLAYER_TEXT));
+
+    // Advance through IntroducePlayer phase
+    while matches!(speech.phase, OakSpeechPhase::IntroducePlayer { .. }) {
+        speech.update_frame(OakSpeechInput::none());
+    }
+
+    // Should now be at PlayerNameChoice
+    assert!(matches!(
+        speech.phase,
+        OakSpeechPhase::PlayerNameChoice { .. }
+    ));
+
+    // Select first default name (RED) to advance
+    let result = speech.update_frame(OakSpeechInput {
+        a: true,
+        ..OakSpeechInput::none()
+    });
+    assert!(matches!(result, OakSpeechResult::PlayerNameSet(_)));
+
+    // Should now be at IntroduceRival
+    assert!(matches!(
+        speech.phase,
+        OakSpeechPhase::IntroduceRival { .. }
+    ));
+    assert_eq!(speech.current_intro_text(), Some(INTRODUCE_RIVAL_TEXT));
+
+    // Advance through IntroduceRival phase
+    while matches!(speech.phase, OakSpeechPhase::IntroduceRival { .. }) {
+        speech.update_frame(OakSpeechInput::none());
+    }
+
+    // Should now be at RivalNameChoice
+    assert!(matches!(
+        speech.phase,
+        OakSpeechPhase::RivalNameChoice { .. }
+    ));
+
+    // Select first default name (BLUE) to advance
+    let result = speech.update_frame(OakSpeechInput {
+        a: true,
+        ..OakSpeechInput::none()
+    });
+    assert!(matches!(result, OakSpeechResult::RivalNameSet(_)));
+
+    // Should now be at FinalSpeech
+    assert!(matches!(speech.phase, OakSpeechPhase::FinalSpeech { .. }));
+    assert_eq!(speech.current_intro_text(), Some(OAK_SPEECH_TEXT3));
+
+    // Advance through FinalSpeech phase
+    while matches!(speech.phase, OakSpeechPhase::FinalSpeech { .. }) {
+        speech.update_frame(OakSpeechInput::none());
+    }
+
+    // Should now be at ShrinkPlayer
+    assert!(matches!(speech.phase, OakSpeechPhase::ShrinkPlayer { .. }));
+
+    // Advance through ShrinkPlayer phase
+    while matches!(speech.phase, OakSpeechPhase::ShrinkPlayer { .. }) {
+        speech.update_frame(OakSpeechInput::none());
+    }
+
+    // Should now be complete
+    assert!(matches!(speech.phase, OakSpeechPhase::Done));
+}
+
+#[test]
+fn oak_speech_naming_flow() {
+    let mut speech = OakSpeechState::new();
+
+    // Advance to player naming choice
+    while !matches!(speech.phase, OakSpeechPhase::PlayerNameChoice { .. }) {
+        speech.update_frame(OakSpeechInput::none());
+    }
+
+    // Select first default name (RED)
+    let result = speech.update_frame(OakSpeechInput {
+        a: true,
+        ..OakSpeechInput::none()
+    });
+    assert!(matches!(result, OakSpeechResult::PlayerNameSet(_)));
+    assert_eq!(speech.player_name, Some("RED".to_string()));
+
+    // Should now be at IntroduceRival
+    assert!(matches!(
+        speech.phase,
+        OakSpeechPhase::IntroduceRival { .. }
+    ));
+    assert_eq!(speech.current_intro_text(), Some(INTRODUCE_RIVAL_TEXT));
+
+    // Advance to rival naming choice
+    while !matches!(speech.phase, OakSpeechPhase::RivalNameChoice { .. }) {
+        speech.update_frame(OakSpeechInput::none());
+    }
+
+    // Select first default name (BLUE)
+    let result = speech.update_frame(OakSpeechInput {
+        a: true,
+        ..OakSpeechInput::none()
+    });
+    assert!(matches!(result, OakSpeechResult::RivalNameSet(_)));
+    assert_eq!(speech.rival_name, Some("BLUE".to_string()));
+
+    // Should now be at FinalSpeech
+    assert!(matches!(speech.phase, OakSpeechPhase::FinalSpeech { .. }));
+    assert_eq!(speech.current_intro_text(), Some(OAK_SPEECH_TEXT3));
 }
 
 #[test]
@@ -250,4 +377,25 @@ fn title_screen_resets_correctly() {
     assert_eq!(title.frame_counter, 0);
     assert!(!title.logo_visible);
     assert!(!title.version_text_visible);
+}
+
+#[test]
+fn game_state_transitions_are_bidirectional() {
+    let mut game = new_game_state_red();
+
+    game.transition_to(GameScreen::TitleScreen);
+    assert_eq!(game.screen, GameScreen::TitleScreen);
+
+    game.transition_to(GameScreen::MainMenu);
+    assert_eq!(game.screen, GameScreen::MainMenu);
+
+    game.transition_to(GameScreen::TitleScreen);
+    assert_eq!(game.screen, GameScreen::TitleScreen);
+
+    game.transition_to(GameScreen::MainMenu);
+    game.transition_to(GameScreen::OakSpeech);
+    assert_eq!(game.screen, GameScreen::OakSpeech);
+
+    game.transition_to(GameScreen::Overworld);
+    assert_eq!(game.screen, GameScreen::Overworld);
 }
