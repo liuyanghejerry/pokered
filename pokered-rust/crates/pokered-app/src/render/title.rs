@@ -127,13 +127,20 @@ pub fn draw_title_screen(
             }
         }
 
-        draw_text(
-            "©1995-96 GAME FREAK",
-            layout::title_screen::COPYRIGHT_PIXEL_X,
-            layout::title_screen::COPYRIGHT_PIXEL_Y,
-            Rgba::BLACK,
-            fb,
-        );
+        if let Ok(copyright) = rm.load_splash("copyright") {
+            let cw = copyright.source_size.0;
+            let tiles_per_row = cw / TILE_SIZE;
+            let copyright_ts = copyright.tileset.clone();
+            let copyright_x = (SCREEN_WIDTH - cw) / 2;
+            blit_tileset(
+                fb,
+                &copyright_ts,
+                copyright_x,
+                layout::title_screen::COPYRIGHT_PIXEL_Y,
+                tiles_per_row,
+                bg_pal,
+            );
+        }
     } else {
         let phase_text = format!("Title Screen: {:?}", state.phase);
         draw_text(&phase_text, 10, 10, Rgba::BLACK, fb);
