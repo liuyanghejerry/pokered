@@ -1,0 +1,147 @@
+use crate::maps::MapId;
+use crate::npc_data::{NpcEntry, NpcFacing, NpcMovement};
+use crate::sign_data::SignEntry;
+use crate::map_objects::WarpData;
+
+pub const NPCS: [NpcEntry; 7] = [
+NpcEntry {
+        sprite_id: 0x2C,
+        x: 6,
+        y: 2,
+        movement: NpcMovement(0),
+        facing: NpcFacing(0),
+        range: 0,
+        text_id: 1,
+        is_trainer: false,
+        trainer_class: 0,
+        trainer_set: 0,
+        item_id: 0x00,
+    },
+    NpcEntry {
+        sprite_id: 0x18,
+        x: 9,
+        y: 14,
+        movement: NpcMovement(0),
+        facing: NpcFacing(3),
+        range: 0,
+        text_id: 2,
+        is_trainer: true,
+        trainer_class: 30,
+        trainer_set: 26,
+        item_id: 0x00,
+    },
+    NpcEntry {
+        sprite_id: 0x20,
+        x: 14,
+        y: 6,
+        movement: NpcMovement(0),
+        facing: NpcFacing(2),
+        range: 0,
+        text_id: 3,
+        is_trainer: true,
+        trainer_class: 28,
+        trainer_set: 5,
+        item_id: 0x00,
+    },
+    NpcEntry {
+        sprite_id: 0x18,
+        x: 26,
+        y: 10,
+        movement: NpcMovement(0),
+        facing: NpcFacing(1),
+        range: 0,
+        text_id: 4,
+        is_trainer: true,
+        trainer_class: 30,
+        trainer_set: 27,
+        item_id: 0x00,
+    },
+    NpcEntry {
+        sprite_id: 0x3D,
+        x: 3,
+        y: 9,
+        movement: NpcMovement(0),
+        facing: NpcFacing(0),
+        range: 0,
+        text_id: 5,
+        is_trainer: false,
+        trainer_class: 0,
+        trainer_set: 0,
+        item_id: 0x34,
+    },
+    NpcEntry {
+        sprite_id: 0x3D,
+        x: 4,
+        y: 7,
+        movement: NpcMovement(0),
+        facing: NpcFacing(0),
+        range: 0,
+        text_id: 6,
+        is_trainer: false,
+        trainer_class: 0,
+        trainer_set: 0,
+        item_id: 0x36,
+    },
+    NpcEntry {
+        sprite_id: 0x3D,
+        x: 5,
+        y: 8,
+        movement: NpcMovement(0),
+        facing: NpcFacing(0),
+        range: 0,
+        text_id: 7,
+        is_trainer: false,
+        trainer_class: 0,
+        trainer_set: 0,
+        item_id: 0x1D,
+    },
+];
+
+pub const SIGNS: [SignEntry; 0] = [
+
+];
+
+pub const WARPS: [WarpData; 7] = [
+WarpData {
+        x: 24,
+        y: 0,
+        dest_map: Some(MapId::SilphCo3F),
+        dest_warp_id: 1,
+    },
+    WarpData {
+        x: 26,
+        y: 0,
+        dest_map: Some(MapId::SilphCo5F),
+        dest_warp_id: 1,
+    },
+    WarpData {
+        x: 20,
+        y: 0,
+        dest_map: Some(MapId::SilphCoElevator),
+        dest_warp_id: 0,
+    },
+    WarpData {
+        x: 11,
+        y: 7,
+        dest_map: Some(MapId::SilphCo10F),
+        dest_warp_id: 3,
+    },
+    WarpData {
+        x: 17,
+        y: 3,
+        dest_map: Some(MapId::SilphCo6F),
+        dest_warp_id: 3,
+    },
+    WarpData {
+        x: 3,
+        y: 15,
+        dest_map: Some(MapId::SilphCo10F),
+        dest_warp_id: 4,
+    },
+    WarpData {
+        x: 17,
+        y: 11,
+        dest_map: Some(MapId::SilphCo10F),
+        dest_warp_id: 5,
+    },
+];
