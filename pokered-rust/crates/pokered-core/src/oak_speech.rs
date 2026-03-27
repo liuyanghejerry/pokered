@@ -147,85 +147,130 @@ impl OakSpeechState {
     }
 
     pub fn update_frame(&mut self, input: OakSpeechInput) -> OakSpeechResult {
-        let new_phase = match &self.phase {
+        match &mut self.phase {
             OakSpeechPhase::Greeting {
                 page_index,
                 waiting_for_input,
-            } => Self::advance_text_phase(
-                input,
-                *page_index,
-                *waiting_for_input,
-                OAK_SPEECH_TEXT1_PAGES.len(),
-            )
-            .map(|_| OakSpeechPhase::ShowNidorino {
-                page_index: 0,
-                waiting_for_input: false,
-            }),
+            } => {
+                if let Some(new_phase) = Self::process_text_input(
+                    input,
+                    *page_index,
+                    *waiting_for_input,
+                    OAK_SPEECH_TEXT1_PAGES.len(),
+                    |pi, wfi| OakSpeechPhase::Greeting {
+                        page_index: pi,
+                        waiting_for_input: wfi,
+                    },
+                    || OakSpeechPhase::ShowNidorino {
+                        page_index: 0,
+                        waiting_for_input: false,
+                    },
+                ) {
+                    self.phase = new_phase;
+                }
+                OakSpeechResult::Active
+            }
             OakSpeechPhase::ShowNidorino {
                 page_index,
                 waiting_for_input,
-            } => Self::advance_text_phase(
-                input,
-                *page_index,
-                *waiting_for_input,
-                OAK_SPEECH_TEXT2A_PAGES.len(),
-            )
-            .map(|_| OakSpeechPhase::Explanation {
-                page_index: 0,
-                waiting_for_input: false,
-            }),
+            } => {
+                if let Some(new_phase) = Self::process_text_input(
+                    input,
+                    *page_index,
+                    *waiting_for_input,
+                    OAK_SPEECH_TEXT2A_PAGES.len(),
+                    |pi, wfi| OakSpeechPhase::ShowNidorino {
+                        page_index: pi,
+                        waiting_for_input: wfi,
+                    },
+                    || OakSpeechPhase::Explanation {
+                        page_index: 0,
+                        waiting_for_input: false,
+                    },
+                ) {
+                    self.phase = new_phase;
+                }
+                OakSpeechResult::Active
+            }
             OakSpeechPhase::Explanation {
                 page_index,
                 waiting_for_input,
-            } => Self::advance_text_phase(
-                input,
-                *page_index,
-                *waiting_for_input,
-                OAK_SPEECH_TEXT2B_PAGES.len(),
-            )
-            .map(|_| OakSpeechPhase::IntroducePlayer {
-                page_index: 0,
-                waiting_for_input: false,
-            }),
+            } => {
+                if let Some(new_phase) = Self::process_text_input(
+                    input,
+                    *page_index,
+                    *waiting_for_input,
+                    OAK_SPEECH_TEXT2B_PAGES.len(),
+                    |pi, wfi| OakSpeechPhase::Explanation {
+                        page_index: pi,
+                        waiting_for_input: wfi,
+                    },
+                    || OakSpeechPhase::IntroducePlayer {
+                        page_index: 0,
+                        waiting_for_input: false,
+                    },
+                ) {
+                    self.phase = new_phase;
+                }
+                OakSpeechResult::Active
+            }
             OakSpeechPhase::IntroducePlayer {
                 page_index,
                 waiting_for_input,
-            } => Self::advance_text_phase(
-                input,
-                *page_index,
-                *waiting_for_input,
-                INTRODUCE_PLAYER_TEXT_PAGES.len(),
-            )
-            .map(|_| OakSpeechPhase::PlayerNameChoice { cursor: 0 }),
+            } => {
+                if let Some(new_phase) = Self::process_text_input(
+                    input,
+                    *page_index,
+                    *waiting_for_input,
+                    INTRODUCE_PLAYER_TEXT_PAGES.len(),
+                    |pi, wfi| OakSpeechPhase::IntroducePlayer {
+                        page_index: pi,
+                        waiting_for_input: wfi,
+                    },
+                    || OakSpeechPhase::PlayerNameChoice { cursor: 0 },
+                ) {
+                    self.phase = new_phase;
+                }
+                OakSpeechResult::Active
+            }
             OakSpeechPhase::IntroduceRival {
                 page_index,
                 waiting_for_input,
-            } => Self::advance_text_phase(
-                input,
-                *page_index,
-                *waiting_for_input,
-                INTRODUCE_RIVAL_TEXT_PAGES.len(),
-            )
-            .map(|_| OakSpeechPhase::RivalNameChoice { cursor: 0 }),
+            } => {
+                if let Some(new_phase) = Self::process_text_input(
+                    input,
+                    *page_index,
+                    *waiting_for_input,
+                    INTRODUCE_RIVAL_TEXT_PAGES.len(),
+                    |pi, wfi| OakSpeechPhase::IntroduceRival {
+                        page_index: pi,
+                        waiting_for_input: wfi,
+                    },
+                    || OakSpeechPhase::RivalNameChoice { cursor: 0 },
+                ) {
+                    self.phase = new_phase;
+                }
+                OakSpeechResult::Active
+            }
             OakSpeechPhase::FinalSpeech {
                 page_index,
                 waiting_for_input,
-            } => Self::advance_text_phase(
-                input,
-                *page_index,
-                *waiting_for_input,
-                OAK_SPEECH_TEXT3_PAGES.len(),
-            )
-            .map(|_| OakSpeechPhase::ShrinkPlayer { wait_frames: 60 }),
-            _ => None,
-        };
-
-        if let Some(phase) = new_phase {
-            self.phase = phase;
-            return OakSpeechResult::Active;
-        }
-
-        match &mut self.phase {
+            } => {
+                if let Some(new_phase) = Self::process_text_input(
+                    input,
+                    *page_index,
+                    *waiting_for_input,
+                    OAK_SPEECH_TEXT3_PAGES.len(),
+                    |pi, wfi| OakSpeechPhase::FinalSpeech {
+                        page_index: pi,
+                        waiting_for_input: wfi,
+                    },
+                    || OakSpeechPhase::ShrinkPlayer { wait_frames: 60 },
+                ) {
+                    self.phase = new_phase;
+                }
+                OakSpeechResult::Active
+            }
             OakSpeechPhase::PlayerNameChoice { cursor } => {
                 if input.up && *cursor > 0 {
                     *cursor -= 1;
@@ -288,20 +333,30 @@ impl OakSpeechState {
         }
     }
 
-    fn advance_text_phase(
+    fn process_text_input<F, G>(
         input: OakSpeechInput,
         page_index: usize,
         waiting_for_input: bool,
         total_pages: usize,
-    ) -> Option<()> {
+        make_current: F,
+        make_next: G,
+    ) -> Option<OakSpeechPhase>
+    where
+        F: FnOnce(usize, bool) -> OakSpeechPhase,
+        G: FnOnce() -> OakSpeechPhase,
+    {
         if waiting_for_input {
             if input.a || input.b {
                 if page_index + 1 >= total_pages {
-                    return Some(());
+                    return Some(make_next());
+                } else {
+                    return Some(make_current(page_index + 1, false));
                 }
             }
+            None
+        } else {
+            Some(make_current(page_index, true))
         }
-        None
     }
 
     pub fn update_naming_frame(&mut self, input: NamingInput) -> OakSpeechResult {
