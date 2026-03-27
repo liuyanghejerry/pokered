@@ -76,47 +76,33 @@ pub fn draw_oak_speech(
 
     match &state.phase {
         OakSpeechPhase::PlayerNameChoice { cursor } => {
-            draw_text_box(
-                fb,
-                TEXT_BOX_X,
-                TEXT_BOX_Y,
-                TEXT_BOX_W,
-                TEXT_BOX_H,
-                Rgba::BLACK,
-            );
-            draw_text(
-                "Your name?",
-                TILE_SIZE,
-                TEXT_BOX_Y + TILE_SIZE,
-                Rgba::BLACK,
-                fb,
-            );
+            draw_text_box(fb, 0, 0, 9, 10, Rgba::BLACK);
+            draw_text("NAME", 3 * TILE_SIZE, 0, Rgba::BLACK, fb);
             for (i, name) in DEFAULT_PLAYER_NAMES.iter().enumerate() {
-                let prefix = if i == *cursor { ">" } else { " " };
+                let prefix = if i == *cursor { "▶" } else { " " };
                 let label = format!("{}{}", prefix, name);
-                draw_text(&label, 8, 8 + (i as u32 * 12), Rgba::BLACK, fb);
+                draw_text(
+                    &label,
+                    2 * TILE_SIZE,
+                    (2 + i as u32 * 2) * TILE_SIZE,
+                    Rgba::BLACK,
+                    fb,
+                );
             }
         }
         OakSpeechPhase::RivalNameChoice { cursor } => {
-            draw_text_box(
-                fb,
-                TEXT_BOX_X,
-                TEXT_BOX_Y,
-                TEXT_BOX_W,
-                TEXT_BOX_H,
-                Rgba::BLACK,
-            );
-            draw_text(
-                "His name?",
-                TILE_SIZE,
-                TEXT_BOX_Y + TILE_SIZE,
-                Rgba::BLACK,
-                fb,
-            );
+            draw_text_box(fb, 0, 0, 9, 10, Rgba::BLACK);
+            draw_text("NAME", 3 * TILE_SIZE, 0, Rgba::BLACK, fb);
             for (i, name) in DEFAULT_RIVAL_NAMES.iter().enumerate() {
-                let prefix = if i == *cursor { ">" } else { " " };
+                let prefix = if i == *cursor { "▶" } else { " " };
                 let label = format!("{}{}", prefix, name);
-                draw_text(&label, 8, 8 + (i as u32 * 12), Rgba::BLACK, fb);
+                draw_text(
+                    &label,
+                    2 * TILE_SIZE,
+                    (2 + i as u32 * 2) * TILE_SIZE,
+                    Rgba::BLACK,
+                    fb,
+                );
             }
         }
         OakSpeechPhase::Done => {
