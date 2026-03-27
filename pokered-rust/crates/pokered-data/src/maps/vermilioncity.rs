@@ -1,0 +1,180 @@
+use crate::maps::MapId;
+use crate::npc_data::{NpcEntry, NpcFacing, NpcMovement};
+use crate::sign_data::SignEntry;
+use crate::map_objects::WarpData;
+
+pub const NPCS: [NpcEntry; 6] = [
+NpcEntry {
+        sprite_id: 0x0F,
+        x: 19,
+        y: 7,
+        movement: NpcMovement(1),
+        facing: NpcFacing(2),
+        range: 2,
+        text_id: 1,
+        is_trainer: false,
+        trainer_class: 0,
+        trainer_set: 0,
+        item_id: 0x00,
+    },
+    NpcEntry {
+        sprite_id: 0x0B,
+        x: 14,
+        y: 6,
+        movement: NpcMovement(0),
+        facing: NpcFacing(0),
+        range: 0,
+        text_id: 2,
+        is_trainer: false,
+        trainer_class: 0,
+        trainer_set: 0,
+        item_id: 0x00,
+    },
+    NpcEntry {
+        sprite_id: 0x13,
+        x: 19,
+        y: 30,
+        movement: NpcMovement(0),
+        facing: NpcFacing(1),
+        range: 0,
+        text_id: 3,
+        is_trainer: false,
+        trainer_class: 0,
+        trainer_set: 0,
+        item_id: 0x00,
+    },
+    NpcEntry {
+        sprite_id: 0x0B,
+        x: 30,
+        y: 7,
+        movement: NpcMovement(0),
+        facing: NpcFacing(0),
+        range: 0,
+        text_id: 4,
+        is_trainer: false,
+        trainer_class: 0,
+        trainer_set: 0,
+        item_id: 0x00,
+    },
+    NpcEntry {
+        sprite_id: 0x05,
+        x: 29,
+        y: 9,
+        movement: NpcMovement(1),
+        facing: NpcFacing(0),
+        range: 1,
+        text_id: 5,
+        is_trainer: false,
+        trainer_class: 0,
+        trainer_set: 0,
+        item_id: 0x00,
+    },
+    NpcEntry {
+        sprite_id: 0x13,
+        x: 25,
+        y: 27,
+        movement: NpcMovement(1),
+        facing: NpcFacing(2),
+        range: 2,
+        text_id: 6,
+        is_trainer: false,
+        trainer_class: 0,
+        trainer_set: 0,
+        item_id: 0x00,
+    },
+];
+
+pub const SIGNS: [SignEntry; 7] = [
+SignEntry {
+        x: 27,
+        y: 3,
+        text_id: 1,
+    },
+    SignEntry {
+        x: 37,
+        y: 13,
+        text_id: 2,
+    },
+    SignEntry {
+        x: 24,
+        y: 13,
+        text_id: 3,
+    },
+    SignEntry {
+        x: 12,
+        y: 3,
+        text_id: 4,
+    },
+    SignEntry {
+        x: 7,
+        y: 13,
+        text_id: 5,
+    },
+    SignEntry {
+        x: 7,
+        y: 19,
+        text_id: 6,
+    },
+    SignEntry {
+        x: 29,
+        y: 15,
+        text_id: 7,
+    },
+];
+
+pub const WARPS: [WarpData; 9] = [
+WarpData {
+        x: 11,
+        y: 3,
+        dest_map: Some(MapId::VermilionPokecenter),
+        dest_warp_id: 0,
+    },
+    WarpData {
+        x: 9,
+        y: 13,
+        dest_map: Some(MapId::PokemonFanClub),
+        dest_warp_id: 0,
+    },
+    WarpData {
+        x: 23,
+        y: 13,
+        dest_map: Some(MapId::VermilionMart),
+        dest_warp_id: 0,
+    },
+    WarpData {
+        x: 12,
+        y: 19,
+        dest_map: Some(MapId::VermilionGym),
+        dest_warp_id: 0,
+    },
+    WarpData {
+        x: 23,
+        y: 19,
+        dest_map: Some(MapId::VermilionPidgeyHouse),
+        dest_warp_id: 0,
+    },
+    WarpData {
+        x: 18,
+        y: 31,
+        dest_map: Some(MapId::VermilionDock),
+        dest_warp_id: 0,
+    },
+    WarpData {
+        x: 19,
+        y: 31,
+        dest_map: Some(MapId::VermilionDock),
+        dest_warp_id: 0,
+    },
+    WarpData {
+        x: 15,
+        y: 13,
+        dest_map: Some(MapId::VermilionTradeHouse),
+        dest_warp_id: 0,
+    },
+    WarpData {
+        x: 7,
+        y: 3,
+        dest_map: Some(MapId::VermilionOldRodHouse),
+        dest_warp_id: 0,
+    },
+];
