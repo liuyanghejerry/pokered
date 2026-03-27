@@ -105,11 +105,15 @@ impl PaletteState {
     }
 
     pub fn obj_palette0(&self) -> Palette {
-        Palette::from_bgp_register(self.obp0, &self.base)
+        let mut pal = Palette::from_bgp_register(self.obp0, &self.base);
+        pal.colors[0] = Rgba::TRANSPARENT;
+        pal
     }
 
     pub fn obj_palette1(&self) -> Palette {
-        Palette::from_bgp_register(self.obp1, &self.base)
+        let mut pal = Palette::from_bgp_register(self.obp1, &self.base);
+        pal.colors[0] = Rgba::TRANSPARENT;
+        pal
     }
 
     pub fn white_out(&mut self) {
