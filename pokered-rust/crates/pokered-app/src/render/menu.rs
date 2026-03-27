@@ -25,7 +25,7 @@ pub fn draw_main_menu(state: &MainMenuState, fb: &mut FrameBuffer) {
 
     let cursor_tile_y = 2 + (state.cursor as u32 * 2);
     draw_text(
-        "\x7F",
+        "▶",
         1 * TILE_SIZE,
         cursor_tile_y * TILE_SIZE,
         Rgba::BLACK,
