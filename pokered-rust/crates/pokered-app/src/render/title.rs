@@ -30,9 +30,7 @@ pub fn draw_title_screen(
 
     if let Some(ref mut rm) = res {
         if is_copyright {
-            draw_text("©1995-98 Nintendo", 16, 56, Rgba::BLACK, fb);
-            draw_text("©1995-98 Creatures", 16, 64, Rgba::BLACK, fb);
-            draw_text("©1995-98 GAME FREAK", 16, 72, Rgba::BLACK, fb);
+            draw_text("©1995 GAME FREAK", 24, 64, Rgba::BLACK, fb);
             return;
         }
 
@@ -130,7 +128,7 @@ pub fn draw_title_screen(
         }
 
         draw_text(
-            "©'95.'96.'98 GAME FREAK inc.",
+            "©1995-96 GAME FREAK",
             layout::title_screen::COPYRIGHT_PIXEL_X,
             layout::title_screen::COPYRIGHT_PIXEL_Y,
             Rgba::BLACK,
