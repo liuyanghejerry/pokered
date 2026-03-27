@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-opencode/master/assets/oh-my-opencode.schema.json",
   "agents": {
     "sisyphus": {
-      "model": "bailian-coding-plan/qwen3-coder-plus"
+      "model": "bailian-coding-plan/glm-5"
     },
     "prometheus": {
       "model": "bailian-coding-plan/qwen3-max-2026-01-23"
