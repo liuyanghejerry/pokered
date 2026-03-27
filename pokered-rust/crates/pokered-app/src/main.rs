@@ -1583,16 +1583,7 @@ const ALL_SCREENS: &[GameScreen] = &[
 fn capture_screen(game: &mut PokemonGame, target: GameScreen, frames: u32) -> FrameBuffer {
     game.handle_transition(target);
     let input = InputState::new();
-
-    // PyBoy ticks 1500 frames for title screen before the comparison frames
-    // We need to match this timing
-    let total_frames = if matches!(target, GameScreen::TitleScreen) {
-        1500 + frames
-    } else {
-        frames
-    };
-
-    for _ in 0..total_frames {
+    for _ in 0..frames {
         game.update(&input);
     }
     let mut fb = FrameBuffer::new(Rgba::WHITE);
