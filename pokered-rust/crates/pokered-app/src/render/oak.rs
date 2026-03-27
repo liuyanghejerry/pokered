@@ -6,7 +6,7 @@ use pokered_renderer::palette::GRAYSCALE_PALETTE;
 use pokered_renderer::resource::{AssetCategory, ResourceManager};
 use pokered_renderer::{FrameBuffer, Rgba, SCREEN_WIDTH, TILE_SIZE};
 
-use super::{draw_centered_sprite, draw_text_box};
+use super::{blit_tileset, draw_centered_sprite, draw_text_box};
 
 const TEXT_BOX_X: u32 = 0;
 const TEXT_BOX_Y: u32 = 12 * 8;
@@ -54,6 +54,11 @@ pub fn draw_oak_speech(
         OakSpeechPhase::PlayerNaming | OakSpeechPhase::RivalNaming | OakSpeechPhase::Done => None,
     };
 
+    let is_name_choice = matches!(
+        state.phase,
+        OakSpeechPhase::PlayerNameChoice { .. } | OakSpeechPhase::RivalNameChoice { .. }
+    );
+
     if let Some((category, name)) = sprite_name {
         if let Some(ref mut rm) = res {
             let result = if category == "trainer" {
@@ -69,41 +74,79 @@ pub fn draw_oak_speech(
                 let ts = cached.tileset.clone();
                 let w = cached.source_size.0;
                 let h = cached.source_size.1;
-                draw_centered_sprite(fb, &ts, w, h, pal);
+
+                if is_name_choice {
+                    let tiles_per_row = w / TILE_SIZE;
+                    let sprite_x = 10 * TILE_SIZE;
+                    let sprite_y = 4 * TILE_SIZE;
+                    blit_tileset(fb, &ts, sprite_x, sprite_y, tiles_per_row, pal);
+                } else {
+                    draw_centered_sprite(fb, &ts, w, h, pal);
+                }
             }
         }
     }
 
     match &state.phase {
         OakSpeechPhase::PlayerNameChoice { cursor } => {
-            draw_text_box(fb, 4 * TILE_SIZE, 0, 11, 10, Rgba::BLACK);
-            draw_text("NAME", 8 * TILE_SIZE, TILE_SIZE, Rgba::BLACK, fb);
+            draw_text_box(fb, 0, 0, 9, 10, Rgba::BLACK);
+            draw_text("NAME", 3 * TILE_SIZE, TILE_SIZE, Rgba::BLACK, fb);
             for (i, name) in DEFAULT_PLAYER_NAMES.iter().enumerate() {
                 let prefix = if i == *cursor { "▶" } else { " " };
                 let label = format!("{}{}", prefix, name);
                 draw_text(
                     &label,
-                    6 * TILE_SIZE,
-                    (3 + i as u32 * 2) * TILE_SIZE,
+                    TILE_SIZE,
+                    (2 + i as u32 * 2) * TILE_SIZE,
                     Rgba::BLACK,
                     fb,
                 );
             }
+            draw_text_box(
+                fb,
+                TEXT_BOX_X,
+                TEXT_BOX_Y,
+                TEXT_BOX_W,
+                TEXT_BOX_H,
+                Rgba::BLACK,
+            );
+            draw_text(
+                "Your name?",
+                TILE_SIZE,
+                TEXT_BOX_Y + TILE_SIZE,
+                Rgba::BLACK,
+                fb,
+            );
         }
         OakSpeechPhase::RivalNameChoice { cursor } => {
-            draw_text_box(fb, 4 * TILE_SIZE, 0, 11, 10, Rgba::BLACK);
-            draw_text("NAME", 8 * TILE_SIZE, TILE_SIZE, Rgba::BLACK, fb);
+            draw_text_box(fb, 0, 0, 9, 10, Rgba::BLACK);
+            draw_text("NAME", 3 * TILE_SIZE, TILE_SIZE, Rgba::BLACK, fb);
             for (i, name) in DEFAULT_RIVAL_NAMES.iter().enumerate() {
                 let prefix = if i == *cursor { "▶" } else { " " };
                 let label = format!("{}{}", prefix, name);
                 draw_text(
                     &label,
-                    6 * TILE_SIZE,
-                    (3 + i as u32 * 2) * TILE_SIZE,
+                    TILE_SIZE,
+                    (2 + i as u32 * 2) * TILE_SIZE,
                     Rgba::BLACK,
                     fb,
                 );
             }
+            draw_text_box(
+                fb,
+                TEXT_BOX_X,
+                TEXT_BOX_Y,
+                TEXT_BOX_W,
+                TEXT_BOX_H,
+                Rgba::BLACK,
+            );
+            draw_text(
+                "His name?",
+                TILE_SIZE,
+                TEXT_BOX_Y + TILE_SIZE,
+                Rgba::BLACK,
+                fb,
+            );
         }
         OakSpeechPhase::Done => {
             draw_text("...", 70, 70, Rgba::BLACK, fb);
