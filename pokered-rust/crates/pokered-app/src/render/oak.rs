@@ -292,12 +292,4 @@ pub fn draw_naming_screen(naming: &NamingScreenState, fb: &mut FrameBuffer) {
         Rgba::BLACK,
         fb,
     );
-
-    draw_text(
-        "A:Select B:Del SELECT:Case",
-        TILE_SIZE,
-        15 * TILE_SIZE,
-        Rgba::BLACK,
-        fb,
-    );
 }
