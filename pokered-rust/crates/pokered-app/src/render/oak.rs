@@ -76,8 +76,8 @@ pub fn draw_oak_speech(
 
     match &state.phase {
         OakSpeechPhase::PlayerNameChoice { cursor } => {
-            draw_text_box(fb, 4 * TILE_SIZE, 0, 9, 10, Rgba::BLACK);
-            draw_text("NAME", 7 * TILE_SIZE, TILE_SIZE, Rgba::BLACK, fb);
+            draw_text_box(fb, 4 * TILE_SIZE, 0, 11, 10, Rgba::BLACK);
+            draw_text("NAME", 8 * TILE_SIZE, TILE_SIZE, Rgba::BLACK, fb);
             for (i, name) in DEFAULT_PLAYER_NAMES.iter().enumerate() {
                 let prefix = if i == *cursor { "▶" } else { " " };
                 let label = format!("{}{}", prefix, name);
@@ -91,8 +91,8 @@ pub fn draw_oak_speech(
             }
         }
         OakSpeechPhase::RivalNameChoice { cursor } => {
-            draw_text_box(fb, 4 * TILE_SIZE, 0, 9, 10, Rgba::BLACK);
-            draw_text("NAME", 7 * TILE_SIZE, TILE_SIZE, Rgba::BLACK, fb);
+            draw_text_box(fb, 4 * TILE_SIZE, 0, 11, 10, Rgba::BLACK);
+            draw_text("NAME", 8 * TILE_SIZE, TILE_SIZE, Rgba::BLACK, fb);
             for (i, name) in DEFAULT_RIVAL_NAMES.iter().enumerate() {
                 let prefix = if i == *cursor { "▶" } else { " " };
                 let label = format!("{}{}", prefix, name);
