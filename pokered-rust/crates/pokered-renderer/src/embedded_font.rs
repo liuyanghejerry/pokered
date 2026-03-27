@@ -209,12 +209,26 @@ const FONT_DATA: [[u8; GLYPH_SIZE]; GLYPH_COUNT] = [
     [0x00, 0x00, 0x32, 0x4C, 0x00, 0x00, 0x00, 0x00],
 ];
 
+const GLYPH_CURSOR_RIGHT: [u8; GLYPH_SIZE] = [
+    0b00000000, 0b01111000, 0b01111100, 0b01111110, 0b01111110, 0b01111100, 0b01111000, 0b00000000,
+];
+
+const GLYPH_CURSOR_DOWN: [u8; GLYPH_SIZE] = [
+    0b00000000, 0b00000000, 0b01111110, 0b01111110, 0b00111100, 0b00011000, 0b00000000, 0b00000000,
+];
+
 fn glyph_for(ch: char) -> &'static [u8; GLYPH_SIZE] {
+    if ch == '▶' {
+        return &GLYPH_CURSOR_RIGHT;
+    }
+    if ch == '▼' {
+        return &GLYPH_CURSOR_DOWN;
+    }
     let code = ch as u32;
     if code >= 0x20 && code <= 0x7E {
         &FONT_DATA[(code - 0x20) as usize]
     } else {
-        &FONT_DATA[0] // fallback to space
+        &FONT_DATA[0]
     }
 }
 
