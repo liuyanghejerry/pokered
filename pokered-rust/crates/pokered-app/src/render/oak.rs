@@ -134,8 +134,9 @@ pub fn draw_oak_speech(
             );
 
             if let Some(page) = state.current_text_page() {
-                let line1 = state.get_display_text(page.line1);
-                let line2 = state.get_display_text(page.line2);
+                let char_index = state.current_char_index();
+                let (line1, line2) =
+                    page.get_display_text(state.player_name.as_deref(), char_index);
 
                 draw_text(&line1, TILE_SIZE, TEXT_BOX_Y + TILE_SIZE, Rgba::BLACK, fb);
                 draw_text(
@@ -148,8 +149,8 @@ pub fn draw_oak_speech(
             }
 
             if state.is_waiting_for_input() {
-                let arrow_x = SCREEN_WIDTH - TILE_SIZE;
-                let arrow_y = TEXT_BOX_Y + TEXT_BOX_H * TILE_SIZE;
+                let arrow_x = 18 * TILE_SIZE;
+                let arrow_y = 15 * TILE_SIZE;
                 draw_text("▼", arrow_x, arrow_y, Rgba::BLACK, fb);
             }
         }
