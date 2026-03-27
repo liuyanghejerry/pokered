@@ -23,6 +23,11 @@ fn game_starts_at_copyright_splash() {
 #[test]
 fn title_screen_progresses_through_all_phases() {
     let mut title = TitleScreenState::new(GameVersion::Red);
+    assert_eq!(title.phase, TitlePhase::Copyright);
+
+    while title.phase == TitlePhase::Copyright {
+        title.update_frame(false);
+    }
     assert_eq!(title.phase, TitlePhase::Init);
 
     title.update_frame(false);
@@ -373,7 +378,7 @@ fn title_screen_resets_correctly() {
     }
 
     title.reset();
-    assert_eq!(title.phase, TitlePhase::Init);
+    assert_eq!(title.phase, TitlePhase::Copyright);
     assert_eq!(title.frame_counter, 0);
     assert!(!title.logo_visible);
     assert!(!title.version_text_visible);

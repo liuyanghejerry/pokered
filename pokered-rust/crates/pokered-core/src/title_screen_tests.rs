@@ -3,10 +3,21 @@ use crate::title_screen::*;
 use pokered_data::species::Species;
 use pokered_data::wild_data::GameVersion;
 
+/// Helper to skip the Copyright phase and get to Init phase.
+fn skip_copyright(ts: &mut TitleScreenState) {
+    assert_eq!(ts.phase, TitlePhase::Copyright);
+    // Skip all copyright frames
+    for _ in 0..COPYRIGHT_FRAMES {
+        ts.update_frame(false);
+    }
+    assert_eq!(ts.phase, TitlePhase::Init);
+}
+
 #[test]
 fn init_transitions_to_logo_bounce() {
     let mut ts = TitleScreenState::new(GameVersion::Red);
-    assert_eq!(ts.phase, TitlePhase::Init);
+    assert_eq!(ts.phase, TitlePhase::Copyright);
+    skip_copyright(&mut ts);
     let action = ts.update_frame(false);
     assert_eq!(action, ScreenAction::Continue);
     assert_eq!(ts.phase, TitlePhase::LogoBounce);
@@ -17,6 +28,7 @@ fn init_transitions_to_logo_bounce() {
 #[test]
 fn logo_bounce_progresses_scroll_y() {
     let mut ts = TitleScreenState::new(GameVersion::Red);
+    skip_copyright(&mut ts);
     ts.update_frame(false);
     assert_eq!(ts.phase, TitlePhase::LogoBounce);
 
@@ -28,6 +40,7 @@ fn logo_bounce_progresses_scroll_y() {
 #[test]
 fn logo_bounce_completes_to_logo_pause() {
     let mut ts = TitleScreenState::new(GameVersion::Red);
+    skip_copyright(&mut ts);
     ts.update_frame(false);
 
     for _ in 0..LOGO_BOUNCE_TOTAL_FRAMES {
@@ -39,6 +52,7 @@ fn logo_bounce_completes_to_logo_pause() {
 #[test]
 fn logo_pause_lasts_correct_frames() {
     let mut ts = TitleScreenState::new(GameVersion::Red);
+    skip_copyright(&mut ts);
     ts.update_frame(false);
     for _ in 0..LOGO_BOUNCE_TOTAL_FRAMES {
         ts.update_frame(false);
@@ -58,6 +72,7 @@ fn logo_pause_lasts_correct_frames() {
 #[test]
 fn version_scroll_updates_progress() {
     let mut ts = TitleScreenState::new(GameVersion::Red);
+    skip_copyright(&mut ts);
     ts.update_frame(false);
     for _ in 0..LOGO_BOUNCE_TOTAL_FRAMES {
         ts.update_frame(false);
@@ -162,7 +177,7 @@ fn reset_restores_initial_state() {
     ts.update_frame(true);
 
     ts.reset();
-    assert_eq!(ts.phase, TitlePhase::Init);
+    assert_eq!(ts.phase, TitlePhase::Copyright);
     assert_eq!(ts.scroll_y, 64);
     assert_eq!(ts.current_mon, Species::Charmander);
     assert!(!ts.player_visible);
@@ -200,6 +215,7 @@ fn pick_new_mon_always_differs_from_current() {
 }
 
 fn advance_to_waiting(ts: &mut TitleScreenState) {
+    skip_copyright(ts);
     ts.update_frame(false);
     for _ in 0..LOGO_BOUNCE_TOTAL_FRAMES {
         ts.update_frame(false);

@@ -145,8 +145,10 @@ def run_pyboy_scenario(rom_path: Path, scenario: str, frames: int, screenshot_pa
     try:
         if scenario == "overworld":
             _pyboy_reach_overworld(pyboy)
-        elif scenario in ("copyright", "title"):
+        elif scenario == "copyright":
             pass
+        elif scenario == "title":
+            pyboy.tick(1500, render=False)
         elif scenario == "main_menu":
             _pyboy_skip_to_title(pyboy)
             pyboy.button("start")
@@ -174,6 +176,14 @@ def run_pyboy_scenario(rom_path: Path, scenario: str, frames: int, screenshot_pa
 
 def _pyboy_skip_to_title(pyboy: "PyBoy") -> None:
     pyboy.tick(180, render=False)
+
+
+def _pyboy_is_at_title_screen(pyboy: "PyBoy") -> bool:
+    try:
+        tile_at_2_1 = pyboy.memory[0x9800 + 2 + 1 * 32]
+        return tile_at_2_1 >= 0x80
+    except Exception:
+        return False
 
 
 def _dbg_shot(pyboy: "PyBoy", tag: str) -> None:
@@ -321,11 +331,22 @@ def run_comparison(rom_path: Path, scenario: str, frames: int, output_dir: Path)
     rust_png  = output_dir / f"{scenario}_rust.png"
     pyboy_png = output_dir / f"{scenario}_pyboy.png"
 
+    # Frame synchronization for title screen:
+    # PyBoy skips 1500 frames (boot + intro) to reach stable title screen
+    # Rust starts directly at title screen, needs ~104 frames for initial animations
+    # (logo bounce: 32, pause: 36, version scroll: 36)
+    # Then match the remaining stable frames
+    rust_frames = frames
+    if scenario == "title":
+        # PyBoy captures at frame 300 after 1500 skip = total 1800 frames from boot
+        # Rust needs: 104 (initial animations) + 300 (stable) = 404 frames
+        rust_frames = 404
+
     print("  [Rust] capturing screenshot...")
-    rust_ok = run_rust_screenshot(screen, frames, rust_png)
+    rust_ok = run_rust_screenshot(screen, rust_frames, rust_png)
 
     print("  [Rust] dumping state...")
-    rust_state = run_rust_dump_state(screen, frames)
+    rust_state = run_rust_dump_state(screen, rust_frames)
 
     print("  [PyBoy] running scenario...")
     pyboy_state = run_pyboy_scenario(rom_path, scenario, frames, pyboy_png)

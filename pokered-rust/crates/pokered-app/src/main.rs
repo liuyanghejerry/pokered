@@ -26,6 +26,7 @@ use pokered_core::start_menu::{StartMenuAction, StartMenuInput, StartMenuState};
 use pokered_core::title_screen::TitleScreenState;
 use pokered_renderer::embedded_font::{box_tiles, draw_glyph, draw_text, fill_tile};
 use pokered_renderer::input::{GbButton, InputState};
+use pokered_renderer::layout;
 use pokered_renderer::palette::{Palette, GRAYSCALE_PALETTE};
 use pokered_renderer::resource::{AssetCategory, AssetRoot, ResourceManager};
 use pokered_renderer::tile::TileSet;
@@ -468,7 +469,7 @@ impl GameLoop for PokemonGame {
             GameScreen::CopyrightSplash | GameScreen::TitleScreen => {
                 draw_title_screen(
                     &self.title_screen,
-                    self.state.screen == GameScreen::CopyrightSplash,
+                    self.title_screen.is_copyright(),
                     &mut self.resources,
                     frame_buffer,
                 );
@@ -620,88 +621,123 @@ fn draw_title_screen(
 
     if let Some(ref mut rm) = res {
         if is_copyright {
-            if let Ok(copyright) = rm.load_splash("copyright") {
-                let cw = copyright.source_size.0;
-                let ch = copyright.source_size.1;
-                let tiles_per_row = cw / TILE_SIZE;
-                let cx = (SCREEN_WIDTH.saturating_sub(cw)) / 2;
-                let cy = (SCREEN_HEIGHT.saturating_sub(ch)) / 2;
-                blit_tileset(fb, &copyright.tileset.clone(), cx, cy, tiles_per_row, pal);
-            }
+            // Copyright splash screen (shown briefly before title screen)
+            // Original uses special tiles at hlcoord 2,7 = pixel (16, 56)
+            // Text must fit within screen width (160 pixels = 20 chars max at 8px each)
+            // Using abbreviated format to match original's compressed tile representation
+            draw_text("©1995-98 Nintendo", 16, 56, Rgba::BLACK, fb);
+            draw_text("©1995-98 Creatures", 16, 64, Rgba::BLACK, fb);
+            draw_text("©1995-98 GAME FREAK", 16, 72, Rgba::BLACK, fb);
             return;
         }
 
-        // Draw Pokémon logo with bounce animation
+        // Draw Pokémon logo
         if let Ok(logo) = rm.load_title("pokemon_logo") {
             let lw = logo.source_size.0;
             let tiles_per_row = lw / TILE_SIZE;
             let logo_ts = logo.tileset.clone();
-            let lx = (SCREEN_WIDTH.saturating_sub(lw)) / 2;
-            // Convert scroll_y (initialized at 64, modified by bounce deltas) to pixel offset
-            // Original hSCY starts at $40 (64) and is modified directly
-            // We need to map this to logo Y position: base Y + (scroll_y - 64)
-            let logo_base_y = 2_i32;
-            let logo_y_offset = (state.scroll_y as i32) - 64;
-            let logo_y = (logo_base_y + logo_y_offset).max(0) as u32;
+            let lx = layout::title_screen::LOGO_PIXEL_X;
+            let logo_y = (layout::title_screen::LOGO_PIXEL_Y as i32 - state.scroll_y).max(0) as u32;
             blit_tileset(fb, &logo_ts, lx, logo_y, tiles_per_row, pal);
         }
 
         // Draw version text with scroll animation
         if state.version_text_visible {
-            let version_name = match state.version {
-                GameVersion::Red => "red_version",
-                GameVersion::Blue => "blue_version",
-            };
-            if let Ok(ver) = rm.load_title(version_name) {
-                let vw = ver.source_size.0;
-                let tiles_per_row = vw / TILE_SIZE;
-                let ver_ts = ver.tileset.clone();
-                // Version text scrolls in from the right
-                // When version_scroll_progress = 0.0, it should be offscreen right
-                // When version_scroll_progress = 1.0, it should be at final position (centered at Y=58)
-                let final_vx = (SCREEN_WIDTH.saturating_sub(vw)) / 2;
-                let offscreen_right_x = SCREEN_WIDTH; // Start completely offscreen to the right
+            if let Ok(version_tiles) = rm.load_title("red_version_tiles") {
+                let final_vx = layout::title_screen::VERSION_PIXEL_X;
+                let tiles_per_row = 8;
+                let version_ts = version_tiles.tileset.clone();
+                let offscreen_right_x = SCREEN_WIDTH;
                 let current_vx = if state.version_scroll_progress < 1.0 {
-                    // Linear interpolation from offscreen right to final position
                     let progress = state.version_scroll_progress;
                     (offscreen_right_x as f32 * (1.0 - progress) + final_vx as f32 * progress)
                         as u32
                 } else {
                     final_vx
                 };
-                blit_tileset(fb, &ver_ts, current_vx, 58, tiles_per_row, pal);
+                blit_tileset(
+                    fb,
+                    &version_ts,
+                    current_vx,
+                    layout::title_screen::VERSION_PIXEL_Y,
+                    tiles_per_row,
+                    pal,
+                );
+            } else {
+                let version_text = match state.version {
+                    GameVersion::Red => "Red Version",
+                    GameVersion::Blue => "Blue Version",
+                };
+                let final_vx = layout::title_screen::VERSION_PIXEL_X;
+                let offscreen_right_x = SCREEN_WIDTH;
+                let current_vx = if state.version_scroll_progress < 1.0 {
+                    let progress = state.version_scroll_progress;
+                    (offscreen_right_x as f32 * (1.0 - progress) + final_vx as f32 * progress)
+                        as u32
+                } else {
+                    final_vx
+                };
+                draw_text(
+                    version_text,
+                    current_vx,
+                    layout::title_screen::VERSION_PIXEL_Y + 3,
+                    Rgba::BLACK,
+                    fb,
+                );
             }
         }
 
-        // Draw current Pokémon sprite (not generic player)
+        // Draw current Pokémon sprite (centered in 7x7 tile canvas like original)
         if let Ok(pokemon_sprite) =
             rm.load_pokemon_front(&state.current_mon.to_string().to_lowercase())
         {
             let pw = pokemon_sprite.source_size.0;
             let ph = pokemon_sprite.source_size.1;
-            let tiles_per_row = pw / TILE_SIZE;
+            let sprite_tiles_w = pw / TILE_SIZE;
+            let sprite_tiles_h = ph / TILE_SIZE;
+
+            // Center sprite in 7x7 tile canvas (from pics.asm LoadUncompressedSpriteData)
+            // Horizontal offset: (8 - width_tiles) / 2 tiles
+            // Vertical offset: 7 - height_tiles tiles
+            let offset_x_tiles = (8 - sprite_tiles_w) / 2;
+            let offset_y_tiles = 7 - sprite_tiles_h;
+            let offset_x = offset_x_tiles * TILE_SIZE;
+            let offset_y = offset_y_tiles * TILE_SIZE;
+
+            let tiles_per_row = sprite_tiles_w;
             let pokemon_ts = pokemon_sprite.tileset.clone();
-            // Position the Pokémon sprite similar to original game (around tile coordinates 5,10)
-            // Convert tile coordinates to pixels: (5*8, 10*8) = (40, 80)
-            // But adjust to center properly based on sprite size
-            let pokemon_base_x = 40_u32;
-            let pokemon_base_y = 80_u32;
-            let pokemon_x = pokemon_base_x.saturating_sub(pw / 2);
-            let pokemon_y = pokemon_base_y.saturating_sub(ph / 2);
-            blit_tileset(fb, &pokemon_ts, pokemon_x, pokemon_y, tiles_per_row, pal);
+
+            // Draw at base position + centering offset
+            let draw_x = layout::title_screen::POKEMON_PIXEL_X + offset_x;
+            let draw_y = layout::title_screen::POKEMON_PIXEL_Y + offset_y;
+
+            blit_tileset(fb, &pokemon_ts, draw_x, draw_y, tiles_per_row, pal);
         }
 
-        // Draw copyright text: "©'95.'96.'98 GAME FREAK inc."
-        // This appears at tile coordinates (2, 17) which is (16, 136) in pixels
-        let copyright_text = "©'95.'96.'98 GAME FREAK inc.";
-        draw_text(copyright_text, 16, 136, Rgba::BLACK, fb);
+        if state.player_visible {
+            if let Ok(player_sprite) = rm.load_title("player") {
+                let player_w = player_sprite.source_size.0;
+                let _player_h = player_sprite.source_size.1;
+                let tiles_per_row = player_w / TILE_SIZE;
+                let player_ts = player_sprite.tileset.clone();
+                let (player_x, player_y) = layout::title_screen::player_screen_pos();
+                blit_tileset(fb, &player_ts, player_x, player_y, tiles_per_row, pal);
+            }
+        }
+
+        // Draw title screen copyright text
+        draw_text(
+            "©'95.'96.'98 GAME FREAK inc.",
+            layout::title_screen::COPYRIGHT_PIXEL_X,
+            layout::title_screen::COPYRIGHT_PIXEL_Y,
+            Rgba::BLACK,
+            fb,
+        );
     } else {
         let phase_text = format!("Title Screen: {:?}", state.phase);
         draw_text(&phase_text, 10, 10, Rgba::BLACK, fb);
         draw_text("Press any button to continue", 10, 100, Rgba::BLACK, fb);
     }
-
-    draw_text("Press START", 36, 130, Rgba::BLACK, fb);
 }
 
 fn draw_main_menu(state: &MainMenuState, fb: &mut FrameBuffer) {
@@ -1547,7 +1583,16 @@ const ALL_SCREENS: &[GameScreen] = &[
 fn capture_screen(game: &mut PokemonGame, target: GameScreen, frames: u32) -> FrameBuffer {
     game.handle_transition(target);
     let input = InputState::new();
-    for _ in 0..frames {
+
+    // PyBoy ticks 1500 frames for title screen before the comparison frames
+    // We need to match this timing
+    let total_frames = if matches!(target, GameScreen::TitleScreen) {
+        1500 + frames
+    } else {
+        frames
+    };
+
+    for _ in 0..total_frames {
         game.update(&input);
     }
     let mut fb = FrameBuffer::new(Rgba::WHITE);

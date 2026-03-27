@@ -59,6 +59,8 @@ pub const TITLE_MONS_BLUE: [Species; 16] = [
 /// Animation phases of the title screen, in order.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TitlePhase {
+    /// Copyright splash screen (brief display before title).
+    Copyright,
     /// Load graphics, prepare screen (instantaneous in our Rust version).
     Init,
     /// Pokémon logo bounces into position.
@@ -109,6 +111,10 @@ pub const CRY_PLAY_FRAMES: u32 = 60;
 /// Frames for the fade-out effect.
 pub const FADE_OUT_FRAMES: u32 = 16;
 
+/// Frames to display the copyright splash before transitioning to title screen.
+/// The original game shows copyright during the boot sequence.
+pub const COPYRIGHT_FRAMES: u32 = 120; // ~2 seconds at 60fps
+
 /// Title screen state.
 #[derive(Debug, Clone)]
 pub struct TitleScreenState {
@@ -147,9 +153,9 @@ impl TitleScreenState {
             GameVersion::Blue => TITLE_MONS_BLUE[0],
         };
         Self {
-            phase: TitlePhase::Init,
+            phase: TitlePhase::Copyright,
             frame_counter: 0,
-            scroll_y: 64, // initial hSCY = $40
+            scroll_y: 64,
             current_mon: first_mon,
             current_mon_index: 0,
             version,
@@ -207,6 +213,15 @@ impl TitleScreenState {
     /// `any_button_pressed`: true if the player pressed any button this frame.
     pub fn update_frame(&mut self, any_button_pressed: bool) -> ScreenAction {
         match self.phase {
+            TitlePhase::Copyright => {
+                self.frame_counter += 1;
+                if self.frame_counter >= COPYRIGHT_FRAMES || any_button_pressed {
+                    self.phase = TitlePhase::Init;
+                    self.frame_counter = 0;
+                }
+                ScreenAction::Continue
+            }
+
             TitlePhase::Init => {
                 self.logo_visible = true;
                 self.player_visible = true;
@@ -302,13 +317,33 @@ impl TitleScreenState {
         }
     }
 
+    /// Skip directly to WaitingForInput phase (for comparison/testing).
+    /// This bypasses copyright, logo bounce, and version scroll animations.
+    pub fn skip_to_waiting_for_input(&mut self) {
+        self.phase = TitlePhase::WaitingForInput;
+        self.frame_counter = 0;
+        self.scroll_y = 0;
+        self.logo_visible = true;
+        self.player_visible = true;
+        self.version_text_visible = true;
+        self.version_scroll_progress = 1.0;
+        self.bounce_step = LOGO_BOUNCE_TABLE.len();
+        self.bounce_frames_remaining = 0;
+    }
+
+    /// Skip to WaitingForInput with a specific Pokemon (for comparison/testing).
+    pub fn skip_to_waiting_for_input_with_mon(&mut self, mon: Species) {
+        self.skip_to_waiting_for_input();
+        self.current_mon = mon;
+    }
+
     /// Reset to initial state (for returning from main menu).
     pub fn reset(&mut self) {
         let first_mon = match self.version {
             GameVersion::Red => TITLE_MONS_RED[0],
             GameVersion::Blue => TITLE_MONS_BLUE[0],
         };
-        self.phase = TitlePhase::Init;
+        self.phase = TitlePhase::Copyright;
         self.frame_counter = 0;
         self.scroll_y = 64;
         self.current_mon = first_mon;
@@ -319,6 +354,11 @@ impl TitleScreenState {
         self.version_scroll_progress = 0.0;
         self.bounce_step = 0;
         self.bounce_frames_remaining = 0;
+    }
+
+    /// Check if currently showing copyright screen.
+    pub fn is_copyright(&self) -> bool {
+        self.phase == TitlePhase::Copyright
     }
 
     /// Get fade progress (0.0 = no fade, 1.0 = fully white).
