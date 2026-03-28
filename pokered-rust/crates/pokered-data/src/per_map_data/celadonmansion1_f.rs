@@ -4,7 +4,7 @@ use crate::sign_data::SignEntry;
 use crate::map_objects::WarpData;
 
 pub const NPCS: [NpcEntry; 4] = [
-NpcEntry {
+    NpcEntry {
         sprite_id: 0x05,
         x: 0,
         y: 5,
