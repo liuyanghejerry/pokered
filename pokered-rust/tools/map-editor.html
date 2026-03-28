@@ -269,13 +269,24 @@
                         ctx.fillRect(px, py, BLOCK_TILES * TILE_SIZE, BLOCK_TILES * TILE_SIZE);
                     }
                     
-                    // Collision overlay
-                    if (showCollision) {
-                        const passable = map.passable_tiles.includes(blockId);
-                        ctx.fillStyle = passable 
-                            ? 'rgba(78, 204, 163, 0.25)' 
-                            : 'rgba(231, 76, 60, 0.35)';
-                        ctx.fillRect(px, py, BLOCK_TILES * TILE_SIZE, BLOCK_TILES * TILE_SIZE);
+                    // Collision overlay - check each TILE in the block, not the block ID
+                    if (showCollision && blockset && blockset.blocks[blockId]) {
+                        const blockTiles = blockset.blocks[blockId];
+                        for (let ty = 0; ty < 4; ty++) {
+                            for (let tx = 0; tx < 4; tx++) {
+                                const tileId = blockTiles[ty * 4 + tx];
+                                const passable = map.passable_tiles.includes(tileId);
+                                ctx.fillStyle = passable 
+                                    ? 'rgba(78, 204, 163, 0.25)' 
+                                    : 'rgba(231, 76, 60, 0.35)';
+                                ctx.fillRect(
+                                    px + tx * TILE_SIZE, 
+                                    py + ty * TILE_SIZE, 
+                                    TILE_SIZE, 
+                                    TILE_SIZE
+                                );
+                            }
+                        }
                     }
                 }
             }
@@ -348,43 +359,62 @@
             document.getElementById('toolView').classList.remove('active');
         });
         
-        // Canvas click for editing
+        // Canvas click for editing - edit TILE collision, not block
         document.getElementById('mapCanvas').addEventListener('click', (e) => {
             if (currentTool !== 'edit' || !mapsData[currentMapIndex]) return;
             const map = mapsData[currentMapIndex];
+            const blockset = getBlockset(map.tileset_name);
+            if (!blockset) return;
+            
             const rect = e.target.getBoundingClientRect();
             const x = Math.floor((e.clientX - rect.left) / (TILE_SIZE * zoom));
             const y = Math.floor((e.clientY - rect.top) / (TILE_SIZE * zoom));
             const blockX = Math.floor(x / BLOCK_TILES);
             const blockY = Math.floor(y / BLOCK_TILES);
+            const subX = x % BLOCK_TILES;
+            const subY = y % BLOCK_TILES;
             const blockIdx = blockY * map.width + blockX;
             const blockId = map.blocks[blockIdx];
             
-            // Toggle passable
-            const idx = map.passable_tiles.indexOf(blockId);
+            const blockTiles = blockset.blocks[blockId];
+            if (!blockTiles) return;
+            
+            const tileId = blockTiles[subY * 4 + subX];
+            
+            const idx = map.passable_tiles.indexOf(tileId);
             if (idx >= 0) {
                 map.passable_tiles.splice(idx, 1);
-                updateStatus(`Block 0x${blockId.toString(16)} marked as IMPASSABLE`);
+                updateStatus(`Tile 0x${tileId.toString(16).padStart(2, '0')} marked as IMPASSABLE`);
             } else {
-                map.passable_tiles.push(blockId);
-                updateStatus(`Block 0x${blockId.toString(16)} marked as PASSABLE`);
+                map.passable_tiles.push(tileId);
+                updateStatus(`Tile 0x${tileId.toString(16).padStart(2, '0')} marked as PASSABLE`);
             }
             hasUnsavedChanges = true;
             renderMap(currentMapIndex);
         });
         
-        // Hover tooltip
+        // Hover tooltip - show TILE info, not just block
         document.getElementById('mapCanvas').addEventListener('mousemove', (e) => {
             if (!mapsData[currentMapIndex]) return;
             const map = mapsData[currentMapIndex];
+            const blockset = getBlockset(map.tileset_name);
+            
             const rect = e.target.getBoundingClientRect();
             const x = Math.floor((e.clientX - rect.left) / (TILE_SIZE * zoom));
             const y = Math.floor((e.clientY - rect.top) / (TILE_SIZE * zoom));
             const blockX = Math.floor(x / BLOCK_TILES);
             const blockY = Math.floor(y / BLOCK_TILES);
+            const subX = x % BLOCK_TILES;
+            const subY = y % BLOCK_TILES;
             const blockIdx = blockY * map.width + blockX;
             const blockId = map.blocks ? map.blocks[blockIdx] : 0;
-            const passable = map.passable_tiles.includes(blockId);
+            
+            let tileId = 0;
+            let passable = false;
+            if (blockset && blockset.blocks[blockId]) {
+                tileId = blockset.blocks[blockId][subY * 4 + subX];
+                passable = map.passable_tiles.includes(tileId);
+            }
             
             const tooltip = document.getElementById('tooltip');
             tooltip.style.display = 'block';
@@ -392,8 +422,9 @@
             tooltip.style.top = (e.clientY + 15) + 'px';
             tooltip.innerHTML = `
                 Tile: (${x}, ${y})<br>
-                Block: (${blockX}, ${blockY}) [${blockIdx}]<br>
+                Block: (${blockX}, ${blockY}) #${blockIdx}<br>
                 BlockID: 0x${blockId.toString(16).padStart(2, '0')}<br>
+                TileID: 0x${tileId.toString(16).padStart(2, '0')}<br>
                 <b style="color:${passable ? '#4ecca3' : '#e74c3c'}">${passable ? 'PASSABLE' : 'BLOCKED'}</b>
             `;
         });
