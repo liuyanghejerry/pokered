@@ -347,14 +347,13 @@ fn test_process_frame_warp_on_step_complete() {
     state.walk_counter = 1;
     let mut map = make_map();
     map.warps.push(WarpPoint {
-        x: 2,
-        y: 3,
+        x: 5,
+        y: 6,
         target_map: MapId::RedsHouse1F,
         target_warp_id: 0,
     });
     // Player at (5,5), facing down, walk counter=1 -> step completes to (5,6)
-    // Warp at block (2,3) = tiles (4-5, 6-7)... but our check uses x/2, y/2
-    // Player tile (5,6) -> block (2,3) which matches warp
+    // Warp at tile (5,6) should match when player steps onto it
     let input = InputState::default();
     let result = process_frame(&mut state, &input, &map, 0x00, 0x00, &[]);
     assert_eq!(result, MoveResult::Warped { warp_index: 0 });

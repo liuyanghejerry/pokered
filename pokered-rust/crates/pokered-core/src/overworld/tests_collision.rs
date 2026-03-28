@@ -518,7 +518,7 @@ fn test_check_warp_at_position() {
         signs: vec![],
         connections: MapConnections::default(),
     };
-    assert_eq!(check_warp_at_position(6, 8, &map), Some(0));
-    assert_eq!(check_warp_at_position(14, 8, &map), Some(1));
+    assert_eq!(check_warp_at_position(3, 4, &map), Some(0));
+    assert_eq!(check_warp_at_position(7, 4, &map), Some(1));
     assert_eq!(check_warp_at_position(0, 0, &map), None);
 }

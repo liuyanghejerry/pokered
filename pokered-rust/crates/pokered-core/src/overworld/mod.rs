@@ -43,6 +43,7 @@ mod tests_special_terrain;
 #[cfg(test)]
 mod tests_wild_encounters;
 
+use pokered_data::blockset_data;
 use pokered_data::maps::MapId;
 use pokered_data::music::MusicId;
 use pokered_data::tilesets::TilesetId;
@@ -392,39 +393,40 @@ impl OverworldScreen {
             select: input.select,
         };
 
-        let get_tile_id_at_position = |blocks: &[u8], width: u8, x: u8, y: u8| -> Option<u8> {
-            let block_x = (x / 2) as usize;
-            let block_y = (y / 2) as usize;
-            // Each block is 2x2 tiles
+        let get_tile_id_at_position =
+            |blocks: &[u8], width: u8, tileset: TilesetId, x: u16, y: u16| -> u8 {
+                let block_x = (x / 4) as usize;
+                let block_y = (y / 4) as usize;
+                let sub_x = (x % 4) as usize;
+                let sub_y = (y % 4) as usize;
 
-            if block_x < width as usize {
-                let block_idx = block_y * (width as usize) + block_x;
-                if block_idx < blocks.len() {
-                    Some(blocks[block_idx])
-                } else {
-                    None
+                if block_x < width as usize {
+                    let block_idx = block_y * (width as usize) + block_x;
+                    if block_idx < blocks.len() {
+                        let block_id = blocks[block_idx];
+                        return blockset_data::block_tiles(tileset, block_id)
+                            .map(|t| t[sub_y * 4 + sub_x])
+                            .unwrap_or(0);
+                    }
                 }
-            } else {
-                None
-            }
-        };
+                0
+            };
 
         if let Some(map) = &self.map_data {
             let standing_tile = get_tile_id_at_position(
                 &map.blocks,
                 map.width,
-                self.state.player.x as u8,
-                self.state.player.y as u8,
-            )
-            .unwrap_or(0x00);
+                map.tileset,
+                self.state.player.x,
+                self.state.player.y,
+            );
 
             let target_tile = if let Some(dir) = movement_input.direction_pressed() {
                 let (dx, dy) = player_movement::direction_delta(dir);
                 let target_x = ((self.state.player.x as i32) + dx as i32).max(0) as u16;
                 let target_y = ((self.state.player.y as i32) + dy as i32).max(0) as u16;
 
-                get_tile_id_at_position(&map.blocks, map.width, target_x as u8, target_y as u8)
-                    .unwrap_or(0x00)
+                get_tile_id_at_position(&map.blocks, map.width, map.tileset, target_x, target_y)
             } else {
                 standing_tile
             };
