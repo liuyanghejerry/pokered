@@ -278,8 +278,31 @@ pub fn process_frame(
                     warp_index: warp_idx,
                 };
             }
-            // Step complete, will process new input next frame
-            return MoveResult::Walking; // indicates step just completed
+            // Step complete - if direction still held, immediately start next step
+            // This matches original game behavior where holding direction continuously moves
+            if let Some(direction) = input.direction_pressed() {
+                let held_input = input.to_pad_bits();
+                let new_standing_tile = standing_tile;
+                let (dx, dy) = direction_delta(direction);
+                let target_x = ((state.player.x as i32) + dx as i32).max(0) as u16;
+                let target_y = ((state.player.y as i32) + dy as i32).max(0) as u16;
+
+                // Calculate new target tile
+                let new_target_tile =
+                    get_target_tile_for_direction(map, state.player.x, state.player.y, direction);
+
+                return try_move(
+                    state,
+                    direction,
+                    map.tileset,
+                    map.width,
+                    map.height,
+                    new_standing_tile,
+                    new_target_tile,
+                    npc_positions,
+                    held_input,
+                );
+            }
         }
         return MoveResult::StillMoving;
     }
@@ -303,6 +326,28 @@ pub fn process_frame(
         npc_positions,
         held_input,
     )
+}
+
+fn get_target_tile_for_direction(map: &MapData, x: u16, y: u16, dir: Direction) -> u8 {
+    let (dx, dy) = direction_delta(dir);
+    let target_x = ((x as i32) + dx as i32).max(0) as u16;
+    let target_y = ((y as i32) + dy as i32).max(0) as u16;
+
+    let block_x = (target_x / 4) as usize;
+    let block_y = (target_y / 4) as usize;
+    let sub_x = (target_x % 4) as usize;
+    let sub_y = (target_y % 4) as usize;
+
+    if block_x < map.width as usize {
+        let block_idx = block_y * (map.width as usize) + block_x;
+        if block_idx < map.blocks.len() {
+            let block_id = map.blocks[block_idx];
+            return pokered_data::blockset_data::block_tiles(map.tileset, block_id)
+                .map(|t| t[sub_y * 4 + sub_x])
+                .unwrap_or(0);
+        }
+    }
+    0
 }
 
 /// Check if the player is currently on a grass tile.
