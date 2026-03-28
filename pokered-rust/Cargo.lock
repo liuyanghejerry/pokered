@@ -1958,7 +1958,9 @@ dependencies = [
  "image",
  "pokered-audio",
  "pokered-core",
+ "pokered-data",
  "pokered-renderer",
+ "serde",
  "serde_json",
  "tracing",
 ]

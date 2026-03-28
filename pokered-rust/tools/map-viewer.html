@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pokered Map Viewer</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 10px;
+            background: #1a1a2e;
+            color: #eee;
+        }
+        .container { display: flex; gap: 20px; flex-wrap: wrap; }
+        .controls {
+            background: #16213e;
+            padding: 15px;
+            border-radius: 8px;
+            min-width: 280px;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+        .controls h2 { margin-top: 0; color: #4ecca3; font-size: 18px; }
+        .controls label { display: block; margin: 10px 0 5px; font-size: 13px; }
+        .controls select, .controls input {
+            width: 100%;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #4ecca3;
+            background: #1a1a2e;
+            color: #eee;
+            font-size: 13px;
+        }
+        .controls button {
+            margin-top: 10px;
+            margin-right: 5px;
+            padding: 8px 16px;
+            background: #4ecca3;
+            color: #1a1a2e;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 13px;
+        }
+        .controls button:hover { background: #3ba88a; }
+        .checkbox-group { margin: 10px 0; }
+        .checkbox-group label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .checkbox-group input { width: auto; }
+        .map-info {
+            background: #0f0f23;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 12px;
+            font-family: monospace;
+        }
+        .map-info h3 { margin-top: 0; color: #4ecca3; font-size: 14px; }
+        .map-info code { color: #4ecca3; background: #1a1a2e; padding: 1px 4px; border-radius: 2px; }
+        .map-info p { margin: 5px 0; }
+        .viewer { flex: 1; min-width: 500px; }
+        #mapCanvas {
+            border: 2px solid #4ecca3;
+            border-radius: 4px;
+            cursor: crosshair;
+            image-rendering: pixelated;
+            background: #000;
+        }
+        .legend {
+            background: #16213e;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        .legend h3 { margin-top: 0; color: #4ecca3; font-size: 14px; }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 5px 0;
+            font-size: 12px;
+        }
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+        .tile-info {
+            position: fixed;
+            background: rgba(22, 33, 62, 0.95);
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #4ecca3;
+            font-size: 12px;
+            pointer-events: none;
+            display: none;
+            z-index: 100;
+            font-family: monospace;
+        }
+        #loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #16213e;
+            padding: 20px 40px;
+            border-radius: 8px;
+            border: 2px solid #4ecca3;
+            z-index: 1000;
+        }
+        .stats { color: #888; font-size: 11px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div id="loading">Loading map data...</div>
+    
+    <div class="container">
+        <div class="controls">
+            <h2>Map Viewer</h2>
+            
+            <label for="mapSelect">Select Map:</label>
+            <select id="mapSelect"></select>
+            
+            <label for="searchBox">Search:</label>
+            <input type="text" id="searchBox" placeholder="Type to filter maps...">
+            
+            <div class="checkbox-group">
+                <label><input type="checkbox" id="showCollision" checked> Show Collision</label>
+                <label><input type="checkbox" id="showWarps" checked> Show Warps</label>
+                <label><input type="checkbox" id="showNPCs" checked> Show NPCs</label>
+                <label><input type="checkbox" id="showSigns" checked> Show Signs</label>
+                <label><input type="checkbox" id="showGrid"> Show Grid</label>
+                <label><input type="checkbox" id="showBlockIds"> Show Block IDs</label>
+            </div>
+            
+            <div>
+                <button id="exportBtn">Export PNG</button>
+                <button id="prevBtn">Prev</button>
+                <button id="nextBtn">Next</button>
+            </div>
+            
+            <div class="map-info">
+                <h3>Map Info</h3>
+                <div id="mapInfoContent">Select a map to view details</div>
+            </div>
+            
+            <div class="legend">
+                <h3>Legend</h3>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: rgba(78, 204, 163, 0.4);"></div>
+                    <span>Passable Tile</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: rgba(231, 76, 60, 0.4);"></div>
+                    <span>Impassable Tile</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: rgba(52, 152, 219, 0.8);"></div>
+                    <span>Warp Point</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: rgba(241, 196, 15, 0.8);"></div>
+                    <span>NPC</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: rgba(155, 89, 182, 0.8);"></div>
+                    <span>Sign</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="viewer">
+            <canvas id="mapCanvas"></canvas>
+            <div class="stats" id="stats"></div>
+        </div>
+    </div>
+    
+    <div id="tileInfo" class="tile-info"></div>
+
+    <script>
+        const TILE_SIZE = 8;
+        const BLOCK_SIZE = 4;
+        const SCALE = 2;
+        
+        let mapsData = [];
+        let currentMapIndex = 0;
+        
+        function getBlockColor(blockId) {
+            const hue = (blockId * 7) % 360;
+            return `hsl(${hue}, 60%, 45%)`;
+        }
+        
+        async function loadMapData() {
+            try {
+                const response = await fetch('map_data.json');
+                mapsData = await response.json();
+                document.getElementById('loading').style.display = 'none';
+                populateMapSelector();
+                renderMap(0);
+            } catch (e) {
+                document.getElementById('loading').textContent = 'Failed to load map_data.json: ' + e.message;
+                console.error('Failed to load map data:', e);
+            }
+        }
+        
+        function populateMapSelector(filter = '') {
+            const select = document.getElementById('mapSelect');
+            select.innerHTML = '';
+            const filterLower = filter.toLowerCase();
+            
+            mapsData.forEach((map, index) => {
+                if (filter && !map.name.toLowerCase().includes(filterLower)) return;
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = `${map.name} (${map.width}x${map.height})`;
+                select.appendChild(option);
+            });
+            select.value = currentMapIndex;
+        }
+        
+        function isTilePassable(map, tileId) {
+            return map.passable_tiles.includes(tileId);
+        }
+        
+        function renderMap(index) {
+            if (index < 0 || index >= mapsData.length) return;
+            currentMapIndex = index;
+            const map = mapsData[index];
+            
+            const canvas = document.getElementById('mapCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            const pixelWidth = map.width * BLOCK_SIZE * TILE_SIZE;
+            const pixelHeight = map.height * BLOCK_SIZE * TILE_SIZE;
+            canvas.width = pixelWidth * SCALE;
+            canvas.height = pixelHeight * SCALE;
+            canvas.style.width = `${pixelWidth * SCALE}px`;
+            canvas.style.height = `${pixelHeight * SCALE}px`;
+            
+            ctx.scale(SCALE, SCALE);
+            ctx.imageSmoothingEnabled = false;
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, pixelWidth, pixelHeight);
+            
+            const showBlockIds = document.getElementById('showBlockIds').checked;
+            const showCollision = document.getElementById('showCollision').checked;
+            const showGrid = document.getElementById('showGrid').checked;
+            
+            for (let by = 0; by < map.height; by++) {
+                for (let bx = 0; bx < map.width; bx++) {
+                    const blockIdx = by * map.width + bx;
+                    const blockId = map.blocks[blockIdx];
+                    const px = bx * BLOCK_SIZE * TILE_SIZE;
+                    const py = by * BLOCK_SIZE * TILE_SIZE;
+                    const pw = BLOCK_SIZE * TILE_SIZE;
+                    const ph = BLOCK_SIZE * TILE_SIZE;
+                    
+                    ctx.fillStyle = getBlockColor(blockId);
+                    ctx.fillRect(px, py, pw, ph);
+                    
+                    if (showBlockIds) {
+                        ctx.fillStyle = '#fff';
+                        ctx.font = '7px monospace';
+                        ctx.fillText(blockId.toString(16).padStart(2, '0').toUpperCase(), px + 2, py + 10);
+                    }
+                    
+                    if (showCollision) {
+                        const passable = isTilePassable(map, blockId);
+                        ctx.fillStyle = passable ? 'rgba(78, 204, 163, 0.25)' : 'rgba(231, 76, 60, 0.35)';
+                        ctx.fillRect(px, py, pw, ph);
+                        if (!passable) {
+                            ctx.strokeStyle = 'rgba(231, 76, 60, 0.6)';
+                            ctx.lineWidth = 1;
+                            ctx.strokeRect(px + 0.5, py + 0.5, pw - 1, ph - 1);
+                        }
+                    }
+                }
+            }
+            
+            if (showGrid) {
+                ctx.strokeStyle = 'rgba(255, 255, 0, 0.3)';
+                ctx.lineWidth = 1;
+                for (let x = 0; x <= pixelWidth; x += BLOCK_SIZE * TILE_SIZE) {
+                    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, pixelHeight); ctx.stroke();
+                }
+                for (let y = 0; y <= pixelHeight; y += BLOCK_SIZE * TILE_SIZE) {
+                    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(pixelWidth, y); ctx.stroke();
+                }
+            }
+            
+            const showWarps = document.getElementById('showWarps').checked;
+            if (showWarps && map.warps) {
+                map.warps.forEach(warp => {
+                    const px = warp.x * TILE_SIZE;
+                    const py = warp.y * TILE_SIZE;
+                    ctx.fillStyle = 'rgba(52, 152, 219, 0.7)';
+                    ctx.fillRect(px, py, TILE_SIZE * 2, TILE_SIZE * 2);
+                    ctx.strokeStyle = '#3498db';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(px, py, TILE_SIZE * 2, TILE_SIZE * 2);
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 10px sans-serif';
+                    ctx.fillText('W', px + 3, py + 12);
+                });
+            }
+            
+            const showNPCs = document.getElementById('showNPCs').checked;
+            if (showNPCs && map.npcs) {
+                map.npcs.forEach(npc => {
+                    const px = npc.x * TILE_SIZE;
+                    const py = npc.y * TILE_SIZE;
+                    ctx.fillStyle = 'rgba(241, 196, 15, 0.7)';
+                    ctx.fillRect(px, py, TILE_SIZE * 2, TILE_SIZE * 2);
+                    ctx.strokeStyle = '#f1c40f';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(px, py, TILE_SIZE * 2, TILE_SIZE * 2);
+                });
+            }
+            
+            const showSigns = document.getElementById('showSigns').checked;
+            if (showSigns && map.signs) {
+                map.signs.forEach(sign => {
+                    const px = sign.x * TILE_SIZE;
+                    const py = sign.y * TILE_SIZE;
+                    ctx.fillStyle = 'rgba(155, 89, 182, 0.7)';
+                    ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+                    ctx.strokeStyle = '#9b59b6';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(px, py, TILE_SIZE, TILE_SIZE);
+                });
+            }
+            
+            updateMapInfo(map);
+        }
+        
+        function updateMapInfo(map) {
+            document.getElementById('mapInfoContent').innerHTML = `
+                <p><strong>Name:</strong> ${map.name}</p>
+                <p><strong>ID:</strong> <code>0x${map.id.toString(16).padStart(2, '0')}</code></p>
+                <p><strong>Size:</strong> ${map.width}x${map.height} blocks (${map.width * 4}x${map.height * 4} tiles)</p>
+                <p><strong>Tileset:</strong> ${map.tileset_name}</p>
+                <p><strong>Warps:</strong> ${map.warps ? map.warps.length : 0}</p>
+                <p><strong>NPCs:</strong> ${map.npcs ? map.npcs.length : 0}</p>
+                <p><strong>Signs:</strong> ${map.signs ? map.signs.length : 0}</p>
+                <p><strong>Passable:</strong> ${map.passable_tiles.length} tile IDs</p>
+            `;
+            document.getElementById('stats').textContent = `Map ${currentMapIndex + 1}/${mapsData.length}`;
+        }
+        
+        document.getElementById('mapSelect').addEventListener('change', e => renderMap(parseInt(e.target.value)));
+        document.getElementById('searchBox').addEventListener('input', e => populateMapSelector(e.target.value));
+        ['showCollision', 'showWarps', 'showNPCs', 'showSigns', 'showGrid', 'showBlockIds'].forEach(id => {
+            document.getElementById(id).addEventListener('change', () => renderMap(currentMapIndex));
+        });
+        document.getElementById('prevBtn').addEventListener('click', () => { if (currentMapIndex > 0) renderMap(currentMapIndex - 1); });
+        document.getElementById('nextBtn').addEventListener('click', () => { if (currentMapIndex < mapsData.length - 1) renderMap(currentMapIndex + 1); });
+        document.getElementById('exportBtn').addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.download = `${mapsData[currentMapIndex].name}.png`;
+            link.href = document.getElementById('mapCanvas').toDataURL('image/png');
+            link.click();
+        });
+        
+        document.getElementById('mapCanvas').addEventListener('mousemove', e => {
+            if (!mapsData[currentMapIndex]) return;
+            const map = mapsData[currentMapIndex];
+            const rect = e.target.getBoundingClientRect();
+            const x = Math.floor((e.clientX - rect.left) / (TILE_SIZE * SCALE));
+            const y = Math.floor((e.clientY - rect.top) / (TILE_SIZE * SCALE));
+            const blockX = Math.floor(x / 4);
+            const blockY = Math.floor(y / 4);
+            const blockIdx = blockY * map.width + blockX;
+            const blockId = map.blocks ? map.blocks[blockIdx] : 0;
+            const passable = isTilePassable(map, blockId);
+            
+            const tileInfo = document.getElementById('tileInfo');
+            tileInfo.style.display = 'block';
+            tileInfo.style.left = (e.clientX + 15) + 'px';
+            tileInfo.style.top = (e.clientY + 15) + 'px';
+            tileInfo.innerHTML = `Tile: (${x}, ${y})<br>Block: (${blockX}, ${blockY})<br>Block ID: 0x${blockId.toString(16).padStart(2, '0')}<br>Passable: ${passable ? 'Yes' : 'No'}`;
+        });
+        document.getElementById('mapCanvas').addEventListener('mouseleave', () => document.getElementById('tileInfo').style.display = 'none');
+        
+        loadMapData();
+    </script>
+</body>
+</html>

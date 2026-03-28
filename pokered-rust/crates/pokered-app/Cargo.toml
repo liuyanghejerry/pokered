@@ -3,12 +3,18 @@ name = "pokered-app"
 version.workspace = true
 edition.workspace = true
 
+[[bin]]
+name = "export_map_data"
+path = "../../tools/export_map_data.rs"
+
 [dependencies]
 pokered-core = { path = "../pokered-core" }
+pokered-data = { path = "../pokered-data" }
 pokered-renderer = { path = "../pokered-renderer" }
 pokered-audio = { path = "../pokered-audio" }
 anyhow = { workspace = true }
 tracing = { workspace = true }
+serde = { workspace = true }
 serde_json = { workspace = true }
 env_logger = "0.10"
 clap = { version = "4", features = ["derive"] }
