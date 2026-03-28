@@ -127,6 +127,9 @@
         <div class="controls">
             <h2>Map Viewer</h2>
             
+            <label for="fileInput">Load map_data.json:</label>
+            <input type="file" id="fileInput" accept=".json">
+            
             <label for="mapSelect">Select Map:</label>
             <select id="mapSelect"></select>
             
@@ -200,16 +203,22 @@
         }
         
         async function loadMapData() {
+            // Try fetch first (works when served via HTTP)
             try {
                 const response = await fetch('map_data.json');
-                mapsData = await response.json();
-                document.getElementById('loading').style.display = 'none';
-                populateMapSelector();
-                renderMap(0);
+                if (response.ok) {
+                    mapsData = await response.json();
+                    document.getElementById('loading').style.display = 'none';
+                    populateMapSelector();
+                    renderMap(0);
+                    return;
+                }
             } catch (e) {
-                document.getElementById('loading').textContent = 'Failed to load map_data.json: ' + e.message;
-                console.error('Failed to load map data:', e);
+                // Fetch failed, show file input instructions
             }
+            document.getElementById('loading').innerHTML = 
+                'Please select <b>map_data.json</b> using the file input above.<br>' +
+                '<small>Run: cargo run --bin export_map_data > tools/map_data.json</small>';
         }
         
         function populateMapSelector(filter = '') {
@@ -389,6 +398,20 @@
             tileInfo.innerHTML = `Tile: (${x}, ${y})<br>Block: (${blockX}, ${blockY})<br>Block ID: 0x${blockId.toString(16).padStart(2, '0')}<br>Passable: ${passable ? 'Yes' : 'No'}`;
         });
         document.getElementById('mapCanvas').addEventListener('mouseleave', () => document.getElementById('tileInfo').style.display = 'none');
+        
+        document.getElementById('fileInput').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            try {
+                const text = await file.text();
+                mapsData = JSON.parse(text);
+                document.getElementById('loading').style.display = 'none';
+                populateMapSelector();
+                renderMap(0);
+            } catch (err) {
+                document.getElementById('loading').textContent = 'Failed to load: ' + err.message;
+            }
+        });
         
         loadMapData();
     </script>
