@@ -3,8 +3,8 @@
 //! Usage: cargo run --bin export_map_data > tools/map_data.json
 
 use serde::Serialize;
-use serde_json;
 
+use pokered_data::blockset_data;
 use pokered_data::collision;
 use pokered_data::map_blocks;
 use pokered_data::map_data::MAP_HEADER_DATA;
@@ -13,7 +13,21 @@ use pokered_data::maps::MapId;
 use pokered_data::sign_data;
 use pokered_data::tilesets::TilesetId;
 
-#[derive(serde::Serialize)]
+#[derive(Serialize)]
+struct ExportData {
+    maps: Vec<MapExport>,
+    blocksets: Vec<BlocksetExport>,
+    tileset_names: Vec<(u8, String)>,
+}
+
+#[derive(Serialize)]
+struct BlocksetExport {
+    tileset_id: u8,
+    tileset_name: String,
+    blocks: Vec<Vec<u8>>,
+}
+
+#[derive(Serialize)]
 struct MapExport {
     id: u8,
     name: String,
@@ -91,7 +105,7 @@ fn main() {
                 })
                 .collect();
 
-            let npcs: Vec<NpcExport> = Vec::new(); // TODO: Load from per_map_data
+            let npcs: Vec<NpcExport> = Vec::new();
 
             let signs: Vec<SignExport> = sign_data::get_map_signs(map_id)
                 .iter()
@@ -120,6 +134,35 @@ fn main() {
         }
     }
 
-    let output = serde_json::to_string_pretty(&maps).expect("Failed to serialize");
+    // Export blocksets (each block = 4x4 tiles = 16 tile IDs)
+    let mut blocksets: Vec<BlocksetExport> = Vec::new();
+    for tileset_id in 0u8..24 {
+        if let Some(tileset) = TilesetId::from_u8(tileset_id) {
+            let data = blockset_data::blockset_for_tileset(tileset);
+            let num_blocks = data.len() / 16;
+            let blocks: Vec<Vec<u8>> = (0..num_blocks)
+                .map(|i| data[i * 16..(i + 1) * 16].to_vec())
+                .collect();
+
+            blocksets.push(BlocksetExport {
+                tileset_id,
+                tileset_name: tileset_name(tileset),
+                blocks,
+            });
+        }
+    }
+
+    // Tileset names for reference
+    let tileset_names: Vec<(u8, String)> = (0u8..24)
+        .filter_map(|id| TilesetId::from_u8(id).map(|t| (id, tileset_name(t))))
+        .collect();
+
+    let export_data = ExportData {
+        maps,
+        blocksets,
+        tileset_names,
+    };
+
+    let output = serde_json::to_string_pretty(&export_data).expect("Failed to serialize");
     println!("{}", output);
 }
