@@ -254,14 +254,14 @@ impl GameLoop for PokemonGame {
             }
             GameScreen::Overworld => {
                 let ow_input = OverworldInput {
-                    up: input.is_just_pressed(GbButton::Up),
-                    down: input.is_just_pressed(GbButton::Down),
-                    left: input.is_just_pressed(GbButton::Left),
-                    right: input.is_just_pressed(GbButton::Right),
-                    a: input.is_just_pressed(GbButton::A),
-                    b: input.is_just_pressed(GbButton::B),
+                    up: input.is_held(GbButton::Up),
+                    down: input.is_held(GbButton::Down),
+                    left: input.is_held(GbButton::Left),
+                    right: input.is_held(GbButton::Right),
+                    a: input.is_held(GbButton::A),
+                    b: input.is_held(GbButton::B),
                     start: input.is_just_pressed(GbButton::Start),
-                    select: input.is_just_pressed(GbButton::Select),
+                    select: input.is_held(GbButton::Select),
                 };
                 self.overworld.update_frame(ow_input)
             }
