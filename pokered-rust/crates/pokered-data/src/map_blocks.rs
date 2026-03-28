@@ -14,7 +14,8 @@ static CELADONMANSION1F_BLK: &[u8] = include_bytes!("../../../../maps/CeladonMan
 static CELADONMANSION2F_BLK: &[u8] = include_bytes!("../../../../maps/CeladonMansion2F.blk");
 static CELADONMANSION3F_BLK: &[u8] = include_bytes!("../../../../maps/CeladonMansion3F.blk");
 static CELADONMANSIONROOF_BLK: &[u8] = include_bytes!("../../../../maps/CeladonMansionRoof.blk");
-static CELADONMANSIONROOFHOUSE_BLK: &[u8] = include_bytes!("../../../../maps/CeladonMansionRoofHouse.blk");
+static CELADONMANSIONROOFHOUSE_BLK: &[u8] =
+    include_bytes!("../../../../maps/CeladonMansionRoofHouse.blk");
 static CELADONMART1F_BLK: &[u8] = include_bytes!("../../../../maps/CeladonMart1F.blk");
 static CELADONMART2F_BLK: &[u8] = include_bytes!("../../../../maps/CeladonMart2F.blk");
 static CELADONMART3F_BLK: &[u8] = include_bytes!("../../../../maps/CeladonMart3F.blk");
@@ -32,14 +33,18 @@ static CERULEANGYM_BLK: &[u8] = include_bytes!("../../../../maps/CeruleanGym.blk
 static CERULEANMART_BLK: &[u8] = include_bytes!("../../../../maps/CeruleanMart.blk");
 static CERULEANPOKECENTER_BLK: &[u8] = include_bytes!("../../../../maps/CeruleanPokecenter.blk");
 static CERULEANTRADEHOUSE_BLK: &[u8] = include_bytes!("../../../../maps/CeruleanTradeHouse.blk");
-static CERULEANTRASHEDHOUSE_BLK: &[u8] = include_bytes!("../../../../maps/CeruleanTrashedHouse.blk");
+static CERULEANTRASHEDHOUSE_BLK: &[u8] =
+    include_bytes!("../../../../maps/CeruleanTrashedHouse.blk");
 static CHAMPIONSROOM_BLK: &[u8] = include_bytes!("../../../../maps/ChampionsRoom.blk");
 static CINNABARGYM_BLK: &[u8] = include_bytes!("../../../../maps/CinnabarGym.blk");
 static CINNABARISLAND_BLK: &[u8] = include_bytes!("../../../../maps/CinnabarIsland.blk");
 static CINNABARLAB_BLK: &[u8] = include_bytes!("../../../../maps/CinnabarLab.blk");
-static CINNABARLABFOSSILROOM_BLK: &[u8] = include_bytes!("../../../../maps/CinnabarLabFossilRoom.blk");
-static CINNABARLABMETRONOMEROOM_BLK: &[u8] = include_bytes!("../../../../maps/CinnabarLabMetronomeRoom.blk");
-static CINNABARLABTRADEROOM_BLK: &[u8] = include_bytes!("../../../../maps/CinnabarLabTradeRoom.blk");
+static CINNABARLABFOSSILROOM_BLK: &[u8] =
+    include_bytes!("../../../../maps/CinnabarLabFossilRoom.blk");
+static CINNABARLABMETRONOMEROOM_BLK: &[u8] =
+    include_bytes!("../../../../maps/CinnabarLabMetronomeRoom.blk");
+static CINNABARLABTRADEROOM_BLK: &[u8] =
+    include_bytes!("../../../../maps/CinnabarLabTradeRoom.blk");
 static CINNABARMART_BLK: &[u8] = include_bytes!("../../../../maps/CinnabarMart.blk");
 static CINNABARPOKECENTER_BLK: &[u8] = include_bytes!("../../../../maps/CinnabarPokecenter.blk");
 static COLOSSEUM_BLK: &[u8] = include_bytes!("../../../../maps/Colosseum.blk");
@@ -50,7 +55,8 @@ static DIGLETTSCAVE_BLK: &[u8] = include_bytes!("../../../../maps/DiglettsCave.b
 static DIGLETTSCAVEROUTE11_BLK: &[u8] = include_bytes!("../../../../maps/DiglettsCaveRoute11.blk");
 static DIGLETTSCAVEROUTE2_BLK: &[u8] = include_bytes!("../../../../maps/DiglettsCaveRoute2.blk");
 static FIGHTINGDOJO_BLK: &[u8] = include_bytes!("../../../../maps/FightingDojo.blk");
-static FUCHSIABILLSGRANDPASHOUSE_BLK: &[u8] = include_bytes!("../../../../maps/FuchsiaBillsGrandpasHouse.blk");
+static FUCHSIABILLSGRANDPASHOUSE_BLK: &[u8] =
+    include_bytes!("../../../../maps/FuchsiaBillsGrandpasHouse.blk");
 static FUCHSIACITY_BLK: &[u8] = include_bytes!("../../../../maps/FuchsiaCity.blk");
 static FUCHSIAGOODRODHOUSE_BLK: &[u8] = include_bytes!("../../../../maps/FuchsiaGoodRodHouse.blk");
 static FUCHSIAGYM_BLK: &[u8] = include_bytes!("../../../../maps/FuchsiaGym.blk");
@@ -102,12 +108,14 @@ static REDSHOUSE1F_BLK: &[u8] = include_bytes!("../../../../maps/RedsHouse1F.blk
 static REDSHOUSE2F_BLK: &[u8] = include_bytes!("../../../../maps/RedsHouse2F.blk");
 static ROCKTUNNEL1F_BLK: &[u8] = include_bytes!("../../../../maps/RockTunnel1F.blk");
 static ROCKTUNNELB1F_BLK: &[u8] = include_bytes!("../../../../maps/RockTunnelB1F.blk");
-static ROCKTUNNELPOKECENTER_BLK: &[u8] = include_bytes!("../../../../maps/RockTunnelPokecenter.blk");
+static ROCKTUNNELPOKECENTER_BLK: &[u8] =
+    include_bytes!("../../../../maps/RockTunnelPokecenter.blk");
 static ROCKETHIDEOUTB1F_BLK: &[u8] = include_bytes!("../../../../maps/RocketHideoutB1F.blk");
 static ROCKETHIDEOUTB2F_BLK: &[u8] = include_bytes!("../../../../maps/RocketHideoutB2F.blk");
 static ROCKETHIDEOUTB3F_BLK: &[u8] = include_bytes!("../../../../maps/RocketHideoutB3F.blk");
 static ROCKETHIDEOUTB4F_BLK: &[u8] = include_bytes!("../../../../maps/RocketHideoutB4F.blk");
-static ROCKETHIDEOUTELEVATOR_BLK: &[u8] = include_bytes!("../../../../maps/RocketHideoutElevator.blk");
+static ROCKETHIDEOUTELEVATOR_BLK: &[u8] =
+    include_bytes!("../../../../maps/RocketHideoutElevator.blk");
 static ROUTE1_BLK: &[u8] = include_bytes!("../../../../maps/Route1.blk");
 static ROUTE10_BLK: &[u8] = include_bytes!("../../../../maps/Route10.blk");
 static ROUTE11_BLK: &[u8] = include_bytes!("../../../../maps/Route11.blk");
@@ -116,7 +124,8 @@ static ROUTE11GATE2F_BLK: &[u8] = include_bytes!("../../../../maps/Route11Gate2F
 static ROUTE12_BLK: &[u8] = include_bytes!("../../../../maps/Route12.blk");
 static ROUTE12GATE1F_BLK: &[u8] = include_bytes!("../../../../maps/Route12Gate1F.blk");
 static ROUTE12GATE2F_BLK: &[u8] = include_bytes!("../../../../maps/Route12Gate2F.blk");
-static ROUTE12SUPERRODHOUSE_BLK: &[u8] = include_bytes!("../../../../maps/Route12SuperRodHouse.blk");
+static ROUTE12SUPERRODHOUSE_BLK: &[u8] =
+    include_bytes!("../../../../maps/Route12SuperRodHouse.blk");
 static ROUTE13_BLK: &[u8] = include_bytes!("../../../../maps/Route13.blk");
 static ROUTE14_BLK: &[u8] = include_bytes!("../../../../maps/Route14.blk");
 static ROUTE15_BLK: &[u8] = include_bytes!("../../../../maps/Route15.blk");
@@ -163,15 +172,20 @@ static SSANNEBOW_BLK: &[u8] = include_bytes!("../../../../maps/SSAnneBow.blk");
 static SSANNECAPTAINSROOM_BLK: &[u8] = include_bytes!("../../../../maps/SSAnneCaptainsRoom.blk");
 static SSANNEKITCHEN_BLK: &[u8] = include_bytes!("../../../../maps/SSAnneKitchen.blk");
 static SAFARIZONECENTER_BLK: &[u8] = include_bytes!("../../../../maps/SafariZoneCenter.blk");
-static SAFARIZONECENTERRESTHOUSE_BLK: &[u8] = include_bytes!("../../../../maps/SafariZoneCenterRestHouse.blk");
+static SAFARIZONECENTERRESTHOUSE_BLK: &[u8] =
+    include_bytes!("../../../../maps/SafariZoneCenterRestHouse.blk");
 static SAFARIZONEEAST_BLK: &[u8] = include_bytes!("../../../../maps/SafariZoneEast.blk");
-static SAFARIZONEEASTRESTHOUSE_BLK: &[u8] = include_bytes!("../../../../maps/SafariZoneEastRestHouse.blk");
+static SAFARIZONEEASTRESTHOUSE_BLK: &[u8] =
+    include_bytes!("../../../../maps/SafariZoneEastRestHouse.blk");
 static SAFARIZONEGATE_BLK: &[u8] = include_bytes!("../../../../maps/SafariZoneGate.blk");
 static SAFARIZONENORTH_BLK: &[u8] = include_bytes!("../../../../maps/SafariZoneNorth.blk");
-static SAFARIZONENORTHRESTHOUSE_BLK: &[u8] = include_bytes!("../../../../maps/SafariZoneNorthRestHouse.blk");
-static SAFARIZONESECRETHOUSE_BLK: &[u8] = include_bytes!("../../../../maps/SafariZoneSecretHouse.blk");
+static SAFARIZONENORTHRESTHOUSE_BLK: &[u8] =
+    include_bytes!("../../../../maps/SafariZoneNorthRestHouse.blk");
+static SAFARIZONESECRETHOUSE_BLK: &[u8] =
+    include_bytes!("../../../../maps/SafariZoneSecretHouse.blk");
 static SAFARIZONEWEST_BLK: &[u8] = include_bytes!("../../../../maps/SafariZoneWest.blk");
-static SAFARIZONEWESTRESTHOUSE_BLK: &[u8] = include_bytes!("../../../../maps/SafariZoneWestRestHouse.blk");
+static SAFARIZONEWESTRESTHOUSE_BLK: &[u8] =
+    include_bytes!("../../../../maps/SafariZoneWestRestHouse.blk");
 static SAFFRONCITY_BLK: &[u8] = include_bytes!("../../../../maps/SaffronCity.blk");
 static SAFFRONGYM_BLK: &[u8] = include_bytes!("../../../../maps/SaffronGym.blk");
 static SAFFRONMART_BLK: &[u8] = include_bytes!("../../../../maps/SaffronMart.blk");
@@ -195,18 +209,26 @@ static SILPHCO8F_BLK: &[u8] = include_bytes!("../../../../maps/SilphCo8F.blk");
 static SILPHCO9F_BLK: &[u8] = include_bytes!("../../../../maps/SilphCo9F.blk");
 static SILPHCOELEVATOR_BLK: &[u8] = include_bytes!("../../../../maps/SilphCoElevator.blk");
 static TRADECENTER_BLK: &[u8] = include_bytes!("../../../../maps/TradeCenter.blk");
-static UNDERGROUNDPATHNORTHSOUTH_BLK: &[u8] = include_bytes!("../../../../maps/UndergroundPathNorthSouth.blk");
-static UNDERGROUNDPATHROUTE5_BLK: &[u8] = include_bytes!("../../../../maps/UndergroundPathRoute5.blk");
-static UNDERGROUNDPATHROUTE6_BLK: &[u8] = include_bytes!("../../../../maps/UndergroundPathRoute6.blk");
-static UNDERGROUNDPATHROUTE7_BLK: &[u8] = include_bytes!("../../../../maps/UndergroundPathRoute7.blk");
-static UNDERGROUNDPATHROUTE8_BLK: &[u8] = include_bytes!("../../../../maps/UndergroundPathRoute8.blk");
-static UNDERGROUNDPATHWESTEAST_BLK: &[u8] = include_bytes!("../../../../maps/UndergroundPathWestEast.blk");
+static UNDERGROUNDPATHNORTHSOUTH_BLK: &[u8] =
+    include_bytes!("../../../../maps/UndergroundPathNorthSouth.blk");
+static UNDERGROUNDPATHROUTE5_BLK: &[u8] =
+    include_bytes!("../../../../maps/UndergroundPathRoute5.blk");
+static UNDERGROUNDPATHROUTE6_BLK: &[u8] =
+    include_bytes!("../../../../maps/UndergroundPathRoute6.blk");
+static UNDERGROUNDPATHROUTE7_BLK: &[u8] =
+    include_bytes!("../../../../maps/UndergroundPathRoute7.blk");
+static UNDERGROUNDPATHROUTE8_BLK: &[u8] =
+    include_bytes!("../../../../maps/UndergroundPathRoute8.blk");
+static UNDERGROUNDPATHWESTEAST_BLK: &[u8] =
+    include_bytes!("../../../../maps/UndergroundPathWestEast.blk");
 static VERMILIONCITY_BLK: &[u8] = include_bytes!("../../../../maps/VermilionCity.blk");
 static VERMILIONDOCK_BLK: &[u8] = include_bytes!("../../../../maps/VermilionDock.blk");
 static VERMILIONGYM_BLK: &[u8] = include_bytes!("../../../../maps/VermilionGym.blk");
 static VERMILIONMART_BLK: &[u8] = include_bytes!("../../../../maps/VermilionMart.blk");
-static VERMILIONOLDRODHOUSE_BLK: &[u8] = include_bytes!("../../../../maps/VermilionOldRodHouse.blk");
-static VERMILIONPIDGEYHOUSE_BLK: &[u8] = include_bytes!("../../../../maps/VermilionPidgeyHouse.blk");
+static VERMILIONOLDRODHOUSE_BLK: &[u8] =
+    include_bytes!("../../../../maps/VermilionOldRodHouse.blk");
+static VERMILIONPIDGEYHOUSE_BLK: &[u8] =
+    include_bytes!("../../../../maps/VermilionPidgeyHouse.blk");
 static VERMILIONPOKECENTER_BLK: &[u8] = include_bytes!("../../../../maps/VermilionPokecenter.blk");
 static VERMILIONTRADEHOUSE_BLK: &[u8] = include_bytes!("../../../../maps/VermilionTradeHouse.blk");
 static VICTORYROAD1F_BLK: &[u8] = include_bytes!("../../../../maps/VictoryRoad1F.blk");
@@ -214,11 +236,14 @@ static VICTORYROAD2F_BLK: &[u8] = include_bytes!("../../../../maps/VictoryRoad2F
 static VICTORYROAD3F_BLK: &[u8] = include_bytes!("../../../../maps/VictoryRoad3F.blk");
 static VIRIDIANCITY_BLK: &[u8] = include_bytes!("../../../../maps/ViridianCity.blk");
 static VIRIDIANFOREST_BLK: &[u8] = include_bytes!("../../../../maps/ViridianForest.blk");
-static VIRIDIANFORESTNORTHGATE_BLK: &[u8] = include_bytes!("../../../../maps/ViridianForestNorthGate.blk");
-static VIRIDIANFORESTSOUTHGATE_BLK: &[u8] = include_bytes!("../../../../maps/ViridianForestSouthGate.blk");
+static VIRIDIANFORESTNORTHGATE_BLK: &[u8] =
+    include_bytes!("../../../../maps/ViridianForestNorthGate.blk");
+static VIRIDIANFORESTSOUTHGATE_BLK: &[u8] =
+    include_bytes!("../../../../maps/ViridianForestSouthGate.blk");
 static VIRIDIANGYM_BLK: &[u8] = include_bytes!("../../../../maps/ViridianGym.blk");
 static VIRIDIANMART_BLK: &[u8] = include_bytes!("../../../../maps/ViridianMart.blk");
-static VIRIDIANNICKNAMEHOUSE_BLK: &[u8] = include_bytes!("../../../../maps/ViridianNicknameHouse.blk");
+static VIRIDIANNICKNAMEHOUSE_BLK: &[u8] =
+    include_bytes!("../../../../maps/ViridianNicknameHouse.blk");
 static VIRIDIANPOKECENTER_BLK: &[u8] = include_bytes!("../../../../maps/ViridianPokecenter.blk");
 static VIRIDIANSCHOOLHOUSE_BLK: &[u8] = include_bytes!("../../../../maps/ViridianSchoolHouse.blk");
 static WARDENSHOUSE_BLK: &[u8] = include_bytes!("../../../../maps/WardensHouse.blk");
@@ -475,4 +500,3 @@ pub fn block_data_for_map(map: MapId) -> &'static [u8] {
         MapId::AgathasRoom => AGATHASROOM_BLK,
     }
 }
-
