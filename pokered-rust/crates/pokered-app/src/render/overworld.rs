@@ -1,6 +1,6 @@
 use pokered_core::data::maps::MapId;
 use pokered_core::data::{blockset_data, map_blocks, map_data::MAP_HEADER_DATA};
-use pokered_core::overworld::{Direction, OverworldScreen};
+use pokered_core::overworld::{Direction, MovementState, OverworldScreen};
 use pokered_renderer::embedded_font::draw_text;
 use pokered_renderer::palette::GRAYSCALE_PALETTE;
 use pokered_renderer::resource::ResourceManager;
@@ -71,15 +71,21 @@ pub fn draw_overworld(
         }
 
         // Player sprite: 16×96 sheet = 6 frames of 16×16 (2×2 tiles each)
-        // Frame order: down(0), down-walk(1), up(2), up-walk(3), left(4), left-walk(5)
         if let Ok(cached) = rm.load_sprite("red") {
             let ts = cached.tileset.clone();
-            let frame = match screen.state.player.facing {
+            let mut frame = match screen.state.player.facing {
                 Direction::Down => 0,
                 Direction::Up => 2,
                 Direction::Left => 4,
-                Direction::Right => 4,
+                Direction::Right => 6,
             };
+
+            if screen.state.player.movement_state == MovementState::Walking {
+                if screen.state.walk_counter % 4 < 2 {
+                    frame += 1;
+                }
+            }
+
             let base_tile = frame * 4;
             let tpr = cached.source_size.0 / TILE_SIZE;
 
@@ -89,16 +95,18 @@ pub fn draw_overworld(
             for row in 0..2_u32 {
                 for col in 0..2_u32 {
                     let tile_idx = base_tile + (row as usize * tpr as usize) + col as usize;
-                    if tile_idx < ts.len() {
-                        blit_single_tile(
-                            fb,
-                            &ts,
-                            tile_idx,
-                            player_px_x + col * TILE_SIZE,
-                            player_px_y + row * TILE_SIZE,
-                            pal,
-                        );
+                    if tile_idx >= ts.len() {
+                        continue;
                     }
+
+                    blit_single_tile(
+                        fb,
+                        &ts,
+                        tile_idx,
+                        player_px_x + col * TILE_SIZE,
+                        player_px_y + row * TILE_SIZE,
+                        pal,
+                    );
                 }
             }
         }

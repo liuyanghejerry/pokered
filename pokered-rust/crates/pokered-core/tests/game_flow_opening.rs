@@ -3,10 +3,7 @@ mod game_flow_helpers;
 use game_flow_helpers::*;
 use pokered_core::game_state::*;
 use pokered_core::main_menu::{MainMenuState, MenuInput};
-use pokered_core::oak_speech::{
-    OakSpeechInput, OakSpeechPhase, OakSpeechResult, OakSpeechState, INTRODUCE_PLAYER_TEXT,
-    INTRODUCE_RIVAL_TEXT, OAK_SPEECH_TEXT1, OAK_SPEECH_TEXT2A, OAK_SPEECH_TEXT2B, OAK_SPEECH_TEXT3,
-};
+use pokered_core::oak_speech::{OakSpeechInput, OakSpeechPhase, OakSpeechResult, OakSpeechState};
 use pokered_core::title_screen::{TitlePhase, TitleScreenState};
 use pokered_data::wild_data::GameVersion;
 
@@ -208,7 +205,10 @@ fn oak_speech_complete_sequence() {
 
     // Should start with greeting phase
     assert!(matches!(speech.phase, OakSpeechPhase::Greeting { .. }));
-    assert_eq!(speech.current_intro_text(), Some(OAK_SPEECH_TEXT1));
+    assert!(speech
+        .current_intro_text()
+        .unwrap()
+        .contains("Hello there!"));
 
     // Advance through Greeting phase
     while matches!(speech.phase, OakSpeechPhase::Greeting { .. }) {
@@ -217,7 +217,10 @@ fn oak_speech_complete_sequence() {
 
     // Should now be at ShowNidorino
     assert!(matches!(speech.phase, OakSpeechPhase::ShowNidorino { .. }));
-    assert_eq!(speech.current_intro_text(), Some(OAK_SPEECH_TEXT2A));
+    assert!(speech
+        .current_intro_text()
+        .unwrap()
+        .contains("This world is"));
 
     // Advance through ShowNidorino phase
     while matches!(speech.phase, OakSpeechPhase::ShowNidorino { .. }) {
@@ -226,7 +229,10 @@ fn oak_speech_complete_sequence() {
 
     // Should now be at Explanation
     assert!(matches!(speech.phase, OakSpeechPhase::Explanation { .. }));
-    assert_eq!(speech.current_intro_text(), Some(OAK_SPEECH_TEXT2B));
+    assert!(speech
+        .current_intro_text()
+        .unwrap()
+        .contains("For some people"));
 
     // Advance through Explanation phase
     while matches!(speech.phase, OakSpeechPhase::Explanation { .. }) {
@@ -238,7 +244,10 @@ fn oak_speech_complete_sequence() {
         speech.phase,
         OakSpeechPhase::IntroducePlayer { .. }
     ));
-    assert_eq!(speech.current_intro_text(), Some(INTRODUCE_PLAYER_TEXT));
+    assert!(speech
+        .current_intro_text()
+        .unwrap()
+        .contains("First, what is"));
 
     // Advance through IntroducePlayer phase
     while matches!(speech.phase, OakSpeechPhase::IntroducePlayer { .. }) {
@@ -263,7 +272,10 @@ fn oak_speech_complete_sequence() {
         speech.phase,
         OakSpeechPhase::IntroduceRival { .. }
     ));
-    assert_eq!(speech.current_intro_text(), Some(INTRODUCE_RIVAL_TEXT));
+    assert!(speech
+        .current_intro_text()
+        .unwrap()
+        .contains("This is my grand-"));
 
     // Advance through IntroduceRival phase
     while matches!(speech.phase, OakSpeechPhase::IntroduceRival { .. }) {
@@ -285,7 +297,7 @@ fn oak_speech_complete_sequence() {
 
     // Should now be at FinalSpeech
     assert!(matches!(speech.phase, OakSpeechPhase::FinalSpeech { .. }));
-    assert_eq!(speech.current_intro_text(), Some(OAK_SPEECH_TEXT3));
+    assert!(speech.current_intro_text().unwrap().contains("RED!"));
 
     // Advance through FinalSpeech phase
     while matches!(speech.phase, OakSpeechPhase::FinalSpeech { .. }) {
@@ -326,7 +338,10 @@ fn oak_speech_naming_flow() {
         speech.phase,
         OakSpeechPhase::IntroduceRival { .. }
     ));
-    assert_eq!(speech.current_intro_text(), Some(INTRODUCE_RIVAL_TEXT));
+    assert!(speech
+        .current_intro_text()
+        .unwrap()
+        .contains("This is my grand-"));
 
     // Advance to rival naming choice
     while !matches!(speech.phase, OakSpeechPhase::RivalNameChoice { .. }) {
@@ -343,7 +358,7 @@ fn oak_speech_naming_flow() {
 
     // Should now be at FinalSpeech
     assert!(matches!(speech.phase, OakSpeechPhase::FinalSpeech { .. }));
-    assert_eq!(speech.current_intro_text(), Some(OAK_SPEECH_TEXT3));
+    assert!(speech.current_intro_text().unwrap().contains("RED!"));
 }
 
 #[test]

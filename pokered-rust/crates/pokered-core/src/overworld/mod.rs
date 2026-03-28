@@ -9,6 +9,7 @@ pub mod collision;
 pub mod doors_elevators;
 pub mod event_flags;
 pub mod hm_effects;
+pub mod map_data_loading;
 pub mod map_loading;
 pub mod map_scripts;
 pub mod map_transitions;
@@ -350,9 +351,10 @@ pub struct OverworldScreen {
 
 impl OverworldScreen {
     pub fn new(start_map: MapId) -> Self {
+        let map_data = Some(map_data_loading::load_full_map_data(start_map));
         Self {
             state: OverworldState::new(start_map),
-            map_data: None,
+            map_data,
             pending_dialogue: None,
         }
     }
@@ -390,9 +392,43 @@ impl OverworldScreen {
             select: input.select,
         };
 
+        let get_tile_id_at_position = |blocks: &[u8], width: u8, x: u8, y: u8| -> Option<u8> {
+            let block_x = (x / 2) as usize;
+            let block_y = (y / 2) as usize;
+            // Each block is 2x2 tiles
+
+            if block_x < width as usize {
+                let block_idx = block_y * (width as usize) + block_x;
+                if block_idx < blocks.len() {
+                    Some(blocks[block_idx])
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        };
+
         if let Some(map) = &self.map_data {
-            let standing_tile = 0x00;
-            let target_tile = 0x00;
+            let standing_tile = get_tile_id_at_position(
+                &map.blocks,
+                map.width,
+                self.state.player.x as u8,
+                self.state.player.y as u8,
+            )
+            .unwrap_or(0x00);
+
+            let target_tile = if let Some(dir) = movement_input.direction_pressed() {
+                let (dx, dy) = player_movement::direction_delta(dir);
+                let target_x = ((self.state.player.x as i32) + dx as i32).max(0) as u16;
+                let target_y = ((self.state.player.y as i32) + dy as i32).max(0) as u16;
+
+                get_tile_id_at_position(&map.blocks, map.width, target_x as u8, target_y as u8)
+                    .unwrap_or(0x00)
+            } else {
+                standing_tile
+            };
+
             let npc_positions: Vec<collision::SpritePosition> = Vec::new();
 
             let result = player_movement::process_frame(
@@ -405,8 +441,42 @@ impl OverworldScreen {
             );
 
             match result {
-                MoveResult::Warped { .. } => {}
-                MoveResult::ReachedMapEdge => {}
+                MoveResult::Warped { warp_index } => {
+                    if let Some(ref current_map) = self.map_data {
+                        if warp_index < current_map.warps.len() {
+                            let warp = &current_map.warps[warp_index];
+
+                            let dest_warp_coords = map_transitions::resolve_warp_destination(
+                                warp.target_map,
+                                warp.target_warp_id,
+                            )
+                            .unwrap_or((0, 0));
+
+                            self.state.current_map = warp.target_map;
+                            self.state.player.x = dest_warp_coords.0 as u16;
+                            self.state.player.y = dest_warp_coords.1 as u16;
+
+                            self.map_data =
+                                Some(map_data_loading::load_full_map_data(warp.target_map));
+                        }
+                    }
+                }
+                MoveResult::ReachedMapEdge => {
+                    if let Some(dir) = movement_input.direction_pressed() {
+                        if let Some(transition) = map_transitions::calculate_connection_transition(
+                            self.state.current_map,
+                            self.state.player.x,
+                            self.state.player.y,
+                            dir,
+                        ) {
+                            self.state.current_map = transition.new_map;
+                            self.map_data =
+                                Some(map_data_loading::load_full_map_data(transition.new_map));
+                            self.state.player.x = transition.new_x;
+                            self.state.player.y = transition.new_y;
+                        }
+                    }
+                }
                 _ => {}
             }
         } else {
