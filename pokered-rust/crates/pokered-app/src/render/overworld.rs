@@ -71,15 +71,15 @@ pub fn draw_overworld(
         }
 
         // Player sprite: 16×96 sheet = 6 frames of 16×16 (2×2 tiles each)
-        // Frame layout: Down[0,1], Up[2,3], Left[4,5]
-        // Right uses same frames as Left (no horizontal flip support yet)
+        // Frame layout: Down[0,1], Right[2,3], Left[4,5]
+        // Up direction uses Down frames (no separate up-facing sprite)
         if let Ok(cached) = rm.load_sprite("red") {
             let ts = cached.tileset.clone();
             let mut frame = match screen.state.player.facing {
                 Direction::Down => 0,
-                Direction::Up => 2,
+                Direction::Up => 0,
+                Direction::Right => 2,
                 Direction::Left => 4,
-                Direction::Right => 4,
             };
 
             if screen.state.player.movement_state == MovementState::Walking {
