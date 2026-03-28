@@ -1,4 +1,5 @@
 use pokered_core::data::maps::MapId;
+use pokered_core::data::sprites::SpriteId;
 use pokered_core::data::{blockset_data, map_blocks, map_data::MAP_HEADER_DATA};
 use pokered_core::overworld::{Direction, MovementState, OverworldScreen};
 use pokered_renderer::embedded_font::draw_text;
@@ -20,6 +21,8 @@ pub fn draw_overworld(
     let player_ty = screen.state.player.y as i32;
     let screen_center_tx = 9_i32;
     let screen_center_ty = 8_i32;
+    let view_origin_tx = player_tx - screen_center_tx;
+    let view_origin_ty = player_ty - screen_center_ty;
 
     if let Some(ref mut rm) = res {
         let current_map: MapId = screen.state.current_map;
@@ -30,9 +33,6 @@ pub fn draw_overworld(
 
         if let Ok(cached) = rm.load_tileset(tileset_name) {
             let ts = cached.tileset.clone();
-
-            let view_origin_tx = player_tx - screen_center_tx;
-            let view_origin_ty = player_ty - screen_center_ty;
 
             let (map_w, map_h) = current_map.dimensions();
             let blk = map_blocks::block_data_for_map(current_map);
@@ -107,6 +107,74 @@ pub fn draw_overworld(
                         pal,
                         flip_h,
                     );
+                }
+            }
+        }
+
+        // Render NPCs
+        if let Some(ref map_data) = screen.map_data {
+            for npc in &map_data.npcs {
+                let sprite_id = match SpriteId::from_u8(npc.sprite_id) {
+                    Some(id) => id,
+                    None => continue,
+                };
+
+                let sprite_name = sprite_id.sprite_name();
+                if let Ok(cached) = rm.load_sprite(sprite_name) {
+                    let ts = cached.tileset.clone();
+                    let num_frames = (cached.source_size.1 / TILE_SIZE) as usize;
+
+                    // NPC sprite layout (16x96 = 6 frames or 16x48 = 3 frames):
+                    // 6-frame: [DownStand, UpStand, RightStand, DownWalk, UpWalk, RightWalk]
+                    // 3-frame: [DownStand, DownWalk1, DownWalk2] (single direction)
+                    let (frame, flip_h) = if num_frames >= 6 {
+                        match npc.facing {
+                            Direction::Down => (0, false),
+                            Direction::Up => (1, false),
+                            Direction::Right => (2, false),
+                            Direction::Left => (2, true),
+                        }
+                    } else {
+                        (0, false)
+                    };
+
+                    let base_tile = frame * 4;
+                    let tpr = cached.source_size.0 / TILE_SIZE;
+
+                    let npc_screen_x = (npc.x as i32 - view_origin_tx) as i32;
+                    let npc_screen_y = (npc.y as i32 - view_origin_ty) as i32;
+
+                    if npc_screen_x < 0
+                        || npc_screen_x >= 20
+                        || npc_screen_y < 0
+                        || npc_screen_y >= 18
+                    {
+                        continue;
+                    }
+
+                    let npc_px_x = npc_screen_x as u32 * TILE_SIZE;
+                    let npc_px_y = npc_screen_y as u32 * TILE_SIZE;
+
+                    for row in 0..2_u32 {
+                        for col in 0..2_u32 {
+                            let src_col = if flip_h { 1 - col } else { col };
+                            let tile_idx =
+                                base_tile + (row as usize * tpr as usize) + src_col as usize;
+                            if tile_idx >= ts.len() {
+                                continue;
+                            }
+
+                            blit_single_tile_flipped(
+                                fb,
+                                &ts,
+                                tile_idx,
+                                npc_px_x + col * TILE_SIZE,
+                                npc_px_y + row * TILE_SIZE,
+                                pal,
+                                flip_h,
+                            );
+                        }
+                    }
                 }
             }
         }
