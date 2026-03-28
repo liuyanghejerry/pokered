@@ -122,6 +122,18 @@ pub fn blit_single_tile(
     py: u32,
     palette: &Palette,
 ) {
+    blit_single_tile_flipped(fb, tileset, tile_idx, px, py, palette, false);
+}
+
+pub fn blit_single_tile_flipped(
+    fb: &mut FrameBuffer,
+    tileset: &TileSet,
+    tile_idx: usize,
+    px: u32,
+    py: u32,
+    palette: &Palette,
+    flip_horizontal: bool,
+) {
     if tile_idx >= tileset.len() {
         return;
     }
@@ -129,10 +141,15 @@ pub fn blit_single_tile(
     for row in 0..TILE_SIZE {
         let rgba_row = tile.render_row(row as usize, palette);
         for col in 0..TILE_SIZE {
+            let src_col = if flip_horizontal {
+                TILE_SIZE - 1 - col
+            } else {
+                col
+            };
             let sx = px + col;
             let sy = py + row;
             if sx < SCREEN_WIDTH && sy < SCREEN_HEIGHT {
-                let c = rgba_row[col as usize];
+                let c = rgba_row[src_col as usize];
                 if c != Rgba::TRANSPARENT {
                     fb.set_pixel(sx, sy, c);
                 }

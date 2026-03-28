@@ -6,7 +6,7 @@ use pokered_renderer::palette::GRAYSCALE_PALETTE;
 use pokered_renderer::resource::ResourceManager;
 use pokered_renderer::{FrameBuffer, Rgba, SCREEN_WIDTH, TILE_SIZE};
 
-use super::{blit_single_tile, draw_text_box};
+use super::{blit_single_tile, blit_single_tile_flipped, draw_text_box};
 
 pub fn draw_overworld(
     screen: &OverworldScreen,
@@ -70,23 +70,19 @@ pub fn draw_overworld(
             }
         }
 
-        // Player sprite: 16×96 sheet = 6 frames of 16×16 (2×2 tiles each)
-        // Frame layout: Down[0,1], Right[2,3], Left[4,5]
-        // Up direction uses Down frames (no separate up-facing sprite)
+        // Player sprite: 16×96 sheet = 6 frames of 16×16
+        // Frame layout: DownStand=0, UpStand=1, LeftStand=2, DownWalk=3, UpWalk=4, LeftWalk=5
+        // Right uses Left frames with horizontal flip
         if let Ok(cached) = rm.load_sprite("red") {
             let ts = cached.tileset.clone();
-            let mut frame = match screen.state.player.facing {
-                Direction::Down => 0,
-                Direction::Up => 0,
-                Direction::Right => 2,
-                Direction::Left => 4,
-            };
+            let is_walking = screen.state.player.movement_state == MovementState::Walking;
 
-            if screen.state.player.movement_state == MovementState::Walking {
-                if screen.state.walk_counter % 2 == 0 {
-                    frame += 1;
-                }
-            }
+            let (frame, flip_h) = match screen.state.player.facing {
+                Direction::Down => (if is_walking { 3 } else { 0 }, false),
+                Direction::Up => (if is_walking { 4 } else { 1 }, false),
+                Direction::Left => (if is_walking { 5 } else { 2 }, false),
+                Direction::Right => (if is_walking { 5 } else { 2 }, true),
+            };
 
             let base_tile = frame * 4;
             let tpr = cached.source_size.0 / TILE_SIZE;
@@ -96,18 +92,20 @@ pub fn draw_overworld(
 
             for row in 0..2_u32 {
                 for col in 0..2_u32 {
-                    let tile_idx = base_tile + (row as usize * tpr as usize) + col as usize;
+                    let src_col = if flip_h { 1 - col } else { col };
+                    let tile_idx = base_tile + (row as usize * tpr as usize) + src_col as usize;
                     if tile_idx >= ts.len() {
                         continue;
                     }
 
-                    blit_single_tile(
+                    blit_single_tile_flipped(
                         fb,
                         &ts,
                         tile_idx,
                         player_px_x + col * TILE_SIZE,
                         player_px_y + row * TILE_SIZE,
                         pal,
+                        flip_h,
                     );
                 }
             }
