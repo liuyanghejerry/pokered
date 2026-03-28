@@ -193,7 +193,12 @@ impl OakSpeechState {
         if let Some(new_phase) = self.process_phase(input) {
             self.phase = new_phase;
         }
-        OakSpeechResult::Active
+
+        if self.phase == OakSpeechPhase::Done {
+            OakSpeechResult::Finished
+        } else {
+            OakSpeechResult::Active
+        }
     }
 
     fn process_phase(&mut self, input: OakSpeechInput) -> Option<OakSpeechPhase> {
@@ -521,6 +526,18 @@ impl OakSpeechState {
                 waiting_for_input, ..
             } => *waiting_for_input,
             _ => false,
+        }
+    }
+
+    pub fn current_intro_text(&self) -> Option<String> {
+        let page = self.current_text_page()?;
+        let player_name = self.player_name.as_deref();
+        let l1 = page.line1.replace("<PLAYER>", player_name.unwrap_or("RED"));
+        let l2 = page.line2.replace("<PLAYER>", player_name.unwrap_or("RED"));
+        if l2.is_empty() {
+            Some(l1)
+        } else {
+            Some(format!("{} {}", l1, l2))
         }
     }
 

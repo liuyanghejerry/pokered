@@ -340,7 +340,7 @@ fn draw_oak_speech(state: &OakSpeechState, fb: &mut FrameBuffer) {
             draw_text(&row_str, 10, y, Rgba::BLACK, fb);
         }
     } else if let Some(text) = state.current_intro_text() {
-        draw_text(text, 20, 60, Rgba::BLACK, fb);
+        draw_text(&text, 20, 60, Rgba::BLACK, fb);
     } else {
         let phase_text = format!("{:?}", state.phase);
         draw_text(&phase_text, 10, 60, Rgba::BLACK, fb);
