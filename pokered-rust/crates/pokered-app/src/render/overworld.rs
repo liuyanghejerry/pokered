@@ -214,17 +214,19 @@ pub fn draw_overworld(
         return;
     }
 
-    let map_name = format!("{:?}", screen.state.current_map);
-    let name_len = map_name.len() as u32;
-    let box_w = name_len.max(4) + 2;
-    let box_x = (SCREEN_WIDTH.saturating_sub((box_w + 2) * TILE_SIZE)) / 2;
-    let box_y = 13 * TILE_SIZE;
-    draw_text_box(fb, box_x, box_y, box_w, 2, Rgba::BLACK);
-    draw_text(
-        &map_name,
-        box_x + TILE_SIZE,
-        box_y + TILE_SIZE,
-        Rgba::BLACK,
-        fb,
-    );
+    if screen.map_name_timer > 0 && !screen.state.current_map.is_indoor() {
+        let map_name = format!("{:?}", screen.state.current_map);
+        let name_len = map_name.len() as u32;
+        let box_w = name_len.max(4) + 2;
+        let box_x = (SCREEN_WIDTH.saturating_sub((box_w + 2) * TILE_SIZE)) / 2;
+        let box_y = 13 * TILE_SIZE;
+        draw_text_box(fb, box_x, box_y, box_w, 2, Rgba::BLACK);
+        draw_text(
+            &map_name,
+            box_x + TILE_SIZE,
+            box_y + TILE_SIZE,
+            Rgba::BLACK,
+            fb,
+        );
+    }
 }

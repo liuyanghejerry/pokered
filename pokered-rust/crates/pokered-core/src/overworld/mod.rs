@@ -348,7 +348,11 @@ pub struct OverworldScreen {
     pub map_data: Option<MapData>,
     /// Active dialogue box, if any (blocks movement and Start until dismissed).
     pub pending_dialogue: Option<BedroomDialogue>,
+    /// Frames remaining to show map name (0 = hidden).
+    pub map_name_timer: u8,
 }
+
+const MAP_NAME_DISPLAY_FRAMES: u8 = 120;
 
 impl OverworldScreen {
     pub fn new(start_map: MapId) -> Self {
@@ -357,6 +361,7 @@ impl OverworldScreen {
             state: OverworldState::new(start_map),
             map_data,
             pending_dialogue: None,
+            map_name_timer: 0,
         }
     }
 
@@ -444,22 +449,30 @@ impl OverworldScreen {
 
             match result {
                 MoveResult::Warped { warp_index } => {
-                    if let Some(ref current_map) = self.map_data {
-                        if warp_index < current_map.warps.len() {
-                            let warp = &current_map.warps[warp_index];
+                    let warp_info = self.map_data.as_ref().and_then(|m| {
+                        if warp_index < m.warps.len() {
+                            Some((
+                                m.warps[warp_index].target_map,
+                                m.warps[warp_index].target_warp_id,
+                            ))
+                        } else {
+                            None
+                        }
+                    });
 
-                            let dest_warp_coords = map_transitions::resolve_warp_destination(
-                                warp.target_map,
-                                warp.target_warp_id,
-                            )
-                            .unwrap_or((0, 0));
+                    if let Some((target_map, target_warp_id)) = warp_info {
+                        let dest_warp_coords =
+                            map_transitions::resolve_warp_destination(target_map, target_warp_id)
+                                .unwrap_or((0, 0));
 
-                            self.state.current_map = warp.target_map;
-                            self.state.player.x = dest_warp_coords.0 as u16;
-                            self.state.player.y = dest_warp_coords.1 as u16;
+                        self.state.current_map = target_map;
+                        self.state.player.x = dest_warp_coords.0 as u16;
+                        self.state.player.y = dest_warp_coords.1 as u16;
 
-                            self.map_data =
-                                Some(map_data_loading::load_full_map_data(warp.target_map));
+                        self.map_data = Some(map_data_loading::load_full_map_data(target_map));
+
+                        if !target_map.is_indoor() {
+                            self.map_name_timer = MAP_NAME_DISPLAY_FRAMES;
                         }
                     }
                 }
@@ -471,15 +484,23 @@ impl OverworldScreen {
                             self.state.player.y,
                             dir,
                         ) {
-                            self.state.current_map = transition.new_map;
-                            self.map_data =
-                                Some(map_data_loading::load_full_map_data(transition.new_map));
+                            let new_map = transition.new_map;
+                            self.state.current_map = new_map;
+                            self.map_data = Some(map_data_loading::load_full_map_data(new_map));
                             self.state.player.x = transition.new_x;
                             self.state.player.y = transition.new_y;
+
+                            if !new_map.is_indoor() {
+                                self.map_name_timer = MAP_NAME_DISPLAY_FRAMES;
+                            }
                         }
                     }
                 }
                 _ => {}
+            }
+
+            if self.map_name_timer > 0 {
+                self.map_name_timer -= 1;
             }
         } else {
             if let Some(dir) = movement_input.direction_pressed() {
