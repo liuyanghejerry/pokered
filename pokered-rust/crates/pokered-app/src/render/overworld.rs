@@ -77,9 +77,9 @@ pub fn draw_overworld(
             let ts = cached.tileset.clone();
 
             let (frame, flip_h) = if screen.state.player.movement_state == MovementState::Walking {
-                // Alternate between standing and walking frames during walk animation
-                // Use walk_counter to create alternating pattern: stand-walk-stand-walk
-                let walk_frame = (screen.state.walk_counter as usize % 4) < 2;
+                // Original game uses separate anim counter updated every 4 frames
+                // walk_counter goes 8->0, so split into two halves: 8-5 (walk) and 4-1 (stand)
+                let walk_frame = screen.state.walk_counter > 4;
                 match screen.state.player.facing {
                     Direction::Down => (if walk_frame { 3 } else { 0 }, false),
                     Direction::Up => (if walk_frame { 4 } else { 1 }, false),
