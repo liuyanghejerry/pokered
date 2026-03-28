@@ -75,13 +75,24 @@ pub fn draw_overworld(
         // Right uses Left frames with horizontal flip
         if let Ok(cached) = rm.load_sprite("red") {
             let ts = cached.tileset.clone();
-            let is_walking = screen.state.player.movement_state == MovementState::Walking;
 
-            let (frame, flip_h) = match screen.state.player.facing {
-                Direction::Down => (if is_walking { 3 } else { 0 }, false),
-                Direction::Up => (if is_walking { 4 } else { 1 }, false),
-                Direction::Left => (if is_walking { 5 } else { 2 }, false),
-                Direction::Right => (if is_walking { 5 } else { 2 }, true),
+            let (frame, flip_h) = if screen.state.player.movement_state == MovementState::Walking {
+                // Alternate between standing and walking frames during walk animation
+                // Use walk_counter to create alternating pattern: stand-walk-stand-walk
+                let walk_frame = (screen.state.walk_counter as usize % 4) < 2;
+                match screen.state.player.facing {
+                    Direction::Down => (if walk_frame { 3 } else { 0 }, false),
+                    Direction::Up => (if walk_frame { 4 } else { 1 }, false),
+                    Direction::Left => (if walk_frame { 5 } else { 2 }, false),
+                    Direction::Right => (if walk_frame { 5 } else { 2 }, true),
+                }
+            } else {
+                match screen.state.player.facing {
+                    Direction::Down => (0, false),
+                    Direction::Up => (1, false),
+                    Direction::Left => (2, false),
+                    Direction::Right => (2, true),
+                }
             };
 
             let base_tile = frame * 4;
