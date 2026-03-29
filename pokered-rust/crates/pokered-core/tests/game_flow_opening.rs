@@ -7,6 +7,19 @@ use pokered_core::oak_speech::{OakSpeechInput, OakSpeechPhase, OakSpeechResult, 
 use pokered_core::title_screen::{TitlePhase, TitleScreenState};
 use pokered_data::wild_data::GameVersion;
 
+const OAK_SPEECH_MAX_STEPS: usize = 10_000;
+
+fn oak_input_for_progress(speech: &OakSpeechState) -> OakSpeechInput {
+    if speech.is_waiting_for_input() {
+        OakSpeechInput {
+            a: true,
+            ..OakSpeechInput::none()
+        }
+    } else {
+        OakSpeechInput::none()
+    }
+}
+
 #[test]
 fn game_starts_at_copyright_splash() {
     let state = new_game_state_red();
@@ -211,8 +224,11 @@ fn oak_speech_complete_sequence() {
         .contains("Hello there!"));
 
     // Advance through Greeting phase
+    let mut steps = 0;
     while matches!(speech.phase, OakSpeechPhase::Greeting { .. }) {
-        speech.update_frame(OakSpeechInput::none());
+        steps += 1;
+        assert!(steps <= OAK_SPEECH_MAX_STEPS, "oak speech greeting did not finish");
+        speech.update_frame(oak_input_for_progress(&speech));
     }
 
     // Should now be at ShowNidorino
@@ -224,7 +240,12 @@ fn oak_speech_complete_sequence() {
 
     // Advance through ShowNidorino phase
     while matches!(speech.phase, OakSpeechPhase::ShowNidorino { .. }) {
-        speech.update_frame(OakSpeechInput::none());
+        steps += 1;
+        assert!(
+            steps <= OAK_SPEECH_MAX_STEPS,
+            "oak speech show nidorino did not finish"
+        );
+        speech.update_frame(oak_input_for_progress(&speech));
     }
 
     // Should now be at Explanation
@@ -236,7 +257,12 @@ fn oak_speech_complete_sequence() {
 
     // Advance through Explanation phase
     while matches!(speech.phase, OakSpeechPhase::Explanation { .. }) {
-        speech.update_frame(OakSpeechInput::none());
+        steps += 1;
+        assert!(
+            steps <= OAK_SPEECH_MAX_STEPS,
+            "oak speech explanation did not finish"
+        );
+        speech.update_frame(oak_input_for_progress(&speech));
     }
 
     // Should now be at IntroducePlayer
@@ -251,7 +277,12 @@ fn oak_speech_complete_sequence() {
 
     // Advance through IntroducePlayer phase
     while matches!(speech.phase, OakSpeechPhase::IntroducePlayer { .. }) {
-        speech.update_frame(OakSpeechInput::none());
+        steps += 1;
+        assert!(
+            steps <= OAK_SPEECH_MAX_STEPS,
+            "oak speech introduce player did not finish"
+        );
+        speech.update_frame(oak_input_for_progress(&speech));
     }
 
     // Should now be at PlayerNameChoice
@@ -265,7 +296,8 @@ fn oak_speech_complete_sequence() {
         a: true,
         ..OakSpeechInput::none()
     });
-    assert!(matches!(result, OakSpeechResult::PlayerNameSet(_)));
+    assert!(matches!(result, OakSpeechResult::Active));
+    assert_eq!(speech.player_name.as_deref(), Some("RED"));
 
     // Should now be at IntroduceRival
     assert!(matches!(
@@ -279,7 +311,12 @@ fn oak_speech_complete_sequence() {
 
     // Advance through IntroduceRival phase
     while matches!(speech.phase, OakSpeechPhase::IntroduceRival { .. }) {
-        speech.update_frame(OakSpeechInput::none());
+        steps += 1;
+        assert!(
+            steps <= OAK_SPEECH_MAX_STEPS,
+            "oak speech introduce rival did not finish"
+        );
+        speech.update_frame(oak_input_for_progress(&speech));
     }
 
     // Should now be at RivalNameChoice
@@ -293,7 +330,8 @@ fn oak_speech_complete_sequence() {
         a: true,
         ..OakSpeechInput::none()
     });
-    assert!(matches!(result, OakSpeechResult::RivalNameSet(_)));
+    assert!(matches!(result, OakSpeechResult::Active));
+    assert_eq!(speech.rival_name.as_deref(), Some("BLUE"));
 
     // Should now be at FinalSpeech
     assert!(matches!(speech.phase, OakSpeechPhase::FinalSpeech { .. }));
@@ -301,7 +339,12 @@ fn oak_speech_complete_sequence() {
 
     // Advance through FinalSpeech phase
     while matches!(speech.phase, OakSpeechPhase::FinalSpeech { .. }) {
-        speech.update_frame(OakSpeechInput::none());
+        steps += 1;
+        assert!(
+            steps <= OAK_SPEECH_MAX_STEPS,
+            "oak speech final speech did not finish"
+        );
+        speech.update_frame(oak_input_for_progress(&speech));
     }
 
     // Should now be at ShrinkPlayer
@@ -309,7 +352,12 @@ fn oak_speech_complete_sequence() {
 
     // Advance through ShrinkPlayer phase
     while matches!(speech.phase, OakSpeechPhase::ShrinkPlayer { .. }) {
-        speech.update_frame(OakSpeechInput::none());
+        steps += 1;
+        assert!(
+            steps <= OAK_SPEECH_MAX_STEPS,
+            "oak speech shrink player did not finish"
+        );
+        speech.update_frame(oak_input_for_progress(&speech));
     }
 
     // Should now be complete
@@ -321,8 +369,14 @@ fn oak_speech_naming_flow() {
     let mut speech = OakSpeechState::new();
 
     // Advance to player naming choice
+    let mut steps = 0;
     while !matches!(speech.phase, OakSpeechPhase::PlayerNameChoice { .. }) {
-        speech.update_frame(OakSpeechInput::none());
+        steps += 1;
+        assert!(
+            steps <= OAK_SPEECH_MAX_STEPS,
+            "oak speech did not reach player naming choice"
+        );
+        speech.update_frame(oak_input_for_progress(&speech));
     }
 
     // Select first default name (RED)
@@ -330,7 +384,7 @@ fn oak_speech_naming_flow() {
         a: true,
         ..OakSpeechInput::none()
     });
-    assert!(matches!(result, OakSpeechResult::PlayerNameSet(_)));
+    assert!(matches!(result, OakSpeechResult::Active));
     assert_eq!(speech.player_name, Some("RED".to_string()));
 
     // Should now be at IntroduceRival
@@ -345,7 +399,12 @@ fn oak_speech_naming_flow() {
 
     // Advance to rival naming choice
     while !matches!(speech.phase, OakSpeechPhase::RivalNameChoice { .. }) {
-        speech.update_frame(OakSpeechInput::none());
+        steps += 1;
+        assert!(
+            steps <= OAK_SPEECH_MAX_STEPS,
+            "oak speech did not reach rival naming choice"
+        );
+        speech.update_frame(oak_input_for_progress(&speech));
     }
 
     // Select first default name (BLUE)
@@ -353,7 +412,7 @@ fn oak_speech_naming_flow() {
         a: true,
         ..OakSpeechInput::none()
     });
-    assert!(matches!(result, OakSpeechResult::RivalNameSet(_)));
+    assert!(matches!(result, OakSpeechResult::Active));
     assert_eq!(speech.rival_name, Some("BLUE".to_string()));
 
     // Should now be at FinalSpeech
