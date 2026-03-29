@@ -435,6 +435,52 @@ pub fn is_door_tile(tileset: TilesetId, standing_tile: u8) -> bool {
     door_tiles.contains(&standing_tile)
 }
 
+// ── Warp Tile IDs ────────────────────────────────────────────────────
+
+/// Warp tile IDs per tileset, from data/tilesets/warp_tile_ids.asm.
+/// Used by IsPlayerStandingOnDoorTileOrWarpTile in engine/overworld/player_state.asm.
+pub fn is_warp_tile(tileset: TilesetId, standing_tile: u8) -> bool {
+    let warp_tiles: &[u8] = match tileset {
+        TilesetId::Overworld => &[0x1B, 0x58],
+        TilesetId::RedsHouse1 | TilesetId::RedsHouse2 => &[0x1A, 0x1C],
+        TilesetId::Mart | TilesetId::Pokecenter => &[0x5E],
+        TilesetId::Forest => &[0x5A, 0x5C, 0x3A],
+        TilesetId::Dojo | TilesetId::Gym => &[0x4A],
+        TilesetId::House => &[0x54, 0x5C, 0x32],
+        TilesetId::ForestGate | TilesetId::Museum | TilesetId::Gate => &[0x3B, 0x1A, 0x1C],
+        TilesetId::Ship => &[0x37, 0x39, 0x1E, 0x4A],
+        TilesetId::ShipPort => &[],
+        TilesetId::Cemetery => &[0x1B],
+        TilesetId::Interior => &[0x15, 0x55, 0x04],
+        TilesetId::Underground => &[0x13],
+        TilesetId::Cavern => &[0x18, 0x1A, 0x22],
+        TilesetId::Lobby => &[0x1A, 0x1C, 0x38],
+        TilesetId::Mansion => &[0x1A, 0x1C, 0x53],
+        TilesetId::Lab => &[0x34],
+        TilesetId::Club => &[],
+        TilesetId::Facility => &[0x43, 0x58, 0x20, 0x1B, 0x13],
+        TilesetId::Plateau => &[0x1B, 0x3B],
+    };
+    warp_tiles.contains(&standing_tile)
+}
+
+// ── Warp Carpet Tile IDs (for ExtraWarpCheck Function 2) ─────────────
+
+/// Directional warp carpet tile IDs from data/tilesets/warp_carpet_tile_ids.asm.
+/// Used by IsWarpTileInFrontOfPlayer (ExtraWarpCheck function 2) for
+/// OVERWORLD, SHIP, SHIP_PORT, PLATEAU tilesets and specific dungeon maps.
+/// `facing`: 0=Down, 1=Up, 2=Left, 3=Right (matches sprite facing / 4).
+pub fn is_warp_carpet_tile_in_front(facing: u8, tile_in_front: u8) -> bool {
+    let tiles: &[u8] = match facing {
+        0 => &[0x01, 0x12, 0x17, 0x3D, 0x04, 0x18, 0x33], // FacingDown
+        1 => &[0x01, 0x5C],                               // FacingUp
+        2 => &[0x1A, 0x4B],                               // FacingLeft
+        3 => &[0x0F, 0x4E],                               // FacingRight
+        _ => return false,
+    };
+    tiles.contains(&tile_in_front)
+}
+
 // ── Dark Cave Constants ──────────────────────────────────────────────
 
 /// The palette offset value for Rock Tunnel (dark cave).

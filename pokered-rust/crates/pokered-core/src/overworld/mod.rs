@@ -238,6 +238,12 @@ pub struct OverworldState {
     pub encounter_cooldown: u8,
     /// Remaining repel steps (0 = inactive).
     pub repel_steps: u16,
+    /// Whether the player is currently standing on a warp coordinate.
+    /// Equivalent to BIT_STANDING_ON_WARP in the original game's wMovementFlags.
+    /// Set when the player steps onto a warp position but the warp doesn't
+    /// fire immediately (e.g., indoor door mats that require walking further).
+    /// Checked on the next collision to trigger the warp.
+    pub standing_on_warp: bool,
 }
 
 impl OverworldState {
@@ -249,6 +255,7 @@ impl OverworldState {
             walk_counter: 0,
             encounter_cooldown: 0,
             repel_steps: 0,
+            standing_on_warp: false,
         }
     }
 }

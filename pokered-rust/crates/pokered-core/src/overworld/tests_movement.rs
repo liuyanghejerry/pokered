@@ -341,18 +341,39 @@ fn test_process_frame_continue_walk() {
 
 #[test]
 fn test_process_frame_warp_on_step_complete() {
-    let mut state = make_state();
+    // Test two-phase warp: stepping onto a warp position on an indoor map
+    // at the map edge with direction held should trigger the warp.
+    // This simulates walking down to y=7 on a 4×4 block (8 tile) indoor map.
+    let mut state = OverworldState::new(MapId::RedsHouse1F);
+    state.player.x = 2;
+    state.player.y = 6; // Will walk to y=7 (map edge for 4-block-tall map)
     state.player.movement_state = MovementState::Walking;
     state.player.facing = Direction::Down;
     state.walk_counter = 1;
-    let mut map = make_map();
+
+    let mut map = MapData {
+        id: MapId::RedsHouse1F,
+        width: 4,
+        height: 4,
+        tileset: TilesetId::RedsHouse1,
+        music: MusicId::PalletTown,
+        blocks: vec![0x0F; 16], // All floor blocks
+        warps: vec![],
+        npcs: vec![],
+        signs: vec![],
+        connections: MapConnections::default(),
+    };
     map.warps.push(WarpPoint {
-        x: 5,
-        y: 6,
-        target_map: MapId::RedsHouse1F,
+        x: 2,
+        y: 7,
+        target_map: MapId::PalletTown,
         target_warp_id: 0,
     });
-    let input = InputState::default();
+    // Direction held (Down) — player is at map edge facing out → ExtraWarpCheck function 1 passes
+    let input = InputState {
+        down: true,
+        ..Default::default()
+    };
     let result = process_frame(&mut state, &input, &map, 0x00, 0x00, &[]);
     assert_eq!(result, MoveResult::Warped { warp_index: 0 });
 }

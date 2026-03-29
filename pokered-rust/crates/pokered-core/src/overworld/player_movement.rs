@@ -6,9 +6,12 @@
 //! - engine/overworld/player_state.asm (player state transitions)
 
 use super::collision::{
-    check_movement_collision, check_warp_at_position, CollisionResult, SpritePosition,
+    check_movement_collision, check_warp_at_position, is_facing_map_edge, CollisionResult,
+    SpritePosition,
 };
 use super::{Direction, MapData, MovementState, OverworldState, TransportMode};
+use pokered_data::maps::MapId;
+use pokered_data::tileset_data;
 use pokered_data::tilesets::TilesetId;
 
 /// Walk counter initial value.
@@ -143,23 +146,19 @@ pub fn try_move(
 
     match result {
         CollisionResult::Passable => {
-            // Start walking
+            state.standing_on_warp = false;
             state.player.movement_state = MovementState::Walking;
             state.walk_counter = WALK_COUNTER_INIT;
             MoveResult::Walking
         }
         CollisionResult::LedgeJump => {
-            // Start ledge jump (two tiles in the facing direction)
+            state.standing_on_warp = false;
             state.player.movement_state = MovementState::Jumping;
-            state.walk_counter = WALK_COUNTER_INIT * 2; // Ledge jump takes 16 frames
+            state.walk_counter = WALK_COUNTER_INIT * 2;
             MoveResult::LedgeJump
         }
-        CollisionResult::MapEdge => {
-            // Signal that we need to check map connections
-            MoveResult::ReachedMapEdge
-        }
+        CollisionResult::MapEdge => MoveResult::ReachedMapEdge,
         _ => {
-            // Blocked — player just faces the direction
             if was_facing != direction {
                 MoveResult::TurnedOnly
             } else {
@@ -249,6 +248,130 @@ pub fn opposite_direction(dir: Direction) -> Direction {
     }
 }
 
+/// Convert Direction to the facing index used by warp carpet tile lookups.
+/// 0=Down, 1=Up, 2=Left, 3=Right (matches original sprite facing / 4).
+fn direction_to_facing_index(dir: Direction) -> u8 {
+    match dir {
+        Direction::Down => 0,
+        Direction::Up => 1,
+        Direction::Left => 2,
+        Direction::Right => 3,
+    }
+}
+
+/// Determine whether ExtraWarpCheck should use "function 2"
+/// (IsWarpTileInFrontOfPlayer) instead of the default "function 1"
+/// (IsPlayerFacingEdgeOfMap).
+///
+/// Ported from home/overworld.asm ExtraWarpCheck (line 719).
+/// Function 2 is used for: OVERWORLD, SHIP, SHIP_PORT, PLATEAU tilesets,
+/// plus ROCKET_HIDEOUT_B1F/B2F/B4F and ROCK_TUNNEL_1F maps.
+/// Exception: SS_ANNE_3F forces function 1 despite SHIP tileset.
+fn uses_warp_tile_in_front_check(map_id: MapId, tileset: TilesetId) -> bool {
+    if map_id == MapId::SSAnne3F {
+        return false;
+    }
+    matches!(
+        map_id,
+        MapId::RocketHideoutB1F
+            | MapId::RocketHideoutB2F
+            | MapId::RocketHideoutB4F
+            | MapId::RockTunnel1F
+    ) || matches!(
+        tileset,
+        TilesetId::Overworld | TilesetId::Ship | TilesetId::ShipPort | TilesetId::Plateau
+    )
+}
+
+/// ExtraWarpCheck equivalent from home/overworld.asm.
+/// Returns true if the extra warp condition passes.
+///
+/// For function 1 (most indoor maps): checks if the player is facing the map edge.
+/// For function 2 (overworld + special maps): checks if the tile in front of the
+/// player is a warp carpet tile for the current facing direction.
+/// Special case: SS_ANNE_BOW checks for tile 0x15 when facing any direction.
+fn extra_warp_check(map: &MapData, player_x: u16, player_y: u16, facing: Direction) -> bool {
+    if map.id == MapId::SSAnneBow {
+        let tile_in_front = get_target_tile_for_direction(map, player_x, player_y, facing);
+        return tile_in_front == 0x15;
+    }
+
+    if uses_warp_tile_in_front_check(map.id, map.tileset) {
+        let tile_in_front = get_target_tile_for_direction(map, player_x, player_y, facing);
+        let facing_idx = direction_to_facing_index(facing);
+        tileset_data::is_warp_carpet_tile_in_front(facing_idx, tile_in_front)
+    } else {
+        is_facing_map_edge(player_x, player_y, facing, map.width, map.height)
+    }
+}
+
+/// Two-phase warp check after a step completes onto a warp position.
+///
+/// Ported from home/overworld.asm CheckWarpsNoCollision (line 391).
+/// Phase 1: position matches warp → set BIT_STANDING_ON_WARP →
+///   check IsPlayerStandingOnDoorTileOrWarpTile → if door → immediate warp.
+///   If warp tile → clear standing_on_warp, fall through to ExtraWarpCheck.
+///   If neither → fall through to ExtraWarpCheck.
+/// Phase 2 (ExtraWarpCheck): if passes AND direction held → warp.
+///   Otherwise → don't warp (standing_on_warp remains set for collision path).
+fn check_warps_no_collision(
+    state: &mut OverworldState,
+    map: &MapData,
+    standing_tile: u8,
+    direction_held: bool,
+) -> Option<usize> {
+    let warp_idx = check_warp_at_position(state.player.x, state.player.y, map)?;
+
+    state.standing_on_warp = true;
+
+    // IsPlayerStandingOnDoorTileOrWarpTile
+    if tileset_data::is_door_tile(map.tileset, standing_tile) {
+        return Some(warp_idx);
+    }
+
+    if tileset_data::is_warp_tile(map.tileset, standing_tile) {
+        state.standing_on_warp = false;
+        // Fall through to ExtraWarpCheck
+    }
+    // If neither door nor warp tile, also fall through to ExtraWarpCheck
+
+    if extra_warp_check(map, state.player.x, state.player.y, state.player.facing) {
+        if direction_held {
+            return Some(warp_idx);
+        }
+    }
+
+    // Warp didn't fire — standing_on_warp stays set (unless cleared by warp tile path)
+    None
+}
+
+/// CheckWarpsCollision path: when collision occurs while standing_on_warp is set,
+/// run ExtraWarpCheck and if it passes, warp at current position.
+/// Ported from home/overworld.asm lines 244-257.
+fn check_collision_warp(
+    state: &mut OverworldState,
+    map: &MapData,
+    move_result: MoveResult,
+) -> MoveResult {
+    match move_result {
+        MoveResult::Blocked(_) | MoveResult::ReachedMapEdge => {
+            if state.standing_on_warp {
+                if extra_warp_check(map, state.player.x, state.player.y, state.player.facing) {
+                    if let Some(warp_idx) =
+                        check_warp_at_position(state.player.x, state.player.y, map)
+                    {
+                        return MoveResult::Warped {
+                            warp_index: warp_idx,
+                        };
+                    }
+                }
+            }
+            move_result
+        }
+        _ => move_result,
+    }
+}
+
 /// Process one frame of overworld movement.
 ///
 /// This is the high-level frame-by-frame update, combining input
@@ -272,24 +395,26 @@ pub fn process_frame(
     if state.player.movement_state != MovementState::Idle {
         let step_done = advance_step(state);
         if step_done {
-            // Check if we stepped onto a warp
-            if let Some(warp_idx) = check_warp_at_position(state.player.x, state.player.y, map) {
+            // Step complete — run two-phase warp check (CheckWarpsNoCollision)
+            let new_standing_tile = get_tile_at_position(map, state.player.x, state.player.y);
+            let direction_held = input.direction_pressed().is_some();
+
+            if let Some(warp_idx) =
+                check_warps_no_collision(state, map, new_standing_tile, direction_held)
+            {
                 return MoveResult::Warped {
                     warp_index: warp_idx,
                 };
             }
-            // Step complete - if direction still held, immediately start next step
-            // This matches original game behavior where holding direction continuously moves
+
+            // If direction still held, immediately start next step
             if let Some(direction) = input.direction_pressed() {
                 let held_input = input.to_pad_bits();
-                // Recalculate standing_tile from the NEW player position
-                let new_standing_tile = get_tile_at_position(map, state.player.x, state.player.y);
 
-                // Calculate new target tile
                 let new_target_tile =
                     get_target_tile_for_direction(map, state.player.x, state.player.y, direction);
 
-                return try_move(
+                let move_result = try_move(
                     state,
                     direction,
                     map.tileset,
@@ -300,6 +425,8 @@ pub fn process_frame(
                     npc_positions,
                     held_input,
                 );
+
+                return check_collision_warp(state, map, move_result);
             }
         }
         return MoveResult::StillMoving;
@@ -313,7 +440,7 @@ pub fn process_frame(
 
     let held_input = input.to_pad_bits();
 
-    try_move(
+    let move_result = try_move(
         state,
         direction,
         map.tileset,
@@ -323,7 +450,9 @@ pub fn process_frame(
         target_tile,
         npc_positions,
         held_input,
-    )
+    );
+
+    check_collision_warp(state, map, move_result)
 }
 
 /// Get the tile ID at a specific position in the map.
