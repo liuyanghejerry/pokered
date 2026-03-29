@@ -329,17 +329,25 @@ pub fn process_frame(
 /// Get the tile ID at a specific position in the map.
 /// Used for recalculating standing_tile after movement.
 pub fn get_tile_at_position(map: &MapData, x: u16, y: u16) -> u8 {
-    let block_x = (x / 4) as usize;
-    let block_y = (y / 4) as usize;
-    let sub_x = (x % 4) as usize;
-    let sub_y = (y % 4) as usize;
+    // Player coordinates are in step units (16px each).
+    // Each map block is 32×32px = 2×2 steps, so divide by 2 to get block index.
+    let block_x = (x / 2) as usize;
+    let block_y = (y / 2) as usize;
+    // Sub-position within the block: 0 = left/top half, 1 = right/bottom half
+    let sub_x = (x % 2) as usize;
+    let sub_y = (y % 2) as usize;
 
     if block_x < map.width as usize {
         let block_idx = block_y * (map.width as usize) + block_x;
         if block_idx < map.blocks.len() {
             let block_id = map.blocks[block_idx];
+            // Each block has a 4×4 tile grid (16 bytes, row-major). Each step
+            // position covers a 2×2 quadrant of tiles. The original game reads
+            // the bottom-left tile of each quadrant for collision (matching
+            // screen position (8,9) — the player's feet row in wTileMap).
+            // Index formula: (sub_y * 2 + 1) * 4 + sub_x * 2
             return pokered_data::blockset_data::block_tiles(map.tileset, block_id)
-                .map(|t| t[sub_y * 4 + sub_x])
+                .map(|t| t[(sub_y * 2 + 1) * 4 + sub_x * 2])
                 .unwrap_or(0);
         }
     }
@@ -351,17 +359,19 @@ fn get_target_tile_for_direction(map: &MapData, x: u16, y: u16, dir: Direction) 
     let target_x = ((x as i32) + dx as i32).max(0) as u16;
     let target_y = ((y as i32) + dy as i32).max(0) as u16;
 
-    let block_x = (target_x / 4) as usize;
-    let block_y = (target_y / 4) as usize;
-    let sub_x = (target_x % 4) as usize;
-    let sub_y = (target_y % 4) as usize;
+    // Player coordinates are in step units (16px each).
+    // Each map block is 32×32px = 2×2 steps.
+    let block_x = (target_x / 2) as usize;
+    let block_y = (target_y / 2) as usize;
+    let sub_x = (target_x % 2) as usize;
+    let sub_y = (target_y % 2) as usize;
 
     if block_x < map.width as usize {
         let block_idx = block_y * (map.width as usize) + block_x;
         if block_idx < map.blocks.len() {
             let block_id = map.blocks[block_idx];
             return pokered_data::blockset_data::block_tiles(map.tileset, block_id)
-                .map(|t| t[sub_y * 4 + sub_x])
+                .map(|t| t[(sub_y * 2 + 1) * 4 + sub_x * 2])
                 .unwrap_or(0);
         }
     }

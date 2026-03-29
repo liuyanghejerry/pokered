@@ -275,12 +275,9 @@ pub fn is_facing_map_edge(
 /// This function checks if the player's current position matches
 /// any warp point in the map data.
 ///
-/// Warp coordinates are in tile units. Each warp covers a 2x2 tile area.
+/// Warp coordinates and player coordinates are both in step units.
 pub fn check_warp_at_position(x: u16, y: u16, map: &MapData) -> Option<usize> {
-    map.warps.iter().position(|w| {
-        // Warp coords are in tile units, covering a 2x2 tile area
-        let warp_x = (w.x as u16);
-        let warp_y = (w.y as u16);
-        x >= warp_x && x < warp_x + 2 && y >= warp_y && y < warp_y + 2
-    })
+    map.warps
+        .iter()
+        .position(|w| w.x as u16 == x && w.y as u16 == y)
 }

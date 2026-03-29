@@ -400,17 +400,20 @@ impl OverworldScreen {
 
         let get_tile_id_at_position =
             |blocks: &[u8], width: u8, tileset: TilesetId, x: u16, y: u16| -> u8 {
-                let block_x = (x / 4) as usize;
-                let block_y = (y / 4) as usize;
-                let sub_x = (x % 4) as usize;
-                let sub_y = (y % 4) as usize;
+                // Player coordinates are in step units (16px each).
+                // Each map block is 32×32px = 2×2 steps.
+                let block_x = (x / 2) as usize;
+                let block_y = (y / 2) as usize;
+                let sub_x = (x % 2) as usize;
+                let sub_y = (y % 2) as usize;
 
                 if block_x < width as usize {
                     let block_idx = block_y * (width as usize) + block_x;
                     if block_idx < blocks.len() {
                         let block_id = blocks[block_idx];
+                        // Bottom-left tile of the step's 2×2 quadrant (matches original wTileMap lookup)
                         return blockset_data::block_tiles(tileset, block_id)
-                            .map(|t| t[sub_y * 4 + sub_x])
+                            .map(|t| t[(sub_y * 2 + 1) * 4 + sub_x * 2])
                             .unwrap_or(0);
                     }
                 }

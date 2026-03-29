@@ -17,8 +17,11 @@ pub fn draw_overworld(
     fb.clear(Rgba::WHITE);
     let pal = &GRAYSCALE_PALETTE;
 
-    let player_tx = screen.state.player.x as i32;
-    let player_ty = screen.state.player.y as i32;
+    // Player coordinates are in step units (16px, 2 per block).
+    // The renderer works in tile units (8px, 4 per block).
+    // Multiply by 2 to convert steps → tiles.
+    let player_tx = screen.state.player.x as i32 * 2;
+    let player_ty = screen.state.player.y as i32 * 2;
     let screen_center_tx = 9_i32;
     let screen_center_ty = 8_i32;
     let view_origin_tx = player_tx - screen_center_tx;
@@ -152,8 +155,9 @@ pub fn draw_overworld(
                     let base_tile = frame * 4;
                     let tpr = cached.source_size.0 / TILE_SIZE;
 
-                    let npc_screen_x = (npc.x as i32 - view_origin_tx) as i32;
-                    let npc_screen_y = (npc.y as i32 - view_origin_ty) as i32;
+                    // NPC coordinates are in step units; convert to tile units (* 2)
+                    let npc_screen_x = (npc.x as i32 * 2 - view_origin_tx) as i32;
+                    let npc_screen_y = (npc.y as i32 * 2 - view_origin_ty) as i32;
 
                     if npc_screen_x < 0
                         || npc_screen_x >= 20

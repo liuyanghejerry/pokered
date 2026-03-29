@@ -165,27 +165,19 @@ pub struct WarpTransition {
 /// the game loads the destination map and positions the player at the
 /// destination warp's coordinates.
 ///
-/// Warp coordinates are in 2x2 meta-tile units, so a warp at (7, 1)
-/// covers tiles (14-15, 2-3). Player coordinates are in tile units.
+/// Warp coordinates and player coordinates are both in step units
+/// (2 per block, matching the original game's wXCoord/wYCoord).
 ///
 /// # Arguments
 /// - `current_map` — the map the player is on
-/// - `px`, `py` — player's tile coordinates
+/// - `px`, `py` — player's step coordinates
 ///
 /// # Returns
 /// `Some(WarpTransition)` if standing on a warp, `None` otherwise.
 pub fn check_warp_at(current_map: MapId, px: u8, py: u8) -> Option<WarpTransition> {
     let warps = get_map_warps(current_map);
     for warp in warps {
-        // Warp coords are already in tile units
-        let warp_x = warp.x as u16;
-        let warp_y = warp.y as u16;
-        // Check if player is within the 2x2 warp area
-        if (px as u16) >= warp_x
-            && (px as u16) < warp_x + 2
-            && (py as u16) >= warp_y
-            && (py as u16) < warp_y + 2
-        {
+        if (px as u16) == warp.x as u16 && (py as u16) == warp.y as u16 {
             return Some(WarpTransition {
                 new_map: warp.dest_map.unwrap_or(current_map),
                 dest_warp_id: warp.dest_warp_id,
@@ -202,21 +194,19 @@ pub fn check_warp_at(current_map: MapId, px: u8, py: u8) -> Option<WarpTransitio
 /// When warping, the game places the player at the position of the
 /// destination warp (indexed by dest_warp_id) in the target map.
 ///
-/// Warp coordinates are in 2x2 meta-tile units, so they are multiplied
-/// by 2 to return tile coordinates.
+/// Warp coordinates are in step units, returned directly.
 ///
 /// # Arguments
 /// - `dest_map` — the destination map
 /// - `dest_warp_id` — the warp index in the destination map (0-based)
 ///
 /// # Returns
-/// `Some((x, y))` tile coordinates of the destination warp, or `None`
+/// `Some((x, y))` step coordinates of the destination warp, or `None`
 /// if the warp index is out of bounds.
 pub fn resolve_warp_destination(dest_map: MapId, dest_warp_id: u8) -> Option<(u8, u8)> {
     let warps = get_map_warps(dest_map);
     let idx = dest_warp_id as usize;
     if idx < warps.len() {
-        // Warp coords are already in tile units, not meta-tile units
         Some((warps[idx].x, warps[idx].y))
     } else {
         None
