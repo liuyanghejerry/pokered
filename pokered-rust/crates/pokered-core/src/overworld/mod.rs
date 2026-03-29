@@ -46,6 +46,7 @@ mod tests_wild_encounters;
 use pokered_data::blockset_data;
 use pokered_data::maps::MapId;
 use pokered_data::music::MusicId;
+use pokered_data::tileset_data;
 use pokered_data::tilesets::TilesetId;
 
 // ── Direction ──────────────────────────────────────────────────────
@@ -350,6 +351,8 @@ pub struct OverworldScreen {
     pub pending_dialogue: Option<BedroomDialogue>,
     /// Frames remaining to show map name (0 = hidden).
     pub map_name_timer: u8,
+    /// Previous map the player came from (for LAST_MAP warps, e.g. exiting buildings).
+    pub last_map: Option<MapId>,
 }
 
 const MAP_NAME_DISPLAY_FRAMES: u8 = 120;
@@ -362,6 +365,7 @@ impl OverworldScreen {
             map_data,
             pending_dialogue: None,
             map_name_timer: 0,
+            last_map: Some(MapId::PalletTown),
         }
     }
 
@@ -439,7 +443,14 @@ impl OverworldScreen {
                 standing_tile
             };
 
-            let npc_positions: Vec<collision::SpritePosition> = Vec::new();
+            let npc_positions: Vec<collision::SpritePosition> = map
+                .npcs
+                .iter()
+                .map(|npc| collision::SpritePosition {
+                    x: npc.x as u16,
+                    y: npc.y as u16,
+                })
+                .collect();
 
             let result = player_movement::process_frame(
                 &mut self.state,
@@ -451,30 +462,24 @@ impl OverworldScreen {
             );
 
             match result {
-                MoveResult::Warped { warp_index } => {
-                    let warp_info = self.map_data.as_ref().and_then(|m| {
-                        if warp_index < m.warps.len() {
-                            Some((
-                                m.warps[warp_index].target_map,
-                                m.warps[warp_index].target_warp_id,
-                            ))
-                        } else {
-                            None
+                MoveResult::Warped { warp_index: _ } => {
+                    if let Some((dest_map, warp_x, warp_y)) = map_transitions::execute_warp(
+                        self.state.current_map,
+                        self.state.player.x as u8,
+                        self.state.player.y as u8,
+                        self.last_map,
+                    ) {
+                        if tileset_data::is_outside_tileset(map.tileset) {
+                            self.last_map = Some(self.state.current_map);
                         }
-                    });
 
-                    if let Some((target_map, target_warp_id)) = warp_info {
-                        let dest_warp_coords =
-                            map_transitions::resolve_warp_destination(target_map, target_warp_id)
-                                .unwrap_or((0, 0));
+                        self.state.current_map = dest_map;
+                        self.state.player.x = warp_x as u16;
+                        self.state.player.y = warp_y as u16;
 
-                        self.state.current_map = target_map;
-                        self.state.player.x = dest_warp_coords.0 as u16;
-                        self.state.player.y = dest_warp_coords.1 as u16;
+                        self.map_data = Some(map_data_loading::load_full_map_data(dest_map));
 
-                        self.map_data = Some(map_data_loading::load_full_map_data(target_map));
-
-                        if !target_map.is_indoor() {
+                        if !dest_map.is_indoor() {
                             self.map_name_timer = MAP_NAME_DISPLAY_FRAMES;
                         }
                     }
@@ -488,6 +493,9 @@ impl OverworldScreen {
                             dir,
                         ) {
                             let new_map = transition.new_map;
+                            if tileset_data::is_outside_tileset(map.tileset) {
+                                self.last_map = Some(self.state.current_map);
+                            }
                             self.state.current_map = new_map;
                             self.map_data = Some(map_data_loading::load_full_map_data(new_map));
                             self.state.player.x = transition.new_x;
