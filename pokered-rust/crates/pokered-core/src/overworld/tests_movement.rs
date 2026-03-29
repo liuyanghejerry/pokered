@@ -346,14 +346,14 @@ fn test_process_frame_warp_on_step_complete() {
     state.player.facing = Direction::Down;
     state.walk_counter = 1;
     let mut map = make_map();
+    // Warp at (2, 3) in meta-tile units covers tiles (4-5, 6-7)
+    // Player at (5, 5) facing down moves to (5, 6) which is in warp area
     map.warps.push(WarpPoint {
-        x: 5,
-        y: 6,
+        x: 2,
+        y: 3,
         target_map: MapId::RedsHouse1F,
         target_warp_id: 0,
     });
-    // Player at (5,5), facing down, walk counter=1 -> step completes to (5,6)
-    // Warp at tile (5,6) should match when player steps onto it
     let input = InputState::default();
     let result = process_frame(&mut state, &input, &map, 0x00, 0x00, &[]);
     assert_eq!(result, MoveResult::Warped { warp_index: 0 });

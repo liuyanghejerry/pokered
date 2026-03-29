@@ -303,11 +303,15 @@
                 }
             }
             
-            // Warps
+            // Warps - coordinates are in 2x2 meta-tile units
+            // So actual tile position = warp.x * 2, warp.y * 2
             if (showWarps && map.warps) {
                 map.warps.forEach(warp => {
-                    const px = warp.x * TILE_SIZE;
-                    const py = warp.y * TILE_SIZE;
+                    // Convert from 2x2 meta-tile coords to tile coords
+                    const tileX = warp.x * 2;
+                    const tileY = warp.y * 2;
+                    const px = tileX * TILE_SIZE;
+                    const py = tileY * TILE_SIZE;
                     ctx.fillStyle = 'rgba(52, 152, 219, 0.8)';
                     ctx.fillRect(px, py, TILE_SIZE * 2, TILE_SIZE * 2);
                     ctx.strokeStyle = '#3498db';
@@ -321,12 +325,26 @@
         }
         
         function updateMapInfo(map) {
+            let warpInfo = '';
+            if (map.warps && map.warps.length > 0) {
+                warpInfo = '<p><b>Warps:</b></p>';
+                map.warps.forEach((warp, i) => {
+                    const tileX = warp.x * 2;
+                    const tileY = warp.y * 2;
+                    warpInfo += `<p style="margin-left:10px">Warp ${i}: tiles (${tileX}-${tileX+1}, ${tileY}-${tileY+1})`;
+                    if (warp.dest_map_name) {
+                        warpInfo += ` → ${warp.dest_map_name}`;
+                    }
+                    warpInfo += '</p>';
+                });
+            }
             document.getElementById('mapInfo').innerHTML = `
                 <p><b>${map.name}</b></p>
                 <p>ID: <code>0x${map.id.toString(16).padStart(2, '0')}</code></p>
                 <p>Size: ${map.width}x${map.height} blocks</p>
+                <p>Tiles: ${map.width * 4}x${map.height * 4}</p>
                 <p>Tileset: ${map.tileset_name}</p>
-                <p>Warps: ${map.warps ? map.warps.length : 0}</p>
+                ${warpInfo}
                 <p>Passable tiles: ${map.passable_tiles.length}</p>
             `;
         }

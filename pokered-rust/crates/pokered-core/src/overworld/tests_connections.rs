@@ -322,8 +322,8 @@ fn test_indoor_map_no_connections() {
 
 #[test]
 fn test_check_warp_pallet_town_reds_house() {
-    // PalletTown warp at (5,5) → RedsHouse1F
-    let warp = check_warp_at(MapId::PalletTown, 5, 5);
+    // PalletTown warp at (5,5) in 2x2 meta-tile units → tiles (10-11, 10-11)
+    let warp = check_warp_at(MapId::PalletTown, 10, 10);
     assert!(warp.is_some());
     let w = warp.unwrap();
     assert_eq!(w.new_map, MapId::RedsHouse1F);
@@ -333,8 +333,8 @@ fn test_check_warp_pallet_town_reds_house() {
 
 #[test]
 fn test_check_warp_oaks_lab() {
-    // PalletTown warp at (12,11) → OaksLab
-    let warp = check_warp_at(MapId::PalletTown, 12, 11);
+    // PalletTown warp at (12,11) in 2x2 meta-tile units → tiles (24-25, 22-23)
+    let warp = check_warp_at(MapId::PalletTown, 24, 22);
     assert!(warp.is_some());
     let w = warp.unwrap();
     assert_eq!(w.new_map, MapId::OaksLab);
@@ -350,8 +350,8 @@ fn test_check_warp_no_warp() {
 
 #[test]
 fn test_check_warp_last_map() {
-    // RedsHouse1F warp at (2,7) → LAST_MAP (dest_map=None)
-    let warp = check_warp_at(MapId::RedsHouse1F, 2, 7);
+    // RedsHouse1F warp at (2,7) in 2x2 meta-tile units → tiles (4-5, 14-15)
+    let warp = check_warp_at(MapId::RedsHouse1F, 4, 14);
     assert!(warp.is_some());
     let w = warp.unwrap();
     assert!(w.is_last_map);
@@ -359,13 +359,13 @@ fn test_check_warp_last_map() {
 
 #[test]
 fn test_resolve_warp_destination() {
-    // RedsHouse1F warp 0 is at (2,7)
+    // RedsHouse1F warp 0 is at (2,7) in meta-tile units → tile (4, 14)
     let pos = resolve_warp_destination(MapId::RedsHouse1F, 0);
-    assert_eq!(pos, Some((2, 7)));
+    assert_eq!(pos, Some((4, 14)));
 
-    // RedsHouse1F warp 2 is at (7,1) — stairs
+    // RedsHouse1F warp 2 is at (7,1) in meta-tile units → tile (14, 2)
     let pos = resolve_warp_destination(MapId::RedsHouse1F, 2);
-    assert_eq!(pos, Some((7, 1)));
+    assert_eq!(pos, Some((14, 2)));
 }
 
 #[test]
@@ -376,54 +376,57 @@ fn test_resolve_warp_out_of_bounds() {
 
 #[test]
 fn test_execute_warp_full() {
-    // Enter Red's House from PalletTown (5,5) → dest is RedsHouse1F warp 0 at (2,7)
-    let result = execute_warp(MapId::PalletTown, 5, 5, None);
+    // Enter Red's House from PalletTown: warp (5,5) covers tiles (10-11, 10-11)
+    // Dest is RedsHouse1F warp 0 at (2,7) → tile (4, 14)
+    let result = execute_warp(MapId::PalletTown, 10, 10, None);
     assert!(result.is_some());
     let (map, x, y) = result.unwrap();
     assert_eq!(map, MapId::RedsHouse1F);
-    assert_eq!(x, 2);
-    assert_eq!(y, 7);
+    assert_eq!(x, 4);
+    assert_eq!(y, 14);
 }
 
 #[test]
 fn test_execute_warp_last_map() {
-    // Exit RedsHouse1F through door at (2,7) → LAST_MAP
-    // If last_map is PalletTown, should warp to PalletTown warp 0 at (5,5)
-    let result = execute_warp(MapId::RedsHouse1F, 2, 7, Some(MapId::PalletTown));
+    // Exit RedsHouse1F through door: warp (2,7) covers tiles (4-5, 14-15)
+    // If last_map is PalletTown, should warp to PalletTown warp 0 at (5,5) → tile (10, 10)
+    let result = execute_warp(MapId::RedsHouse1F, 4, 14, Some(MapId::PalletTown));
     assert!(result.is_some());
     let (map, x, y) = result.unwrap();
     assert_eq!(map, MapId::PalletTown);
-    assert_eq!(x, 5); // PalletTown warp 0 position
-    assert_eq!(y, 5);
+    assert_eq!(x, 10);
+    assert_eq!(y, 10);
 }
 
 #[test]
 fn test_execute_warp_last_map_none_returns_none() {
     // LAST_MAP warp with no last_map info → should return None
-    let result = execute_warp(MapId::RedsHouse1F, 2, 7, None);
+    let result = execute_warp(MapId::RedsHouse1F, 4, 14, None);
     assert!(result.is_none());
 }
 
 #[test]
 fn test_execute_warp_stairs_reds_house() {
-    // Go upstairs: RedsHouse1F (7,1) → RedsHouse2F warp 0 at (7,1)
-    let result = execute_warp(MapId::RedsHouse1F, 7, 1, None);
+    // Go upstairs: RedsHouse1F warp (7,1) covers tiles (14-15, 2-3)
+    // → RedsHouse2F warp 0 at (7,1) → tile (14, 2)
+    let result = execute_warp(MapId::RedsHouse1F, 14, 2, None);
     assert!(result.is_some());
     let (map, x, y) = result.unwrap();
     assert_eq!(map, MapId::RedsHouse2F);
-    assert_eq!(x, 7);
-    assert_eq!(y, 1);
+    assert_eq!(x, 14);
+    assert_eq!(y, 2);
 }
 
 #[test]
 fn test_execute_warp_stairs_down() {
-    // Go downstairs: RedsHouse2F (7,1) → RedsHouse1F warp 2 at (7,1)
-    let result = execute_warp(MapId::RedsHouse2F, 7, 1, None);
+    // Go downstairs: RedsHouse2F warp (7,1) covers tiles (14-15, 2-3)
+    // → RedsHouse1F warp 2 at (7,1) → tile (14, 2)
+    let result = execute_warp(MapId::RedsHouse2F, 14, 2, None);
     assert!(result.is_some());
     let (map, x, y) = result.unwrap();
     assert_eq!(map, MapId::RedsHouse1F);
-    assert_eq!(x, 7);
-    assert_eq!(y, 1);
+    assert_eq!(x, 14);
+    assert_eq!(y, 2);
 }
 
 #[test]
