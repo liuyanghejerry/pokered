@@ -282,10 +282,8 @@ pub fn process_frame(
             // This matches original game behavior where holding direction continuously moves
             if let Some(direction) = input.direction_pressed() {
                 let held_input = input.to_pad_bits();
-                let new_standing_tile = standing_tile;
-                let (dx, dy) = direction_delta(direction);
-                let target_x = ((state.player.x as i32) + dx as i32).max(0) as u16;
-                let target_y = ((state.player.y as i32) + dy as i32).max(0) as u16;
+                // Recalculate standing_tile from the NEW player position
+                let new_standing_tile = get_tile_at_position(map, state.player.x, state.player.y);
 
                 // Calculate new target tile
                 let new_target_tile =
@@ -326,6 +324,26 @@ pub fn process_frame(
         npc_positions,
         held_input,
     )
+}
+
+/// Get the tile ID at a specific position in the map.
+/// Used for recalculating standing_tile after movement.
+pub fn get_tile_at_position(map: &MapData, x: u16, y: u16) -> u8 {
+    let block_x = (x / 4) as usize;
+    let block_y = (y / 4) as usize;
+    let sub_x = (x % 4) as usize;
+    let sub_y = (y % 4) as usize;
+
+    if block_x < map.width as usize {
+        let block_idx = block_y * (map.width as usize) + block_x;
+        if block_idx < map.blocks.len() {
+            let block_id = map.blocks[block_idx];
+            return pokered_data::blockset_data::block_tiles(map.tileset, block_id)
+                .map(|t| t[sub_y * 4 + sub_x])
+                .unwrap_or(0);
+        }
+    }
+    0
 }
 
 fn get_target_tile_for_direction(map: &MapData, x: u16, y: u16, dir: Direction) -> u8 {

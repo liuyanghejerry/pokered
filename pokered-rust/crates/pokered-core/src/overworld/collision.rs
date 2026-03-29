@@ -268,22 +268,19 @@ pub fn is_facing_map_edge(
     .is_none()
 }
 
-/// Check if a tile is a door/warp tile.
+/// Check if the player is standing on a warp tile.
 /// In the original game, stepping onto certain tiles triggers warps.
 /// The warp tiles are defined per-map in the map objects data.
 ///
 /// This function checks if the player's current position matches
 /// any warp point in the map data.
 ///
-/// Warp coordinates from map_objects.rs are in 2x2 meta-tile units,
-/// so they must be multiplied by 2 to match player tile coordinates.
-/// A warp at (7, 1) covers tiles (14-15, 2-3).
+/// Warp coordinates are in tile units. Each warp covers a 2x2 tile area.
 pub fn check_warp_at_position(x: u16, y: u16, map: &MapData) -> Option<usize> {
     map.warps.iter().position(|w| {
-        // Convert warp coords from 2x2 meta-tile units to tile units
-        let warp_tile_x = (w.x as u16) * 2;
-        let warp_tile_y = (w.y as u16) * 2;
-        // Warp covers a 2x2 tile area
-        x >= warp_tile_x && x < warp_tile_x + 2 && y >= warp_tile_y && y < warp_tile_y + 2
+        // Warp coords are in tile units, covering a 2x2 tile area
+        let warp_x = (w.x as u16);
+        let warp_y = (w.y as u16);
+        x >= warp_x && x < warp_x + 2 && y >= warp_y && y < warp_y + 2
     })
 }

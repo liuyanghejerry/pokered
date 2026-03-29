@@ -177,14 +177,14 @@ pub struct WarpTransition {
 pub fn check_warp_at(current_map: MapId, px: u8, py: u8) -> Option<WarpTransition> {
     let warps = get_map_warps(current_map);
     for warp in warps {
-        // Convert warp coords from 2x2 meta-tile units to tile units
-        let warp_tile_x = (warp.x as u16) * 2;
-        let warp_tile_y = (warp.y as u16) * 2;
+        // Warp coords are already in tile units
+        let warp_x = warp.x as u16;
+        let warp_y = warp.y as u16;
         // Check if player is within the 2x2 warp area
-        if (px as u16) >= warp_tile_x
-            && (px as u16) < warp_tile_x + 2
-            && (py as u16) >= warp_tile_y
-            && (py as u16) < warp_tile_y + 2
+        if (px as u16) >= warp_x
+            && (px as u16) < warp_x + 2
+            && (py as u16) >= warp_y
+            && (py as u16) < warp_y + 2
         {
             return Some(WarpTransition {
                 new_map: warp.dest_map.unwrap_or(current_map),
@@ -216,8 +216,8 @@ pub fn resolve_warp_destination(dest_map: MapId, dest_warp_id: u8) -> Option<(u8
     let warps = get_map_warps(dest_map);
     let idx = dest_warp_id as usize;
     if idx < warps.len() {
-        // Convert from 2x2 meta-tile coords to tile coords
-        Some((warps[idx].x * 2, warps[idx].y * 2))
+        // Warp coords are already in tile units, not meta-tile units
+        Some((warps[idx].x, warps[idx].y))
     } else {
         None
     }
