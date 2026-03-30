@@ -3,7 +3,7 @@ use pokered_core::data::sprites::SpriteId;
 use pokered_core::data::{blockset_data, map_blocks, map_data::MAP_HEADER_DATA};
 use pokered_core::overworld::{Direction, MovementState, OverworldScreen};
 use pokered_renderer::embedded_font::draw_text;
-use pokered_renderer::palette::GRAYSCALE_PALETTE;
+use pokered_renderer::palette::{Palette, GRAYSCALE_PALETTE};
 use pokered_renderer::resource::ResourceManager;
 use pokered_renderer::{FrameBuffer, Rgba, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE};
 
@@ -16,6 +16,14 @@ pub fn draw_overworld(
 ) {
     fb.clear(Rgba::WHITE);
     let pal = &GRAYSCALE_PALETTE;
+
+    // Sprite palette: color 0 is transparent (matches Game Boy OBP0/OBP1 behavior).
+    let sprite_pal = Palette::new([
+        Rgba::TRANSPARENT,
+        Rgba::rgb(0xAA, 0xAA, 0xAA),
+        Rgba::rgb(0x55, 0x55, 0x55),
+        Rgba::rgb(0x00, 0x00, 0x00),
+    ]);
 
     // Player coordinates are in step units (16px, 2 per block).
     // The renderer works in tile units (8px, 4 per block).
@@ -118,7 +126,7 @@ pub fn draw_overworld(
                         tile_idx,
                         player_px_x + col * TILE_SIZE,
                         player_px_y + row * TILE_SIZE,
-                        pal,
+                        &sprite_pal,
                         flip_h,
                     );
                 }
@@ -185,7 +193,7 @@ pub fn draw_overworld(
                                 tile_idx,
                                 npc_px_x + col * TILE_SIZE,
                                 npc_px_y + row * TILE_SIZE,
-                                pal,
+                                &sprite_pal,
                                 flip_h,
                             );
                         }
