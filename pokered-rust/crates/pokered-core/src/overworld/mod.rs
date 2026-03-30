@@ -244,6 +244,15 @@ pub struct OverworldState {
     /// fire immediately (e.g., indoor door mats that require walking further).
     /// Checked on the next collision to trigger the warp.
     pub standing_on_warp: bool,
+    /// Whether the player just warped onto a door tile and needs to auto-step off.
+    /// Equivalent to BIT_STANDING_ON_DOOR in the original game's wMovementFlags.
+    /// Set by commit_pending_warp when the destination tile is a door/cave tile.
+    /// Consumed by update_frame to inject a simulated DOWN press (PlayerStepOutFromDoor).
+    pub standing_on_door: bool,
+    /// Whether the player is currently performing the auto-step out of a door.
+    /// Equivalent to BIT_EXITING_DOOR in the original game. While true, real
+    /// player input is ignored and a simulated DOWN movement is in progress.
+    pub exiting_door: bool,
 }
 
 impl OverworldState {
@@ -256,6 +265,8 @@ impl OverworldState {
             encounter_cooldown: 0,
             repel_steps: 0,
             standing_on_warp: false,
+            standing_on_door: false,
+            exiting_door: false,
         }
     }
 }
@@ -453,6 +464,20 @@ impl OverworldScreen {
             if !warp.dest_map.is_indoor() {
                 self.map_name_timer = MAP_NAME_DISPLAY_FRAMES;
             }
+
+            // PlayerStepOutFromDoor: if the player landed on a door tile,
+            // flag it so update_frame will auto-walk one step down.
+            if let Some(map) = &self.map_data {
+                let tile = player_movement::get_tile_at_position(
+                    map,
+                    self.state.player.x,
+                    self.state.player.y,
+                );
+                if doors_elevators::is_standing_on_door(map.tileset, tile) {
+                    self.state.standing_on_door = true;
+                    self.state.player.facing = Direction::Down;
+                }
+            }
         }
     }
 
@@ -486,6 +511,30 @@ impl OverworldScreen {
                 return ScreenAction::Continue;
             }
             WarpFadeState::Idle => {}
+        }
+
+        // Door exit auto-step (PlayerStepOutFromDoor / BIT_EXITING_DOOR).
+        // When exiting_door is active, advance the walk animation ignoring real input.
+        if self.state.exiting_door {
+            if self.state.player.movement_state != MovementState::Idle {
+                let step_done = player_movement::advance_step(&mut self.state);
+                if step_done {
+                    self.state.exiting_door = false;
+                }
+            } else {
+                self.state.exiting_door = false;
+            }
+            return ScreenAction::Continue;
+        }
+
+        // Initiate the auto-step when standing_on_door is flagged after a warp.
+        if self.state.standing_on_door {
+            self.state.standing_on_door = false;
+            self.state.player.facing = Direction::Down;
+            self.state.player.movement_state = MovementState::Walking;
+            self.state.walk_counter = player_movement::WALK_COUNTER_INIT;
+            self.state.exiting_door = true;
+            return ScreenAction::Continue;
         }
 
         // While a dialogue box is active, consume A-button to advance pages;
