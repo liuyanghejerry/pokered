@@ -5,6 +5,7 @@ pub mod ser_pokemon;
 pub mod serialization;
 pub mod sram_deser;
 pub mod sram_deser_game_data;
+pub mod sram_export;
 pub mod sram_import;
 pub mod sram_layout;
 
@@ -61,7 +62,7 @@ impl SaveData {
         calc_checksum(&data)
     }
 
-    fn serialize_checksummed_region(&self) -> Vec<u8> {
+    pub fn serialize_checksummed_region(&self) -> Vec<u8> {
         let mut buf = Vec::new();
         buf.extend_from_slice(&self.player_name);
         ser_game_data::serialize_game_data_into(&self.game_data, &mut buf);

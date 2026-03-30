@@ -3,12 +3,15 @@ use pokered_audio::sfx_data::SfxId;
 use pokered_core::battle::{BattleInput, BattleScreen};
 use pokered_core::data::maps::MapId;
 use pokered_core::data::wild_data::GameVersion;
-use pokered_core::game_state::{GameScreen, GameState, ScreenAction};
+use pokered_core::game_state::{GameScreen, GameState, SaveFileSummary, ScreenAction};
 use pokered_core::main_menu::{MainMenuState, MenuInput};
 use pokered_core::naming_screen::NamingInput;
 use pokered_core::oak_speech::{OakSpeechInput, OakSpeechResult, OakSpeechState};
 use pokered_core::options_menu::{GameOptions, OptionsInput, OptionsMenuResult, OptionsMenuState};
 use pokered_core::overworld::{OverworldInput, OverworldScreen};
+use pokered_core::save::sram_export::export_sram;
+use pokered_core::save::sram_import::import_sram;
+use pokered_core::save::SaveData;
 use pokered_core::save_menu::{SaveMenuResult, SaveMenuState, SaveScreenInfo, YesNoInput};
 use pokered_core::start_menu::{StartMenuAction, StartMenuInput, StartMenuState};
 use pokered_core::title_screen::TitleScreenState;
@@ -23,6 +26,15 @@ use crate::render::{
     draw_save_menu, draw_start_menu, draw_title_screen,
 };
 
+const SAVE_FILE_NAME: &str = "pokered.sav";
+
+fn save_file_path() -> std::path::PathBuf {
+    std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.join(SAVE_FILE_NAME)))
+        .unwrap_or_else(|| std::path::PathBuf::from(SAVE_FILE_NAME))
+}
+
 pub struct PokemonGame {
     pub state: GameState,
     pub title_screen: TitleScreenState,
@@ -33,6 +45,7 @@ pub struct PokemonGame {
     pub start_menu: StartMenuState,
     pub options_menu: OptionsMenuState,
     pub save_menu: SaveMenuState,
+    pub save_data: SaveData,
     pub player_name: String,
     pub rival_name: String,
     pub frame_count: u64,
@@ -44,9 +57,14 @@ pub struct PokemonGame {
 
 impl PokemonGame {
     pub fn new(version: GameVersion) -> Self {
-        let state = GameState::new(version);
+        let (save_data, save_summary) = Self::try_load_save();
+        let state = GameState {
+            screen: GameScreen::CopyrightSplash,
+            config: pokered_core::game_state::GameConfig::new(version),
+            save_summary: save_summary.clone(),
+        };
         let title_screen = TitleScreenState::new(version);
-        let main_menu = MainMenuState::new(None);
+        let main_menu = MainMenuState::new(save_summary);
         let oak_speech = OakSpeechState::new();
         let overworld = OverworldScreen::new(MapId::PalletTown);
         let battle = BattleScreen::new(true);
@@ -98,6 +116,7 @@ impl PokemonGame {
             start_menu,
             options_menu,
             save_menu,
+            save_data,
             player_name: "RED".to_string(),
             rival_name: "BLUE".to_string(),
             frame_count: 0,
@@ -105,6 +124,58 @@ impl PokemonGame {
             resources,
             #[cfg(not(target_arch = "wasm32"))]
             audio,
+        }
+    }
+
+    fn try_load_save() -> (SaveData, Option<SaveFileSummary>) {
+        let path = save_file_path();
+        let data = match std::fs::read(&path) {
+            Ok(d) => d,
+            Err(_) => return (SaveData::new(), None),
+        };
+        match import_sram(&data) {
+            Ok(save) => {
+                let summary = SaveFileSummary {
+                    player_name: save.player_name.clone(),
+                    badges: save.game_data.obtained_badges,
+                    pokedex_owned: save.game_data.pokedex.owned_count() as u8,
+                    play_time_hours: save.game_data.play_time.hours as u16,
+                    play_time_minutes: save.game_data.play_time.minutes,
+                    play_time_seconds: save.game_data.play_time.seconds,
+                };
+                eprintln!("Save file loaded: {:?}", path);
+                (save, Some(summary))
+            }
+            Err(e) => {
+                eprintln!("Warning: save file exists but failed to load: {:?}", e);
+                (SaveData::new(), None)
+            }
+        }
+    }
+
+    fn build_save_data(&self) -> SaveData {
+        let mut save = self.save_data.clone();
+        if let Some(encoded) = pokered_data::charmap::encode_string(&self.player_name) {
+            save.player_name = encoded;
+        }
+        if let Some(encoded) = pokered_data::charmap::encode_string(&self.rival_name) {
+            save.game_data.rival_name = encoded;
+        }
+        save
+    }
+
+    fn save_to_file(&mut self) {
+        let save = self.build_save_data();
+        let sram = export_sram(&save);
+        let path = save_file_path();
+        match std::fs::write(&path, &sram) {
+            Ok(()) => {
+                eprintln!("Game saved to {:?} ({} bytes)", path, sram.len());
+                self.save_data = save;
+            }
+            Err(e) => {
+                eprintln!("Error: failed to write save file: {}", e);
+            }
         }
     }
 
@@ -118,7 +189,7 @@ impl PokemonGame {
                 }
             }
             GameScreen::MainMenu => {
-                self.main_menu = MainMenuState::new(None);
+                self.main_menu = MainMenuState::new(self.state.save_summary.clone());
             }
             GameScreen::OakSpeech => {
                 self.oak_speech = OakSpeechState::new();
@@ -157,15 +228,16 @@ impl PokemonGame {
                 self.options_menu = OptionsMenuState::new(GameOptions::default());
             }
             GameScreen::SaveMenu => {
+                let has_previous = self.state.has_save_file();
                 self.save_menu = SaveMenuState::new(
                     SaveScreenInfo {
                         player_name: self.player_name.clone(),
-                        num_badges: 0,
-                        pokedex_owned: 0,
-                        play_time_hours: 0,
-                        play_time_minutes: 0,
+                        num_badges: self.save_data.game_data.badge_count(),
+                        pokedex_owned: self.save_data.game_data.pokedex.owned_count() as u16,
+                        play_time_hours: self.save_data.game_data.play_time.hours as u16,
+                        play_time_minutes: self.save_data.game_data.play_time.minutes,
                     },
-                    false,
+                    has_previous,
                     false,
                 );
             }
@@ -326,9 +398,11 @@ impl GameLoop for PokemonGame {
                     b: input.is_just_pressed(GbButton::B),
                 };
                 match self.save_menu.tick(save_input) {
-                    SaveMenuResult::Saved | SaveMenuResult::Cancelled => {
+                    SaveMenuResult::Saved => {
+                        self.save_to_file();
                         ScreenAction::Transition(GameScreen::StartMenu)
                     }
+                    SaveMenuResult::Cancelled => ScreenAction::Transition(GameScreen::StartMenu),
                     SaveMenuResult::Active => ScreenAction::Continue,
                 }
             }
