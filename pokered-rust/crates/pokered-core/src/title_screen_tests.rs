@@ -98,9 +98,15 @@ fn waiting_for_input_cycles_mons() {
     advance_to_waiting(&mut ts);
 
     let first_mon = ts.current_mon;
+    // After MON_DISPLAY_FRAMES, enters ScrollOut (not immediate switch)
     for _ in 0..MON_DISPLAY_FRAMES {
         ts.update_frame(false);
     }
+    assert_eq!(ts.phase, TitlePhase::ScrollOut);
+
+    // Run through ScrollOut + ScrollIn to complete the transition
+    advance_through_scroll(&mut ts);
+    assert_eq!(ts.phase, TitlePhase::WaitingForInput);
     assert_ne!(ts.current_mon, first_mon);
 }
 
@@ -210,6 +216,7 @@ fn pick_new_mon_always_differs_from_current() {
         for _ in 0..MON_DISPLAY_FRAMES {
             ts.update_frame(false);
         }
+        advance_through_scroll(&mut ts);
         assert_ne!(ts.current_mon, prev);
     }
 }
@@ -227,4 +234,108 @@ fn advance_to_waiting(ts: &mut TitleScreenState) {
         ts.update_frame(false);
     }
     assert_eq!(ts.phase, TitlePhase::WaitingForInput);
+}
+
+/// Run frames until scroll phases complete and we're back at WaitingForInput.
+fn advance_through_scroll(ts: &mut TitleScreenState) {
+    let max_frames = 200;
+    for _ in 0..max_frames {
+        if ts.phase == TitlePhase::WaitingForInput {
+            return;
+        }
+        ts.update_frame(false);
+    }
+    panic!(
+        "Scroll did not complete within {} frames, stuck at {:?}",
+        max_frames, ts.phase
+    );
+}
+
+#[test]
+fn scroll_out_moves_offset_negative() {
+    let mut ts = TitleScreenState::new(GameVersion::Red);
+    advance_to_waiting(&mut ts);
+
+    for _ in 0..MON_DISPLAY_FRAMES {
+        ts.update_frame(false);
+    }
+    assert_eq!(ts.phase, TitlePhase::ScrollOut);
+    assert_eq!(ts.mon_scroll_offset, 0);
+
+    ts.update_frame(false);
+    assert!(ts.mon_scroll_offset < 0);
+}
+
+#[test]
+fn scroll_in_starts_with_positive_offset() {
+    let mut ts = TitleScreenState::new(GameVersion::Red);
+    advance_to_waiting(&mut ts);
+
+    for _ in 0..MON_DISPLAY_FRAMES {
+        ts.update_frame(false);
+    }
+    // Advance through ScrollOut until ScrollIn begins
+    for _ in 0..100 {
+        if ts.phase == TitlePhase::ScrollIn {
+            break;
+        }
+        ts.update_frame(false);
+    }
+    assert_eq!(ts.phase, TitlePhase::ScrollIn);
+    assert!(ts.mon_scroll_offset > 0);
+}
+
+#[test]
+fn scroll_in_ends_at_zero_offset() {
+    let mut ts = TitleScreenState::new(GameVersion::Red);
+    advance_to_waiting(&mut ts);
+
+    for _ in 0..MON_DISPLAY_FRAMES {
+        ts.update_frame(false);
+    }
+    advance_through_scroll(&mut ts);
+    assert_eq!(ts.phase, TitlePhase::WaitingForInput);
+    assert_eq!(ts.mon_scroll_offset, 0);
+}
+
+#[test]
+fn button_during_scroll_out_snaps_to_cry() {
+    let mut ts = TitleScreenState::new(GameVersion::Red);
+    advance_to_waiting(&mut ts);
+
+    for _ in 0..MON_DISPLAY_FRAMES {
+        ts.update_frame(false);
+    }
+    assert_eq!(ts.phase, TitlePhase::ScrollOut);
+
+    ts.update_frame(true);
+    assert_eq!(ts.phase, TitlePhase::PlayingCry);
+    assert_eq!(ts.mon_scroll_offset, 0);
+}
+
+#[test]
+fn button_during_scroll_in_snaps_to_cry() {
+    let mut ts = TitleScreenState::new(GameVersion::Red);
+    advance_to_waiting(&mut ts);
+
+    for _ in 0..MON_DISPLAY_FRAMES {
+        ts.update_frame(false);
+    }
+    for _ in 0..100 {
+        if ts.phase == TitlePhase::ScrollIn {
+            break;
+        }
+        ts.update_frame(false);
+    }
+    assert_eq!(ts.phase, TitlePhase::ScrollIn);
+
+    ts.update_frame(true);
+    assert_eq!(ts.phase, TitlePhase::PlayingCry);
+    assert_eq!(ts.mon_scroll_offset, 0);
+}
+
+#[test]
+fn scroll_total_pixels_match_tables() {
+    assert_eq!(SCROLL_OUT_TOTAL_PIXELS, 93);
+    assert_eq!(SCROLL_IN_TOTAL_PIXELS, 120);
 }

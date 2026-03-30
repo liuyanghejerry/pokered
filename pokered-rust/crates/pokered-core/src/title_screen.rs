@@ -71,6 +71,10 @@ pub enum TitlePhase {
     VersionScroll,
     /// Title music plays, Pokémon sprites cycle. Waiting for user input.
     WaitingForInput,
+    /// Current mon is scrolling out to the left.
+    ScrollOut,
+    /// New mon is scrolling in from the right.
+    ScrollIn,
     /// User pressed a button — playing the current mon's cry.
     PlayingCry,
     /// Fade to white, then transition to main menu.
@@ -78,6 +82,45 @@ pub enum TitlePhase {
     /// Done — ready to transition.
     Done,
 }
+
+/// Scroll speed table entry: (pixels_per_frame, frame_count).
+/// Derived from the original ASM where each byte encodes hi_nibble=speed, lo_nibble=duration.
+type ScrollEntry = (u8, u8);
+
+/// Scroll the current mon out to the left (accelerating).
+/// Original: TitleScroll_Out = $12,$22,$32,$42,$52,$62,$83,$93,0
+pub const SCROLL_OUT_TABLE: &[ScrollEntry] = &[
+    (1, 2),
+    (2, 2),
+    (3, 2),
+    (4, 2),
+    (5, 2),
+    (6, 2),
+    (8, 3),
+    (9, 3),
+];
+
+/// Scroll a new mon in from the right (decelerating).
+/// Original: TitleScroll_In = $a2,$94,$84,$63,$52,$31,$11,0
+pub const SCROLL_IN_TABLE: &[ScrollEntry] =
+    &[(10, 2), (9, 4), (8, 4), (6, 3), (5, 2), (3, 1), (1, 1)];
+
+/// Compute total pixel displacement for a scroll table.
+const fn scroll_table_total_pixels(table: &[ScrollEntry]) -> i32 {
+    let mut total = 0i32;
+    let mut i = 0;
+    while i < table.len() {
+        total += table[i].0 as i32 * table[i].1 as i32;
+        i += 1;
+    }
+    total
+}
+
+/// Total pixels the scroll-out table covers (used to set initial scroll-in offset).
+pub const SCROLL_OUT_TOTAL_PIXELS: i32 = scroll_table_total_pixels(SCROLL_OUT_TABLE);
+
+/// Total pixels the scroll-in table covers.
+pub const SCROLL_IN_TOTAL_PIXELS: i32 = scroll_table_total_pixels(SCROLL_IN_TABLE);
 
 /// Logo bounce data: (scroll_delta, repeat_count) pairs.
 /// Matches .TitleScreenPokemonLogoYScrolls from title.asm
@@ -144,6 +187,13 @@ pub struct TitleScreenState {
     bounce_frames_remaining: u8,
     /// Simple RNG state for picking random mons.
     rng_state: u32,
+    /// Pixel offset applied to the Pokémon sprite during scroll transitions.
+    /// 0 = normal position. Negative = shifted left (scroll out). Positive = shifted right (scroll in).
+    pub mon_scroll_offset: i32,
+    /// Index into the current scroll speed table.
+    scroll_table_index: usize,
+    /// Frames remaining at the current scroll speed.
+    scroll_frames_remaining: u8,
 }
 
 impl TitleScreenState {
@@ -166,6 +216,9 @@ impl TitleScreenState {
             bounce_step: 0,
             bounce_frames_remaining: 0,
             rng_state: 0x12345678,
+            mon_scroll_offset: 0,
+            scroll_table_index: 0,
+            scroll_frames_remaining: 0,
         }
     }
 
@@ -206,6 +259,40 @@ impl TitleScreenState {
                 return candidate;
             }
         }
+    }
+
+    /// Begin scrolling out: reset scroll state to iterate SCROLL_OUT_TABLE.
+    fn begin_scroll_out(&mut self) {
+        self.phase = TitlePhase::ScrollOut;
+        self.mon_scroll_offset = 0;
+        self.scroll_table_index = 0;
+        self.scroll_frames_remaining = SCROLL_OUT_TABLE[0].1;
+    }
+
+    /// Begin scrolling in: pick new mon, set offset far right, iterate SCROLL_IN_TABLE.
+    fn begin_scroll_in(&mut self) {
+        self.current_mon = self.pick_new_mon();
+        self.phase = TitlePhase::ScrollIn;
+        self.mon_scroll_offset = SCROLL_IN_TOTAL_PIXELS;
+        self.scroll_table_index = 0;
+        self.scroll_frames_remaining = SCROLL_IN_TABLE[0].1;
+    }
+
+    /// Advance one frame of a scroll table. Returns true when the table is exhausted.
+    fn advance_scroll(&mut self, table: &[ScrollEntry], direction: i32) -> bool {
+        if self.scroll_table_index >= table.len() {
+            return true;
+        }
+        let (speed, _) = table[self.scroll_table_index];
+        self.mon_scroll_offset += speed as i32 * direction;
+        self.scroll_frames_remaining -= 1;
+        if self.scroll_frames_remaining == 0 {
+            self.scroll_table_index += 1;
+            if self.scroll_table_index < table.len() {
+                self.scroll_frames_remaining = table[self.scroll_table_index].1;
+            }
+        }
+        self.scroll_table_index >= table.len()
     }
 
     /// Update one frame. Returns what action to take.
@@ -288,8 +375,40 @@ impl TitleScreenState {
 
                 self.frame_counter += 1;
                 if self.frame_counter >= MON_DISPLAY_FRAMES {
-                    // Switch to a new random Pokémon
-                    self.current_mon = self.pick_new_mon();
+                    self.begin_scroll_out();
+                }
+                ScreenAction::Continue
+            }
+
+            TitlePhase::ScrollOut => {
+                if any_button_pressed {
+                    // Snap back to normal position and play cry
+                    self.mon_scroll_offset = 0;
+                    self.phase = TitlePhase::PlayingCry;
+                    self.frame_counter = 0;
+                    return ScreenAction::Continue;
+                }
+                // direction = -1: offset goes negative (sprite moves left)
+                let done = self.advance_scroll(SCROLL_OUT_TABLE, -1);
+                if done {
+                    self.begin_scroll_in();
+                }
+                ScreenAction::Continue
+            }
+
+            TitlePhase::ScrollIn => {
+                if any_button_pressed {
+                    // Snap to final position and play cry
+                    self.mon_scroll_offset = 0;
+                    self.phase = TitlePhase::PlayingCry;
+                    self.frame_counter = 0;
+                    return ScreenAction::Continue;
+                }
+                // direction = -1: offset decreases from positive toward 0 (sprite slides in from right)
+                let done = self.advance_scroll(SCROLL_IN_TABLE, -1);
+                if done {
+                    self.mon_scroll_offset = 0;
+                    self.phase = TitlePhase::WaitingForInput;
                     self.frame_counter = 0;
                 }
                 ScreenAction::Continue
@@ -329,6 +448,9 @@ impl TitleScreenState {
         self.version_scroll_progress = 1.0;
         self.bounce_step = LOGO_BOUNCE_TABLE.len();
         self.bounce_frames_remaining = 0;
+        self.mon_scroll_offset = 0;
+        self.scroll_table_index = 0;
+        self.scroll_frames_remaining = 0;
     }
 
     /// Skip to WaitingForInput with a specific Pokemon (for comparison/testing).
@@ -354,6 +476,9 @@ impl TitleScreenState {
         self.version_scroll_progress = 0.0;
         self.bounce_step = 0;
         self.bounce_frames_remaining = 0;
+        self.mon_scroll_offset = 0;
+        self.scroll_table_index = 0;
+        self.scroll_frames_remaining = 0;
     }
 
     /// Check if currently showing copyright screen.

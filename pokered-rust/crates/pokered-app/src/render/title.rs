@@ -106,10 +106,13 @@ pub fn draw_title_screen(
             let tiles_per_row = sprite_tiles_w;
             let pokemon_ts = pokemon_sprite.tileset.clone();
 
-            let draw_x = layout::title_screen::POKEMON_PIXEL_X + offset_x;
+            let base_x = layout::title_screen::POKEMON_PIXEL_X + offset_x;
+            let draw_x = (base_x as i32 + state.mon_scroll_offset).max(0) as u32;
             let draw_y = layout::title_screen::POKEMON_PIXEL_Y + offset_y;
 
-            blit_tileset(fb, &pokemon_ts, draw_x, draw_y, tiles_per_row, sprite_pal);
+            if (draw_x as i32) < SCREEN_WIDTH as i32 {
+                blit_tileset(fb, &pokemon_ts, draw_x, draw_y, tiles_per_row, sprite_pal);
+            }
         }
 
         if state.player_visible {
