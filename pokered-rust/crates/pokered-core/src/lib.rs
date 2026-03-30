@@ -1,6 +1,7 @@
 pub use pokered_data as data;
 
 pub mod battle;
+pub mod debug_log;
 pub mod game_state;
 pub mod items;
 pub mod link;

@@ -144,6 +144,13 @@ impl PokemonGame {
                     play_time_seconds: save.game_data.play_time.seconds,
                 };
                 eprintln!("Save file loaded: {:?}", path);
+                pokered_core::log_save!(
+                    "position: map_id={}, x={}, y={}, dir={}",
+                    save.game_data.position.map_id,
+                    save.game_data.position.x,
+                    save.game_data.position.y,
+                    save.game_data.player_direction
+                );
                 (save, Some(summary))
             }
             Err(e) => {
@@ -161,6 +168,47 @@ impl PokemonGame {
         if let Some(encoded) = pokered_data::charmap::encode_string(&self.rival_name) {
             save.game_data.rival_name = encoded;
         }
+
+        let player = &self.overworld.state.player;
+        let current_map = self.overworld.state.current_map;
+
+        save.game_data.position.map_id = current_map as u8;
+        save.game_data.position.x = player.x as u8;
+        save.game_data.position.y = player.y as u8;
+        save.game_data.position.x_block = (player.x % 2) as u8;
+        save.game_data.position.y_block = (player.y % 2) as u8;
+
+        let facing = match player.facing {
+            pokered_core::overworld::Direction::Down => 0u8,
+            pokered_core::overworld::Direction::Up => 4u8,
+            pokered_core::overworld::Direction::Left => 8u8,
+            pokered_core::overworld::Direction::Right => 12u8,
+        };
+        save.game_data.player_direction = facing;
+        save.game_data.player_last_stop_direction = facing;
+        save.game_data.player_moving_direction = facing;
+
+        pokered_core::log_save!(
+            "build_save_data: map_id={}, x={}, y={}, dir={}, player.x={}, player.y={}",
+            save.game_data.position.map_id,
+            save.game_data.position.x,
+            save.game_data.position.y,
+            facing,
+            player.x,
+            player.y
+        );
+
+        // wCurrentMapHeight2/Width2 = block dimensions × 2
+        let (map_w, map_h) = current_map.dimensions();
+        save.game_data.current_map_height2 = map_h * 2;
+        save.game_data.current_map_width2 = map_w * 2;
+
+        if let Some(ref map_data) = self.overworld.map_data {
+            save.game_data.map_header.tileset = map_data.tileset as u8;
+            save.game_data.map_header.height = map_data.height;
+            save.game_data.map_header.width = map_data.width;
+        }
+
         save
     }
 
@@ -170,7 +218,7 @@ impl PokemonGame {
         let path = save_file_path();
         match std::fs::write(&path, &sram) {
             Ok(()) => {
-                eprintln!("Game saved to {:?} ({} bytes)", path, sram.len());
+                pokered_core::log_save!("game saved to {:?} ({} bytes)", path, sram.len());
                 self.save_data = save;
             }
             Err(e) => {
@@ -200,14 +248,75 @@ impl PokemonGame {
             }
             GameScreen::Overworld => {
                 use pokered_core::data::fly_warp_data::NEW_GAME_WARP;
-                let mut overworld = OverworldScreen::new(NEW_GAME_WARP.map_id);
-                overworld.state.player.x = NEW_GAME_WARP.coords.x as u16;
-                overworld.state.player.y = NEW_GAME_WARP.coords.y as u16;
-                overworld.start_bedroom_dialogue(&self.player_name);
-                self.overworld = overworld;
-                #[cfg(not(target_arch = "wasm32"))]
-                if let Some(ref audio) = self.audio {
-                    audio.play_music(MusicId::PALLET_TOWN);
+                use pokered_core::game_state::MainMenuChoice;
+
+                // Only create a new OverworldScreen when entering from the main menu
+                // (Continue or New Game). When returning from sub-screens (Start menu,
+                // Options, Save, Battle), keep the existing overworld state intact.
+                match self.main_menu.last_choice {
+                    Some(MainMenuChoice::Continue)
+                        if self.state.screen != GameScreen::Overworld
+                            && self.state.screen != GameScreen::StartMenu
+                            && self.state.screen != GameScreen::OptionsMenu
+                            && self.state.screen != GameScreen::SaveMenu
+                            && self.state.screen != GameScreen::Battle =>
+                    {
+                        let pos = &self.save_data.game_data.position;
+                        pokered_core::log_save!(
+                            "continue: loading from save: map_id={}, x={}, y={}, dir={}",
+                            pos.map_id,
+                            pos.x,
+                            pos.y,
+                            self.save_data.game_data.player_direction
+                        );
+                        let map_id = pokered_core::data::maps::MapId::from_u8(pos.map_id)
+                            .unwrap_or(NEW_GAME_WARP.map_id);
+                        let mut overworld = OverworldScreen::new(map_id);
+                        overworld.state.player.x = pos.x as u16;
+                        overworld.state.player.y = pos.y as u16;
+                        overworld.state.player.facing =
+                            match self.save_data.game_data.player_direction {
+                                4 => pokered_core::overworld::Direction::Up,
+                                8 => pokered_core::overworld::Direction::Left,
+                                12 => pokered_core::overworld::Direction::Right,
+                                _ => pokered_core::overworld::Direction::Down,
+                            };
+                        self.player_name =
+                            pokered_data::charmap::decode_string(&self.save_data.player_name);
+                        self.rival_name = pokered_data::charmap::decode_string(
+                            &self.save_data.game_data.rival_name,
+                        );
+                        self.overworld = overworld;
+                        pokered_core::log_save!(
+                            "continue: overworld created: player x={}, y={}, map={:?}",
+                            self.overworld.state.player.x,
+                            self.overworld.state.player.y,
+                            self.overworld.state.current_map
+                        );
+                        #[cfg(not(target_arch = "wasm32"))]
+                        if let Some(ref audio) = self.audio {
+                            audio.play_music(MusicId::PALLET_TOWN);
+                        }
+                    }
+                    Some(MainMenuChoice::NewGame)
+                        if self.state.screen != GameScreen::Overworld
+                            && self.state.screen != GameScreen::StartMenu
+                            && self.state.screen != GameScreen::OptionsMenu
+                            && self.state.screen != GameScreen::SaveMenu
+                            && self.state.screen != GameScreen::Battle =>
+                    {
+                        let mut overworld = OverworldScreen::new(NEW_GAME_WARP.map_id);
+                        overworld.state.player.x = NEW_GAME_WARP.coords.x as u16;
+                        overworld.state.player.y = NEW_GAME_WARP.coords.y as u16;
+                        self.overworld = overworld;
+                        #[cfg(not(target_arch = "wasm32"))]
+                        if let Some(ref audio) = self.audio {
+                            audio.play_music(MusicId::PALLET_TOWN);
+                        }
+                    }
+                    _ => {
+                        // Returning from sub-screen — keep existing overworld intact
+                    }
                 }
             }
             GameScreen::Battle => {

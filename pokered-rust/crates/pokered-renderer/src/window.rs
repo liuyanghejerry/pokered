@@ -50,7 +50,6 @@ pub fn run<G: GameLoop + 'static>(
     config: GameWindowConfig,
     mut game: G,
 ) -> Result<(), WindowError> {
-    env_logger::init();
     let event_loop = EventLoop::new().map_err(|e| WindowError::EventLoop(e.to_string()))?;
     let window = {
         let size = LogicalSize::new(

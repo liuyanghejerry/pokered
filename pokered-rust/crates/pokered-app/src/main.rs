@@ -16,6 +16,13 @@ fn main() {
     let cli = Cli::parse();
     let version = GameVersion::Red;
 
+    if let Some(ref modules) = cli.debug_modules {
+        if let Err(e) = pokered_core::debug_log::init("pokered-debug.log") {
+            eprintln!("Warning: failed to init debug logger: {}", e);
+        }
+        pokered_core::debug_log::enable_from_str(modules);
+    }
+
     match cli.command {
         None | Some(crate::cli::Commands::Run) => {
             let config = GameWindowConfig {

@@ -7,6 +7,12 @@ use clap::{Parser, Subcommand, ValueEnum};
 pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Commands>,
+
+    /// Enable debug logging for specific modules (comma-separated).
+    /// Available modules: save, overworld, battle, menu, audio, warp, event, render, all.
+    /// Example: --debug-modules save,overworld
+    #[arg(long, global = true)]
+    pub debug_modules: Option<String>,
 }
 
 #[derive(Subcommand)]
