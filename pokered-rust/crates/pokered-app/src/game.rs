@@ -290,6 +290,16 @@ impl GameLoop for PokemonGame {
                         ScreenAction::Transition(GameScreen::OptionsMenu)
                     }
                     StartMenuAction::OpenSave => ScreenAction::Transition(GameScreen::SaveMenu),
+                    // Sub-screens not yet implemented — redisplay start menu
+                    // (matches ASM behavior: empty bag returns to menu,
+                    // no party returns to menu, etc.)
+                    StartMenuAction::OpenItem
+                    | StartMenuAction::OpenPokedex
+                    | StartMenuAction::OpenPokemon
+                    | StartMenuAction::OpenTrainerInfo => {
+                        self.start_menu.redisplay();
+                        ScreenAction::Continue
+                    }
                     _ => ScreenAction::Continue,
                 }
             }
@@ -361,6 +371,7 @@ impl GameLoop for PokemonGame {
                 draw_options_menu(&self.options_menu, frame_buffer);
             }
             GameScreen::SaveMenu => {
+                draw_overworld(&self.overworld, &mut self.resources, frame_buffer);
                 draw_save_menu(&self.save_menu, frame_buffer);
             }
         }

@@ -144,8 +144,6 @@ pub fn draw_options_menu(state: &OptionsMenuState, fb: &mut FrameBuffer) {
 }
 
 pub fn draw_save_menu(state: &SaveMenuState, fb: &mut FrameBuffer) {
-    fb.clear(Rgba::WHITE);
-
     draw_text_box(fb, 4 * TILE_SIZE, 0, 14, 8, Rgba::BLACK);
 
     draw_text("PLAYER", 5 * TILE_SIZE, 2 * TILE_SIZE, Rgba::BLACK, fb);

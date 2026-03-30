@@ -193,6 +193,13 @@ impl PokemonGame {
                     StartMenuAction::OpenSave => {
                         ScreenAction::Transition(GameScreen::SaveMenu)
                     }
+                    StartMenuAction::OpenItem
+                    | StartMenuAction::OpenPokedex
+                    | StartMenuAction::OpenPokemon
+                    | StartMenuAction::OpenTrainerInfo => {
+                        self.start_menu.redisplay();
+                        ScreenAction::Continue
+                    }
                     _ => ScreenAction::Continue,
                 }
             }
@@ -288,7 +295,10 @@ impl PokemonGame {
                 draw_start_menu(&self.start_menu, &self.player_name, fb)
             }
             GameScreen::OptionsMenu => draw_options_menu(&self.options_menu, fb),
-            GameScreen::SaveMenu => draw_save_menu(&self.save_menu, fb),
+            GameScreen::SaveMenu => {
+                draw_overworld(&self.overworld, fb);
+                draw_save_menu(&self.save_menu, fb);
+            }
         }
     }
 }
@@ -400,7 +410,6 @@ fn draw_options_menu(state: &OptionsMenuState, fb: &mut FrameBuffer) {
 }
 
 fn draw_save_menu(state: &SaveMenuState, fb: &mut FrameBuffer) {
-    fb.clear(Rgba::WHITE);
     draw_text("SAVE GAME", 50, 10, Rgba::BLACK, fb);
     draw_text(&format!("Phase: {:?}", state.phase), 10, 40, Rgba::BLACK, fb);
     draw_text(&format!("Cursor: {:?}", state.cursor), 10, 60, Rgba::BLACK, fb);
