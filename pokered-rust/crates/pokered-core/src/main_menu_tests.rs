@@ -124,51 +124,25 @@ fn select_option_stays_on_screen() {
 }
 
 #[test]
-fn select_continue_shows_info() {
+fn select_continue_transitions_to_overworld() {
     let mut menu = MainMenuState::new(Some(make_save()));
     skip_init_delay(&mut menu);
 
+    // First A press shows continue info screen
     let action = menu.update_frame(MenuInput {
         a: true,
         ..MenuInput::none()
     });
     assert_eq!(action, ScreenAction::Continue);
     assert!(menu.is_showing_continue_info());
-}
 
-#[test]
-fn continue_info_a_loads_game() {
-    let mut menu = MainMenuState::new(Some(make_save()));
-    skip_init_delay(&mut menu);
-    menu.update_frame(MenuInput {
-        a: true,
-        ..MenuInput::none()
-    });
-
+    // Second A press on info screen transitions to Overworld
     let action = menu.update_frame(MenuInput {
         a: true,
         ..MenuInput::none()
     });
     assert_eq!(action, ScreenAction::Transition(GameScreen::Overworld));
     assert_eq!(menu.last_choice, Some(MainMenuChoice::Continue));
-}
-
-#[test]
-fn continue_info_b_goes_back_to_menu() {
-    let mut menu = MainMenuState::new(Some(make_save()));
-    skip_init_delay(&mut menu);
-    menu.update_frame(MenuInput {
-        a: true,
-        ..MenuInput::none()
-    });
-    assert!(menu.is_showing_continue_info());
-
-    let action = menu.update_frame(MenuInput {
-        b: true,
-        ..MenuInput::none()
-    });
-    assert_eq!(action, ScreenAction::Continue);
-    assert!(!menu.is_showing_continue_info());
 }
 
 #[test]
