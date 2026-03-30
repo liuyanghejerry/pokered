@@ -5,7 +5,7 @@ use pokered_core::overworld::{Direction, MovementState, OverworldScreen};
 use pokered_renderer::embedded_font::draw_text;
 use pokered_renderer::palette::GRAYSCALE_PALETTE;
 use pokered_renderer::resource::ResourceManager;
-use pokered_renderer::{FrameBuffer, Rgba, SCREEN_WIDTH, TILE_SIZE};
+use pokered_renderer::{FrameBuffer, Rgba, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE};
 
 use super::{blit_single_tile, blit_single_tile_flipped, draw_text_box};
 
@@ -232,5 +232,20 @@ pub fn draw_overworld(
             Rgba::BLACK,
             fb,
         );
+    }
+
+    let fade_progress = screen.warp_fade_progress();
+    if fade_progress > 0.0 {
+        let darkness = (fade_progress.clamp(0.0, 1.0) * 255.0) as u8;
+        for y in 0..SCREEN_HEIGHT {
+            for x in 0..SCREEN_WIDTH {
+                if let Some(pixel) = fb.get_pixel(x, y) {
+                    let r = ((pixel.0[0] as u16) * (255 - darkness as u16) / 255) as u8;
+                    let g = ((pixel.0[1] as u16) * (255 - darkness as u16) / 255) as u8;
+                    let b = ((pixel.0[2] as u16) * (255 - darkness as u16) / 255) as u8;
+                    fb.set_pixel(x, y, Rgba::rgb(r, g, b));
+                }
+            }
+        }
     }
 }

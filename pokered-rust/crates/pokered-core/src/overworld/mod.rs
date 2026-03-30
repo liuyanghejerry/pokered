@@ -264,6 +264,50 @@ impl OverworldState {
 
 use crate::game_state::ScreenAction;
 
+// ── Warp Fade Transition ──────────────────────────────────────────
+//
+// Mirrors the original game's map transition:
+//   1. PlayMapChangeSound → GBFadeOutToBlack (4 palette steps × 8 frames = 32 frames)
+//   2. LoadMapData (while screen is black)
+//   3. GBFadeInFromWhite (3 palette steps × 8 frames = 24 frames)
+//
+// During fade, player input is frozen (the original sets wJoyIgnore).
+
+/// Number of frames per fade palette step (matches FADE_DELAY_FRAMES in transition.rs).
+const WARP_FADE_DELAY: u8 = 8;
+/// Fade-out: 4 palette steps (FadePal4→FadePal1).
+const WARP_FADE_OUT_STEPS: u8 = 4;
+/// Fade-in: 3 palette steps (FadePal7→FadePal5 for InFromWhite, or 4 for InFromBlack).
+const WARP_FADE_IN_STEPS: u8 = 3;
+
+/// Total frames for fade-out phase.
+const WARP_FADE_OUT_FRAMES: u8 = WARP_FADE_OUT_STEPS * WARP_FADE_DELAY;
+/// Total frames for fade-in phase.
+const WARP_FADE_IN_FRAMES: u8 = WARP_FADE_IN_STEPS * WARP_FADE_DELAY;
+
+/// Warp transition visual state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WarpFadeState {
+    /// No warp transition in progress.
+    Idle,
+    /// Fading screen to black before loading new map.
+    FadingOut { frames_remaining: u8 },
+    /// Screen is fully black; map data is being swapped this frame.
+    BlackScreen,
+    /// Fading screen back in after loading new map.
+    FadingIn { frames_remaining: u8 },
+}
+
+/// Pending warp destination, stored when a warp is detected during fade-out.
+#[derive(Debug, Clone, Copy)]
+pub struct PendingWarp {
+    pub dest_map: MapId,
+    pub dest_x: u8,
+    pub dest_y: u8,
+    /// Whether we should update last_map (only for outside→inside transitions).
+    pub save_last_map: bool,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct OverworldInput {
     pub up: bool,
@@ -354,12 +398,11 @@ impl BedroomDialogue {
 pub struct OverworldScreen {
     pub state: OverworldState,
     pub map_data: Option<MapData>,
-    /// Active dialogue box, if any (blocks movement and Start until dismissed).
     pub pending_dialogue: Option<BedroomDialogue>,
-    /// Frames remaining to show map name (0 = hidden).
     pub map_name_timer: u8,
-    /// Previous map the player came from (for LAST_MAP warps, e.g. exiting buildings).
     pub last_map: Option<MapId>,
+    pub warp_fade_state: WarpFadeState,
+    pub pending_warp: Option<PendingWarp>,
 }
 
 const MAP_NAME_DISPLAY_FRAMES: u8 = 120;
@@ -373,6 +416,8 @@ impl OverworldScreen {
             pending_dialogue: None,
             map_name_timer: 0,
             last_map: Some(MapId::PalletTown),
+            warp_fade_state: WarpFadeState::Idle,
+            pending_warp: None,
         }
     }
 
@@ -381,7 +426,68 @@ impl OverworldScreen {
         self.pending_dialogue = Some(BedroomDialogue::new(player_name));
     }
 
+    /// Returns the current warp fade darkness level (0.0 = fully visible, 1.0 = fully black).
+    /// Used by the renderer to draw a black overlay during map transitions.
+    pub fn warp_fade_progress(&self) -> f32 {
+        match self.warp_fade_state {
+            WarpFadeState::Idle => 0.0,
+            WarpFadeState::FadingOut { frames_remaining } => {
+                1.0 - (frames_remaining as f32 / WARP_FADE_OUT_FRAMES as f32)
+            }
+            WarpFadeState::BlackScreen => 1.0,
+            WarpFadeState::FadingIn { frames_remaining } => {
+                frames_remaining as f32 / WARP_FADE_IN_FRAMES as f32
+            }
+        }
+    }
+
+    fn commit_pending_warp(&mut self) {
+        if let Some(warp) = self.pending_warp.take() {
+            if warp.save_last_map {
+                self.last_map = Some(self.state.current_map);
+            }
+            self.state.current_map = warp.dest_map;
+            self.state.player.x = warp.dest_x as u16;
+            self.state.player.y = warp.dest_y as u16;
+            self.map_data = Some(map_data_loading::load_full_map_data(warp.dest_map));
+            if !warp.dest_map.is_indoor() {
+                self.map_name_timer = MAP_NAME_DISPLAY_FRAMES;
+            }
+        }
+    }
+
     pub fn update_frame(&mut self, input: OverworldInput) -> ScreenAction {
+        match self.warp_fade_state {
+            WarpFadeState::FadingOut { frames_remaining } => {
+                if frames_remaining <= 1 {
+                    self.warp_fade_state = WarpFadeState::BlackScreen;
+                } else {
+                    self.warp_fade_state = WarpFadeState::FadingOut {
+                        frames_remaining: frames_remaining - 1,
+                    };
+                }
+                return ScreenAction::Continue;
+            }
+            WarpFadeState::BlackScreen => {
+                self.commit_pending_warp();
+                self.warp_fade_state = WarpFadeState::FadingIn {
+                    frames_remaining: WARP_FADE_IN_FRAMES,
+                };
+                return ScreenAction::Continue;
+            }
+            WarpFadeState::FadingIn { frames_remaining } => {
+                if frames_remaining <= 1 {
+                    self.warp_fade_state = WarpFadeState::Idle;
+                } else {
+                    self.warp_fade_state = WarpFadeState::FadingIn {
+                        frames_remaining: frames_remaining - 1,
+                    };
+                }
+                return ScreenAction::Continue;
+            }
+            WarpFadeState::Idle => {}
+        }
+
         // While a dialogue box is active, consume A-button to advance pages;
         // block all movement and Start input.
         if let Some(ref mut dlg) = self.pending_dialogue {
@@ -476,19 +582,16 @@ impl OverworldScreen {
                         self.state.player.y as u8,
                         self.last_map,
                     ) {
-                        if tileset_data::is_outside_tileset(map.tileset) {
-                            self.last_map = Some(self.state.current_map);
-                        }
-
-                        self.state.current_map = dest_map;
-                        self.state.player.x = warp_x as u16;
-                        self.state.player.y = warp_y as u16;
-
-                        self.map_data = Some(map_data_loading::load_full_map_data(dest_map));
-
-                        if !dest_map.is_indoor() {
-                            self.map_name_timer = MAP_NAME_DISPLAY_FRAMES;
-                        }
+                        let save_last_map = tileset_data::is_outside_tileset(map.tileset);
+                        self.pending_warp = Some(PendingWarp {
+                            dest_map,
+                            dest_x: warp_x,
+                            dest_y: warp_y,
+                            save_last_map,
+                        });
+                        self.warp_fade_state = WarpFadeState::FadingOut {
+                            frames_remaining: WARP_FADE_OUT_FRAMES,
+                        };
                     }
                 }
                 MoveResult::ReachedMapEdge => {
