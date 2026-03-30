@@ -94,12 +94,16 @@ pub mod title_screen {
     pub const LOGO_PIXEL_X: u32 = LOGO_TILE_X * TILE_SIZE; // 16
     pub const LOGO_PIXEL_Y: u32 = LOGO_TILE_Y * TILE_SIZE; // 8
 
-    /// Version text position (from hlcoord 7, 8).
-    /// "Red Version" or "Blue Version".
-    pub const VERSION_TILE_X: u32 = 7;
+    /// Version text Y position (from hlcoord _, 8).
+    /// "Red Version" (10 tiles = 80px) or "Blue Version" (8 tiles = 64px).
     pub const VERSION_TILE_Y: u32 = 8;
-    pub const VERSION_PIXEL_X: u32 = VERSION_TILE_X * TILE_SIZE; // 56
     pub const VERSION_PIXEL_Y: u32 = VERSION_TILE_Y * TILE_SIZE; // 64
+
+    /// Compute the centered X pixel position for version text of a given pixel width.
+    /// Red Version is 80px wide (10 tiles), Blue Version is 64px wide (8 tiles).
+    pub fn version_centered_x(width_px: u32) -> u32 {
+        (SCREEN_WIDTH - width_px) / 2
+    }
 
     /// Pokemon sprite position (from hlcoord 5, 10).
     /// This is where the front sprite is drawn on the title screen.
@@ -174,8 +178,11 @@ mod tests {
         assert_eq!(title_screen::LOGO_PIXEL_X, 16);
         assert_eq!(title_screen::LOGO_PIXEL_Y, 8);
 
-        // Version text at tile (7, 8) = pixel (56, 64)
-        assert_eq!(title_screen::VERSION_PIXEL_X, 56);
+        // Version text at tile row 8, centered horizontally
+        // Red Version: 10 tiles (80px) -> centered at (160-80)/2 = 40
+        // Blue Version: 8 tiles (64px) -> centered at (160-64)/2 = 48
+        assert_eq!(title_screen::version_centered_x(80), 40);
+        assert_eq!(title_screen::version_centered_x(64), 48);
         assert_eq!(title_screen::VERSION_PIXEL_Y, 64);
 
         // Pokemon at tile (5, 10) = pixel (40, 80)

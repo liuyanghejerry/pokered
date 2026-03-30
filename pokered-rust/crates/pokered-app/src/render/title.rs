@@ -45,9 +45,10 @@ pub fn draw_title_screen(
 
         if state.version_text_visible {
             if let Ok(version_tiles) = rm.load_title("red_version_tiles") {
-                let final_vx = layout::title_screen::VERSION_PIXEL_X;
-                let tiles_per_row = 8;
+                let version_w = version_tiles.source_size.0;
+                let tiles_per_row = version_w / TILE_SIZE;
                 let version_ts = version_tiles.tileset.clone();
+                let final_vx = layout::title_screen::version_centered_x(version_w);
                 let offscreen_right_x = SCREEN_WIDTH;
                 let current_vx = if state.version_scroll_progress < 1.0 {
                     let progress = state.version_scroll_progress;
@@ -69,7 +70,8 @@ pub fn draw_title_screen(
                     GameVersion::Red => "Red Version",
                     GameVersion::Blue => "Blue Version",
                 };
-                let final_vx = layout::title_screen::VERSION_PIXEL_X;
+                let text_width = version_text.len() as u32 * TILE_SIZE;
+                let final_vx = layout::title_screen::version_centered_x(text_width);
                 let offscreen_right_x = SCREEN_WIDTH;
                 let current_vx = if state.version_scroll_progress < 1.0 {
                     let progress = state.version_scroll_progress;
