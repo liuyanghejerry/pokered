@@ -85,8 +85,8 @@ pub struct StartMenuState {
 }
 
 impl StartMenuState {
-    pub fn new(has_pokedex: bool, is_link_connected: bool) -> Self {
-        let items = Self::build_items(has_pokedex, is_link_connected);
+    pub fn new(has_pokedex: bool, has_pokemon: bool, is_link_connected: bool) -> Self {
+        let items = Self::build_items(has_pokedex, has_pokemon, is_link_connected);
         Self {
             items,
             cursor: 0,
@@ -96,12 +96,18 @@ impl StartMenuState {
         }
     }
 
-    fn build_items(has_pokedex: bool, is_link_connected: bool) -> Vec<StartMenuItem> {
+    fn build_items(
+        has_pokedex: bool,
+        has_pokemon: bool,
+        is_link_connected: bool,
+    ) -> Vec<StartMenuItem> {
         let mut items = Vec::with_capacity(7);
         if has_pokedex {
             items.push(StartMenuItem::Pokedex);
         }
-        items.push(StartMenuItem::Pokemon);
+        if has_pokemon {
+            items.push(StartMenuItem::Pokemon);
+        }
         items.push(StartMenuItem::Item);
         items.push(StartMenuItem::TrainerInfo);
         if is_link_connected {
@@ -114,10 +120,10 @@ impl StartMenuState {
         items
     }
 
-    pub fn open(&mut self, has_pokedex: bool, is_link_connected: bool) {
+    pub fn open(&mut self, has_pokedex: bool, has_pokemon: bool, is_link_connected: bool) {
         self.has_pokedex = has_pokedex;
         self.is_link_connected = is_link_connected;
-        self.items = Self::build_items(has_pokedex, is_link_connected);
+        self.items = Self::build_items(has_pokedex, has_pokemon, is_link_connected);
         self.cursor = self.saved_cursor.min(self.items.len().saturating_sub(1));
     }
 

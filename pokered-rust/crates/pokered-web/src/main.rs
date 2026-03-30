@@ -56,7 +56,7 @@ impl PokemonGame {
         let oak_speech = OakSpeechState::new();
         let overworld = OverworldScreen::new(MapId::PalletTown);
         let battle = BattleScreen::new(true);
-        let start_menu = StartMenuState::new(false, false);
+        let start_menu = StartMenuState::new(false, false, false);
         let options_menu = OptionsMenuState::new(GameOptions::default());
         let save_menu = SaveMenuState::new(
             SaveScreenInfo {
@@ -250,7 +250,7 @@ impl PokemonGame {
                 self.battle = BattleScreen::new(true);
             }
             GameScreen::StartMenu => {
-                self.start_menu.open(false, false);
+                self.start_menu.open(false, false, false);
             }
             GameScreen::OptionsMenu => {
                 self.options_menu = OptionsMenuState::new(GameOptions::default());
@@ -284,6 +284,7 @@ impl PokemonGame {
             GameScreen::Overworld => draw_overworld(&self.overworld, fb),
             GameScreen::Battle => draw_battle(&self.battle, fb),
             GameScreen::StartMenu => {
+                draw_overworld(&self.overworld, fb);
                 draw_start_menu(&self.start_menu, &self.player_name, fb)
             }
             GameScreen::OptionsMenu => draw_options_menu(&self.options_menu, fb),
@@ -380,7 +381,6 @@ fn draw_battle(screen: &BattleScreen, fb: &mut FrameBuffer) {
 }
 
 fn draw_start_menu(state: &StartMenuState, player_name: &str, fb: &mut FrameBuffer) {
-    fb.clear(Rgba::WHITE);
     draw_text("START MENU", 50, 10, Rgba::BLACK, fb);
     let labels = state.item_labels(player_name);
     for (i, label) in labels.iter().enumerate() {

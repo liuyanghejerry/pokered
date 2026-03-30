@@ -34,8 +34,6 @@ pub fn draw_main_menu(state: &MainMenuState, fb: &mut FrameBuffer) {
 }
 
 pub fn draw_start_menu(state: &StartMenuState, player_name: &str, fb: &mut FrameBuffer) {
-    fb.clear(Rgba::WHITE);
-
     let labels = state.item_labels(player_name);
     let box_h = (labels.len() as u32) * 2;
 

@@ -50,7 +50,7 @@ impl PokemonGame {
         let oak_speech = OakSpeechState::new();
         let overworld = OverworldScreen::new(MapId::PalletTown);
         let battle = BattleScreen::new(true);
-        let start_menu = StartMenuState::new(false, false);
+        let start_menu = StartMenuState::new(false, false, false);
         let options_menu = OptionsMenuState::new(GameOptions::default());
         let save_menu = SaveMenuState::new(
             SaveScreenInfo {
@@ -147,7 +147,7 @@ impl PokemonGame {
                 }
             }
             GameScreen::StartMenu => {
-                self.start_menu.open(false, false);
+                self.start_menu.open(false, false, false);
                 #[cfg(not(target_arch = "wasm32"))]
                 if let Some(ref audio) = self.audio {
                     audio.play_sfx(SfxId::StartMenu);
@@ -354,6 +354,7 @@ impl GameLoop for PokemonGame {
                 draw_battle(&self.battle, &mut self.resources, frame_buffer);
             }
             GameScreen::StartMenu => {
+                draw_overworld(&self.overworld, &mut self.resources, frame_buffer);
                 draw_start_menu(&self.start_menu, &self.player_name, frame_buffer);
             }
             GameScreen::OptionsMenu => {
