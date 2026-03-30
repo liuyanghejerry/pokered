@@ -64,7 +64,8 @@ impl SaveData {
 
     pub fn serialize_checksummed_region(&self) -> Vec<u8> {
         let mut buf = Vec::new();
-        buf.extend_from_slice(&self.player_name);
+        // Pad to NAME_LENGTH (11 bytes) — deserializer's read_name() always reads 11.
+        ser_pokemon::serialize_name(&self.player_name, &mut buf);
         ser_game_data::serialize_game_data_into(&self.game_data, &mut buf);
         ser_pokemon::serialize_sprite_data_into(&mut buf);
         ser_pokemon::serialize_party_into(&self.party, &mut buf);
