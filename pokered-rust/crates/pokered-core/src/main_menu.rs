@@ -142,8 +142,8 @@ impl MainMenuState {
     fn select_current_item(&mut self) -> ScreenAction {
         match self.items[self.cursor] {
             MainMenuItem::Continue => {
-                self.continue_info_phase = Some(ContinueInfoPhase::WaitingForInput);
-                ScreenAction::Continue
+                self.last_choice = Some(MainMenuChoice::Continue);
+                ScreenAction::Transition(GameScreen::Overworld)
             }
             MainMenuItem::NewGame => {
                 self.last_choice = Some(MainMenuChoice::NewGame);

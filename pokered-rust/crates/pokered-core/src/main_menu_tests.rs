@@ -128,15 +128,7 @@ fn select_continue_transitions_to_overworld() {
     let mut menu = MainMenuState::new(Some(make_save()));
     skip_init_delay(&mut menu);
 
-    // First A press shows continue info screen
-    let action = menu.update_frame(MenuInput {
-        a: true,
-        ..MenuInput::none()
-    });
-    assert_eq!(action, ScreenAction::Continue);
-    assert!(menu.is_showing_continue_info());
-
-    // Second A press on info screen transitions to Overworld
+    // Single A press on CONTINUE transitions directly to Overworld
     let action = menu.update_frame(MenuInput {
         a: true,
         ..MenuInput::none()
