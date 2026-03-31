@@ -26,6 +26,12 @@ impl AudioOutput {
         };
 
         let manager = Arc::new(Mutex::new(AudioManager::new()));
+        // Enable APU power (NR52 bit 7). Without this, all APU register writes
+        // are silently ignored and no sound is produced.
+        {
+            let mut mgr = manager.lock().unwrap();
+            mgr.apu.write_register(0xFF26, 0x80);
+        }
         let mgr_clone = Arc::clone(&manager);
 
         let cycles_per_sample = CPU_CLOCK_HZ / 44_100;

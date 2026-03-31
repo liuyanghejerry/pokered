@@ -14,7 +14,7 @@ use crate::sequencer::*;
 fn test_decode_note() {
     // Byte $37 = pitch 3 (D#), length 8 (nibble 7 + 1)
     let data = [0x37];
-    let (cmd, pos) = commands::decode_command(&data, 0);
+    let (cmd, pos) = commands::decode_command(&data, 0, false);
     assert_eq!(
         cmd,
         Command::Note {
@@ -29,7 +29,7 @@ fn test_decode_note() {
 fn test_decode_note_c_shortest() {
     // $00 = pitch 0 (C), length 1
     let data = [0x00];
-    let (cmd, _) = commands::decode_command(&data, 0);
+    let (cmd, _) = commands::decode_command(&data, 0, false);
     assert_eq!(
         cmd,
         Command::Note {
@@ -43,7 +43,7 @@ fn test_decode_note_c_shortest() {
 fn test_decode_note_b_longest() {
     // $AF = pitch 10 (A#), length 16
     let data = [0xAF];
-    let (cmd, _) = commands::decode_command(&data, 0);
+    let (cmd, _) = commands::decode_command(&data, 0, false);
     assert_eq!(
         cmd,
         Command::Note {
@@ -55,9 +55,9 @@ fn test_decode_note_b_longest() {
 
 #[test]
 fn test_decode_drum_note() {
-    // $B3 = drum note, length 4, next byte = instrument ID 5
+    // $B3 on NOISE channel = drum note, length 4, next byte = instrument ID 5
     let data = [0xB3, 0x05];
-    let (cmd, pos) = commands::decode_command(&data, 0);
+    let (cmd, pos) = commands::decode_command(&data, 0, true);
     assert_eq!(
         cmd,
         Command::DrumNote {
@@ -69,23 +69,63 @@ fn test_decode_drum_note() {
 }
 
 #[test]
+fn test_decode_b_note_on_non_noise_channel() {
+    // $B3 on non-noise channel = note B natural (pitch 11), length 4
+    let data = [0xB3, 0x05]; // second byte should NOT be consumed
+    let (cmd, pos) = commands::decode_command(&data, 0, false);
+    assert_eq!(
+        cmd,
+        Command::Note {
+            pitch: 11,
+            length: 4
+        }
+    );
+    assert_eq!(pos, 1); // only 1 byte consumed, NOT 2
+}
+
+#[test]
+fn test_decode_b_note_range_on_non_noise() {
+    // $B0 = B natural, length 1
+    let (cmd, pos) = commands::decode_command(&[0xB0], 0, false);
+    assert_eq!(
+        cmd,
+        Command::Note {
+            pitch: 11,
+            length: 1
+        }
+    );
+    assert_eq!(pos, 1);
+
+    // $BF = B natural, length 16
+    let (cmd, pos) = commands::decode_command(&[0xBF], 0, false);
+    assert_eq!(
+        cmd,
+        Command::Note {
+            pitch: 11,
+            length: 16
+        }
+    );
+    assert_eq!(pos, 1);
+}
+
+#[test]
 fn test_decode_rest() {
     // $C7 = rest, length 8
     let data = [0xC7];
-    let (cmd, pos) = commands::decode_command(&data, 0);
+    let (cmd, pos) = commands::decode_command(&data, 0, false);
     assert_eq!(cmd, Command::Rest { length: 8 });
     assert_eq!(pos, 1);
 }
 
 #[test]
 fn test_decode_note_type() {
-    // $D2 = note_type, speed = 3 (nibble 2 + 1), next byte = volume/envelope
+    // $D2 = note_type, speed = 2 (raw low nibble), next byte = volume/envelope
     let data = [0xD2, 0xA2];
-    let (cmd, pos) = commands::decode_command(&data, 0);
+    let (cmd, pos) = commands::decode_command(&data, 0, false);
     assert_eq!(
         cmd,
         Command::NoteType {
-            speed: 3,
+            speed: 2,
             param: 0xA2
         }
     );
@@ -93,21 +133,30 @@ fn test_decode_note_type() {
 }
 
 #[test]
+fn test_decode_note_type_noise_channel() {
+    // On noise channel, note_type has NO param byte
+    let data = [0xD5, 0xA2]; // 0xA2 should NOT be consumed
+    let (cmd, pos) = commands::decode_command(&data, 0, true);
+    assert_eq!(cmd, Command::NoteType { speed: 5, param: 0 });
+    assert_eq!(pos, 1); // only 1 byte consumed
+}
+
+#[test]
 fn test_decode_octave() {
-    // $E0 = octave 8, $E3 = octave 5, $E7 = octave 1
-    let (cmd, _) = commands::decode_command(&[0xE0], 0);
-    assert_eq!(cmd, Command::Octave(8));
+    // $E0 = octave 0 (raw), $E3 = octave 3 (raw), $E7 = octave 7 (raw)
+    let (cmd, _) = commands::decode_command(&[0xE0], 0, false);
+    assert_eq!(cmd, Command::Octave(0));
 
-    let (cmd, _) = commands::decode_command(&[0xE3], 0);
-    assert_eq!(cmd, Command::Octave(5));
+    let (cmd, _) = commands::decode_command(&[0xE3], 0, false);
+    assert_eq!(cmd, Command::Octave(3));
 
-    let (cmd, _) = commands::decode_command(&[0xE7], 0);
-    assert_eq!(cmd, Command::Octave(1));
+    let (cmd, _) = commands::decode_command(&[0xE7], 0, false);
+    assert_eq!(cmd, Command::Octave(7));
 }
 
 #[test]
 fn test_decode_toggle_perfect_pitch() {
-    let (cmd, pos) = commands::decode_command(&[0xE8], 0);
+    let (cmd, pos) = commands::decode_command(&[0xE8], 0, false);
     assert_eq!(cmd, Command::TogglePerfectPitch);
     assert_eq!(pos, 1);
 }
@@ -115,7 +164,7 @@ fn test_decode_toggle_perfect_pitch() {
 #[test]
 fn test_decode_vibrato() {
     let data = [0xEA, 0x08, 0x34];
-    let (cmd, pos) = commands::decode_command(&data, 0);
+    let (cmd, pos) = commands::decode_command(&data, 0, false);
     assert_eq!(
         cmd,
         Command::Vibrato {
@@ -129,7 +178,7 @@ fn test_decode_vibrato() {
 #[test]
 fn test_decode_pitch_slide() {
     let data = [0xEB, 0x02, 0x45];
-    let (cmd, pos) = commands::decode_command(&data, 0);
+    let (cmd, pos) = commands::decode_command(&data, 0, false);
     assert_eq!(
         cmd,
         Command::PitchSlide {
@@ -143,7 +192,7 @@ fn test_decode_pitch_slide() {
 #[test]
 fn test_decode_duty_cycle() {
     let data = [0xEC, 0x02];
-    let (cmd, pos) = commands::decode_command(&data, 0);
+    let (cmd, pos) = commands::decode_command(&data, 0, false);
     assert_eq!(cmd, Command::DutyCycle(2));
     assert_eq!(pos, 2);
 }
@@ -152,7 +201,7 @@ fn test_decode_duty_cycle() {
 fn test_decode_tempo() {
     // Tempo is big-endian: $01 $00 = 256
     let data = [0xED, 0x01, 0x00];
-    let (cmd, pos) = commands::decode_command(&data, 0);
+    let (cmd, pos) = commands::decode_command(&data, 0, false);
     assert_eq!(cmd, Command::Tempo(0x0100));
     assert_eq!(pos, 3);
 }
@@ -160,7 +209,7 @@ fn test_decode_tempo() {
 #[test]
 fn test_decode_stereo_panning() {
     let data = [0xEE, 0x11];
-    let (cmd, pos) = commands::decode_command(&data, 0);
+    let (cmd, pos) = commands::decode_command(&data, 0, false);
     assert_eq!(cmd, Command::StereoPanning(0x11));
     assert_eq!(pos, 2);
 }
@@ -168,21 +217,21 @@ fn test_decode_stereo_panning() {
 #[test]
 fn test_decode_volume() {
     let data = [0xF0, 0x77];
-    let (cmd, pos) = commands::decode_command(&data, 0);
+    let (cmd, pos) = commands::decode_command(&data, 0, false);
     assert_eq!(cmd, Command::Volume(0x77));
     assert_eq!(pos, 2);
 }
 
 #[test]
 fn test_decode_execute_music() {
-    let (cmd, _) = commands::decode_command(&[0xF8], 0);
+    let (cmd, _) = commands::decode_command(&[0xF8], 0, false);
     assert_eq!(cmd, Command::ExecuteMusic);
 }
 
 #[test]
 fn test_decode_duty_cycle_pattern() {
     let data = [0xFC, 0xE4]; // pattern: 11 10 01 00
-    let (cmd, pos) = commands::decode_command(&data, 0);
+    let (cmd, pos) = commands::decode_command(&data, 0, false);
     assert_eq!(cmd, Command::DutyCyclePattern(0xE4));
     assert_eq!(pos, 2);
 }
@@ -191,7 +240,7 @@ fn test_decode_duty_cycle_pattern() {
 fn test_decode_sound_call() {
     // sound_call with 16-bit LE offset: $34 $12 = address 0x1234
     let data = [0xFD, 0x34, 0x12];
-    let (cmd, pos) = commands::decode_command(&data, 0);
+    let (cmd, pos) = commands::decode_command(&data, 0, false);
     assert_eq!(cmd, Command::SoundCall { offset: 0x1234 });
     assert_eq!(pos, 3);
 }
@@ -200,7 +249,7 @@ fn test_decode_sound_call() {
 fn test_decode_sound_loop() {
     // sound_loop: count=3, LE offset $10 $00 = 0x0010
     let data = [0xFE, 0x03, 0x10, 0x00];
-    let (cmd, pos) = commands::decode_command(&data, 0);
+    let (cmd, pos) = commands::decode_command(&data, 0, false);
     assert_eq!(
         cmd,
         Command::SoundLoop {
@@ -214,7 +263,7 @@ fn test_decode_sound_loop() {
 #[test]
 fn test_decode_sound_loop_infinite() {
     let data = [0xFE, 0x00, 0x00, 0x00];
-    let (cmd, _) = commands::decode_command(&data, 0);
+    let (cmd, _) = commands::decode_command(&data, 0, false);
     assert_eq!(
         cmd,
         Command::SoundLoop {
@@ -226,34 +275,34 @@ fn test_decode_sound_loop_infinite() {
 
 #[test]
 fn test_decode_sound_ret() {
-    let (cmd, pos) = commands::decode_command(&[0xFF], 0);
+    let (cmd, pos) = commands::decode_command(&[0xFF], 0, false);
     assert_eq!(cmd, Command::SoundRet);
     assert_eq!(pos, 1);
 }
 
 #[test]
 fn test_decode_end_of_data() {
-    let (cmd, _) = commands::decode_command(&[], 0);
+    let (cmd, _) = commands::decode_command(&[], 0, false);
     assert_eq!(cmd, Command::EndOfData);
 }
 
 #[test]
 fn test_decode_sequence_of_commands() {
-    // octave 4 ($E4), note_type speed=12 vol=$A0 ($DB $A0), C note len 4 ($03)
+    // octave 4 ($E4), note_type speed=11 vol=$A0 ($DB $A0), C note len 4 ($03)
     let data = [0xE4, 0xDB, 0xA0, 0x03];
-    let (cmd0, p0) = commands::decode_command(&data, 0);
+    let (cmd0, p0) = commands::decode_command(&data, 0, false);
     assert_eq!(cmd0, Command::Octave(4));
 
-    let (cmd1, p1) = commands::decode_command(&data, p0);
+    let (cmd1, p1) = commands::decode_command(&data, p0, false);
     assert_eq!(
         cmd1,
         Command::NoteType {
-            speed: 12,
+            speed: 11,
             param: 0xA0
         }
     );
 
-    let (cmd2, p2) = commands::decode_command(&data, p1);
+    let (cmd2, p2) = commands::decode_command(&data, p1, false);
     assert_eq!(
         cmd2,
         Command::Note {
@@ -566,7 +615,7 @@ fn test_sequencer_update_processes_note() {
         "frequency should be set after note"
     );
     assert_eq!(seq.channels[CHAN1].octave, 4);
-    assert_eq!(seq.channels[CHAN1].note_speed, 1);
+    assert_eq!(seq.channels[CHAN1].note_speed, 0);
 }
 
 #[test]

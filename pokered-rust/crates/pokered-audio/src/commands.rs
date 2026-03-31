@@ -29,8 +29,8 @@ pub enum Command {
     /// For wave channel: the param byte's low nibble is wave instrument index.
     NoteType { speed: u8, param: u8 },
 
-    /// Set octave (0-7). In the byte stream: $E0 = octave 8, $E7 = octave 1.
-    /// We store the actual octave value.
+    /// Set octave (0-7 raw encoded). In the byte stream: $E0 = octave 8, $E7 = octave 1.
+    /// We store the raw encoded value (byte & 0x07), not the musical octave.
     Octave(u8),
 
     /// Toggle perfect pitch flag.
@@ -103,8 +103,16 @@ pub const CMD_SOUND_RET: u8 = 0xFF;
 // ── Decode ───────────────────────────────────────────────────────────────
 
 /// Decode one command from a byte slice starting at `pos`.
+///
+/// `is_noise_channel` must be true when decoding for CHAN4/CHAN8 (noise channels).
+/// This affects:
+/// - Bytes $B0-$BF: on noise channels these are drum_note (2 bytes); on other
+///   channels they are regular notes with pitch 11 (B natural, 1 byte).
+/// - note_type ($D0-$DF): on noise channels there is no param byte (1 byte total);
+///   on other channels a param byte follows (2 bytes total).
+///
 /// Returns (command, new_pos).
-pub fn decode_command(data: &[u8], pos: usize) -> (Command, usize) {
+pub fn decode_command(data: &[u8], pos: usize, is_noise_channel: bool) -> (Command, usize) {
     if pos >= data.len() {
         return (Command::EndOfData, pos);
     }
@@ -121,18 +129,26 @@ pub fn decode_command(data: &[u8], pos: usize) -> (Command, usize) {
             (Command::Note { pitch, length }, next)
         }
 
-        // Drum note: $B0-$BF
-        // Low nibble = length - 1, next byte = instrument ID
+        // $B0-$BF: On noise channel this is drum_note (2 bytes).
+        // On other channels this is note B natural (pitch 11), 1 byte.
         0xB0..=0xBF => {
-            let length = (byte & 0x0F) + 1;
-            let instrument = if next < data.len() {
-                let v = data[next];
-                next += 1;
-                v
+            if is_noise_channel {
+                // Drum note: low nibble = length - 1, next byte = instrument ID
+                let length = (byte & 0x0F) + 1;
+                let instrument = if next < data.len() {
+                    let v = data[next];
+                    next += 1;
+                    v
+                } else {
+                    0
+                };
+                (Command::DrumNote { length, instrument }, next)
             } else {
-                0
-            };
-            (Command::DrumNote { length, instrument }, next)
+                // Regular note with pitch 11 (B)
+                let pitch = byte >> 4; // = 11
+                let length = (byte & 0x0F) + 1;
+                (Command::Note { pitch, length }, next)
+            }
         }
 
         // Rest: $C0-$CF
@@ -142,23 +158,33 @@ pub fn decode_command(data: &[u8], pos: usize) -> (Command, usize) {
         }
 
         // Note type: $D0-$DF
-        // Low nibble = speed, next byte = volume_envelope (or wave instrument)
+        // Low nibble = speed (0-15).
+        // On noise channel: no param byte (speed only).
+        // On other channels: next byte = volume_envelope (or wave instrument).
         0xD0..=0xDF => {
-            let speed = (byte & 0x0F) + 1; // speed is stored as (speed - 1) in low nibble
-            let param = if next < data.len() {
-                let v = data[next];
-                next += 1;
-                v
+            let speed = byte & 0x0F;
+            if is_noise_channel {
+                // Noise channel: note_type has 0 params
+                (Command::NoteType { speed, param: 0 }, next)
             } else {
-                0
-            };
-            (Command::NoteType { speed, param }, next)
+                let param = if next < data.len() {
+                    let v = data[next];
+                    next += 1;
+                    v
+                } else {
+                    0
+                };
+                (Command::NoteType { speed, param }, next)
+            }
         }
 
         // Octave: $E0-$E7
-        // Octave value = 8 - low_nibble
+        // The raw encoded value is stored directly (0-7).
+        // In the original engine, octave N is encoded as (8-N), so byte & 0x07
+        // gives values 0-7 which map to musical octaves 8-1.
+        // calculate_frequency expects this raw encoded value.
         0xE0..=0xE7 => {
-            let octave = 8 - (byte & 0x07);
+            let octave = byte & 0x07;
             (Command::Octave(octave), next)
         }
 

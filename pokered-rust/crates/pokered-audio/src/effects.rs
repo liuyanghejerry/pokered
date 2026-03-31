@@ -10,12 +10,17 @@ use crate::sequencer::{ChannelFlags1, ChannelState};
 /// Apply vibrato to a channel's frequency.
 ///
 /// Replicates `Audio1_ApplyVibratoToFrequency` from engine_1.asm.
-/// Returns the modified frequency (11-bit) to write to hardware.
+/// Returns the modified **low byte only** to write to REG_FREQUENCY_LO.
+///
+/// The original ASM only modifies the frequency low byte register,
+/// never the high byte. On overflow the low byte clamps to 0xFF,
+/// on underflow it clamps to 0x00. The stored `channel.frequency`
+/// is never modified — vibrato is a pure hardware-level modulation.
 ///
 /// The vibrato alternates between adding and subtracting from the base
 /// frequency. The extent byte is split: upper nibble = upward amount,
 /// lower nibble = downward amount.
-pub fn apply_vibrato(channel: &mut ChannelState) -> Option<u16> {
+pub fn apply_vibrato(channel: &mut ChannelState) -> Option<u8> {
     // If vibrato extent is zero, no vibrato
     if channel.vibrato.extent == 0 {
         return None;
@@ -39,45 +44,39 @@ pub fn apply_vibrato(channel: &mut ChannelState) -> Option<u16> {
         .vibrato
         .set_rate_counter(channel.vibrato.rate_reload());
 
-    // Determine the vibrato amount based on direction
-    let amount = if channel.flags1.contains(ChannelFlags1::VIBRATO_DOWN) {
-        // Going down — use lower nibble (extent_down)
-        channel.vibrato.extent_down()
-    } else {
-        // Going up — use upper nibble (extent_up)
-        channel.vibrato.extent_up()
-    };
+    // Read the direction bit BEFORE toggling (matches ASM control flow).
+    // ASM: bit BIT_VIBRATO_DIRECTION, [hl]  →  jr z, .unset
+    //   if set → res (clear) → subtract (going down)
+    //   if unset → set → add (going up)
+    let going_down = channel.flags1.contains(ChannelFlags1::VIBRATO_DOWN);
 
     // Toggle direction for next tick
     channel.flags1.toggle(ChannelFlags1::VIBRATO_DOWN);
 
-    // Apply to the saved frequency low byte
     let base_lo = channel.freq_lo_saved;
-    let freq_hi = (channel.frequency >> 8) & 0x07;
 
-    let new_lo;
-    let new_hi;
-
-    if channel.flags1.contains(ChannelFlags1::VIBRATO_DOWN) {
-        // After toggling, if now DOWN, we just applied UP
-        // Add amount to base frequency
-        let sum = base_lo as u16 + amount as u16;
-        new_lo = (sum & 0xFF) as u8;
-        new_hi = freq_hi + (sum >> 8);
-    } else {
-        // After toggling, if now UP, we just applied DOWN
-        // Subtract amount from base frequency
+    let new_lo = if going_down {
+        // Direction bit was SET → subtract lower nibble from base
+        // ASM: ld a, d / and $f / ld d, a / ld a, e / sub d / jr nc, .noCarry / ld a, 0
+        let amount = channel.vibrato.extent_down();
         if base_lo >= amount {
-            new_lo = base_lo - amount;
-            new_hi = freq_hi;
+            base_lo - amount
         } else {
-            new_lo = base_lo.wrapping_sub(amount);
-            new_hi = freq_hi.wrapping_sub(1);
+            0x00 // clamp to 0 on underflow (ASM line 126: ld a, 0)
+        }
+    } else {
+        // Direction bit was UNSET → add upper nibble to base
+        // ASM: ld a, d / and $f0 / swap a / add e / jr nc, .done / ld a, $ff
+        let amount = channel.vibrato.extent_up();
+        let sum = base_lo as u16 + amount as u16;
+        if sum > 0xFF {
+            0xFF // clamp to 0xFF on overflow (ASM line 136: ld a, $ff)
+        } else {
+            sum as u8
         }
     };
 
-    let result = ((new_hi & 0x07) << 8) | new_lo as u16;
-    Some(result)
+    Some(new_lo)
 }
 
 // ── Pitch Slide ──────────────────────────────────────────────────────────

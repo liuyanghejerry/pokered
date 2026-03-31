@@ -216,6 +216,12 @@ pub struct ChannelState {
     // ── Stereo ──
     /// Panning enable mask for this channel (bits in NR51 format).
     pub stereo_panning: u8,
+
+    /// Set when a new note starts; cleared after APU trigger write.
+    pub trigger: bool,
+
+    /// Vibrato-modified frequency low byte for APU write (None = no vibrato active).
+    pub vibrato_freq_lo: Option<u8>,
 }
 
 impl ChannelState {
@@ -243,6 +249,8 @@ impl ChannelState {
             active: false,
             wave_instrument: 0,
             stereo_panning: 0xFF,
+            trigger: false,
+            vibrato_freq_lo: None,
         }
     }
 
@@ -498,8 +506,9 @@ impl Sequencer {
             }
 
             let pos = ch.ptr;
+            let is_noise = hw_channel_for(ch_idx) == 3;
             let data_clone = ch.data.clone(); // Clone to avoid borrow conflict
-            let (cmd, new_pos) = commands::decode_command(&data_clone, pos);
+            let (cmd, new_pos) = commands::decode_command(&data_clone, pos, is_noise);
             self.channels[ch_idx].ptr = new_pos;
 
             match cmd {
@@ -638,6 +647,7 @@ impl Sequencer {
             commands::calculate_delay(length, ch.note_speed, tempo, ch.delay_frac);
         ch.delay_counter = delay;
         ch.delay_frac = new_frac;
+        ch.trigger = true;
     }
 
     /// Handle a drum note: triggers a noise instrument.
@@ -656,10 +666,8 @@ impl Sequencer {
         ch.delay_counter = delay;
         ch.delay_frac = new_frac;
 
-        // Drum instruments would trigger a sub-SFX via PlaySound in the original.
-        // For the sequencer model, we just note that this is a percussion hit.
-        // The actual noise parameters would come from the drum instrument table.
         ch.flags1.insert(ChannelFlags1::NOISE_OR_SFX);
+        ch.trigger = true;
     }
 
     /// Handle a rest command: silence the channel for the given duration.
@@ -679,6 +687,7 @@ impl Sequencer {
 
         // Set frequency to 0 to indicate silence
         ch.frequency = 0;
+        ch.trigger = true;
     }
 
     /// Handle note_type command.
@@ -815,9 +824,10 @@ impl Sequencer {
             return;
         }
 
-        // Apply vibrato
-        if let Some(new_freq) = crate::effects::apply_vibrato(&mut self.channels[ch_idx]) {
-            self.channels[ch_idx].frequency = new_freq;
+        if let Some(vibrato_lo) = crate::effects::apply_vibrato(&mut self.channels[ch_idx]) {
+            self.channels[ch_idx].vibrato_freq_lo = Some(vibrato_lo);
+        } else {
+            self.channels[ch_idx].vibrato_freq_lo = None;
         }
 
         // Apply pitch slide
@@ -832,123 +842,118 @@ impl Sequencer {
     ///
     /// For each HW channel, determine which logical channel takes priority
     /// (SFX over music), and write its frequency/volume/duty to the APU.
-    fn apply_to_apu(&self, apu: &mut Apu) {
-        // Build the stereo panning byte
+    fn apply_to_apu(&mut self, apu: &mut Apu) {
         let mut panning = 0u8;
 
         for hw in 0..4usize {
             let sfx_idx = hw + NUM_MUSIC_CHANNELS;
             let music_idx = hw;
 
-            // SFX takes priority if active
             let active_idx = if self.channels[sfx_idx].active {
                 sfx_idx
             } else if self.channels[music_idx].active {
                 music_idx
             } else {
-                // Neither active — silence this HW channel
                 self.silence_hw_channel(apu, hw);
                 continue;
             };
 
-            let ch = &self.channels[active_idx];
-
-            // Apply panning
             let hw_mask = HwChannel::from_u8(hw as u8)
                 .map(|h| h.enable_mask())
                 .unwrap_or(0);
-            panning |= ch.stereo_panning & hw_mask;
+            panning |= self.channels[active_idx].stereo_panning & hw_mask;
 
-            // Write to APU
+            let ch = &mut self.channels[active_idx];
             match hw {
-                0 => self.apply_pulse_channel(apu, ch, true),
-                1 => self.apply_pulse_channel(apu, ch, false),
-                2 => self.apply_wave_channel(apu, ch),
-                3 => self.apply_noise_channel(apu, ch),
+                0 => Self::apply_pulse_channel(apu, ch, true),
+                1 => Self::apply_pulse_channel(apu, ch, false),
+                2 => Self::apply_wave_channel(apu, ch),
+                3 => Self::apply_noise_channel(apu, ch),
                 _ => {}
             }
         }
 
-        // Set stereo panning
         apu.nr51 = panning;
     }
 
     /// Write pulse channel state to APU.
-    fn apply_pulse_channel(&self, apu: &mut Apu, ch: &ChannelState, is_ch1: bool) {
+    /// On new note (trigger=true): writes all registers and clears trigger.
+    /// On sustain: only updates frequency low byte (for vibrato/pitch slide).
+    fn apply_pulse_channel(apu: &mut Apu, ch: &mut ChannelState, is_ch1: bool) {
         let freq = ch.frequency;
-        let duty = ch.duty_cycle;
-        let vol_env = ch.volume_envelope;
+        let nrx3 = ch.vibrato_freq_lo.unwrap_or((freq & 0xFF) as u8);
 
-        // NRx1: duty cycle (bits 7-6) — don't set length counter
-        let nrx1 = (duty & 0x03) << 6;
+        if ch.trigger {
+            let duty = ch.duty_cycle;
+            let vol_env = ch.volume_envelope;
 
-        // NRx2: volume envelope
-        let nrx2 = vol_env;
+            let nrx1 = (duty & 0x03) << 6;
+            let nrx2 = vol_env;
+            let nrx4 = 0x80 | ((freq >> 8) & 0x07) as u8;
 
-        // NRx3: frequency low 8 bits
-        let nrx3 = (freq & 0xFF) as u8;
+            if is_ch1 {
+                apu.write_register(0xFF11, nrx1);
+                apu.write_register(0xFF12, nrx2);
+                apu.write_register(0xFF13, nrx3);
+                apu.write_register(0xFF14, nrx4);
+            } else {
+                apu.write_register(0xFF16, nrx1);
+                apu.write_register(0xFF17, nrx2);
+                apu.write_register(0xFF18, nrx3);
+                apu.write_register(0xFF19, nrx4);
+            }
 
-        // NRx4: trigger + frequency high 3 bits
-        let nrx4 = 0x80 | ((freq >> 8) & 0x07) as u8;
-
-        if is_ch1 {
-            apu.write_register(0xFF11, nrx1);
-            apu.write_register(0xFF12, nrx2);
-            apu.write_register(0xFF13, nrx3);
-            apu.write_register(0xFF14, nrx4);
+            ch.trigger = false;
         } else {
-            apu.write_register(0xFF16, nrx1);
-            apu.write_register(0xFF17, nrx2);
-            apu.write_register(0xFF18, nrx3);
-            apu.write_register(0xFF19, nrx4);
+            if is_ch1 {
+                apu.write_register(0xFF13, nrx3);
+            } else {
+                apu.write_register(0xFF18, nrx3);
+            }
         }
     }
 
     /// Write wave channel state to APU.
-    fn apply_wave_channel(&self, apu: &mut Apu, ch: &ChannelState) {
+    fn apply_wave_channel(apu: &mut Apu, ch: &mut ChannelState) {
         let freq = ch.frequency;
-        let wave_idx = ch.wave_instrument as usize;
 
-        // Load wave RAM if we have a valid instrument
-        if wave_idx < WAVE_INSTRUMENTS.len() {
-            // Disable DAC before writing wave RAM (required by hardware)
-            apu.write_register(0xFF1A, 0x00);
+        if ch.trigger {
+            let wave_idx = ch.wave_instrument as usize;
 
-            let wave_data = &WAVE_INSTRUMENTS[wave_idx];
-            for (i, &byte) in wave_data.iter().enumerate() {
-                apu.write_register(0xFF30 + i as u16, byte);
+            if wave_idx < WAVE_INSTRUMENTS.len() {
+                apu.write_register(0xFF1A, 0x00);
+                let wave_data = &WAVE_INSTRUMENTS[wave_idx];
+                for (i, &byte) in wave_data.iter().enumerate() {
+                    apu.write_register(0xFF30 + i as u16, byte);
+                }
+                apu.write_register(0xFF1A, 0x80);
             }
 
-            // Re-enable DAC
-            apu.write_register(0xFF1A, 0x80);
+            let volume_code = (ch.volume_envelope >> 4) & 0x03;
+            apu.write_register(0xFF1C, volume_code << 5);
+            apu.write_register(0xFF1D, (freq & 0xFF) as u8);
+            apu.write_register(0xFF1E, 0x80 | ((freq >> 8) & 0x07) as u8);
+
+            ch.trigger = false;
+        } else {
+            let nrx3 = ch.vibrato_freq_lo.unwrap_or((freq & 0xFF) as u8);
+            apu.write_register(0xFF1D, nrx3);
         }
-
-        // NR32: volume code — from note_type param bits 5-4
-        let volume_code = (ch.volume_envelope >> 4) & 0x03;
-        apu.write_register(0xFF1C, volume_code << 5);
-
-        // NR33: frequency low
-        apu.write_register(0xFF1D, (freq & 0xFF) as u8);
-
-        // NR34: trigger + frequency high
-        apu.write_register(0xFF1E, 0x80 | ((freq >> 8) & 0x07) as u8);
     }
 
     /// Write noise channel state to APU.
-    fn apply_noise_channel(&self, apu: &mut Apu, ch: &ChannelState) {
-        // NR42: volume envelope
-        apu.write_register(0xFF21, ch.volume_envelope);
+    fn apply_noise_channel(apu: &mut Apu, ch: &mut ChannelState) {
+        if ch.trigger {
+            apu.write_register(0xFF21, ch.volume_envelope);
 
-        // NR43: noise parameters — frequency maps to polynomial counter
-        // In the original, the noise channel uses the frequency value differently.
-        // For basic operation, we set reasonable defaults.
-        let freq = ch.frequency;
-        let shift = ((freq >> 4) & 0x0F) as u8;
-        let divisor = (freq & 0x07) as u8;
-        apu.write_register(0xFF22, (shift << 4) | divisor);
+            let freq = ch.frequency;
+            let shift = ((freq >> 4) & 0x0F) as u8;
+            let divisor = (freq & 0x07) as u8;
+            apu.write_register(0xFF22, (shift << 4) | divisor);
+            apu.write_register(0xFF23, 0x80);
 
-        // NR44: trigger
-        apu.write_register(0xFF23, 0x80);
+            ch.trigger = false;
+        }
     }
 
     /// Silence a hardware channel.
