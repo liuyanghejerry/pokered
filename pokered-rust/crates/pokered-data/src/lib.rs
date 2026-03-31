@@ -13,6 +13,7 @@ pub mod map_data;
 pub mod map_flags;
 pub mod map_names;
 pub mod map_objects;
+pub mod map_text_data;
 pub mod maps;
 pub mod move_data;
 pub mod moves;
