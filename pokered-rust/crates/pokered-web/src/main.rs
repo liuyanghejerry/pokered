@@ -32,6 +32,7 @@ use pokered_renderer::input::{GbButton, InputState};
 use pokered_renderer::{FrameBuffer, Rgba, SCREEN_HEIGHT, SCREEN_WIDTH};
 
 const SCALE: u32 = 3;
+const BLACK_SCREEN_DURATION: u32 = 30;
 
 struct PokemonGame {
     state: GameState,
@@ -46,6 +47,8 @@ struct PokemonGame {
     player_name: String,
     rival_name: String,
     frame_count: u64,
+    black_screen_frames: u32,
+    pending_screen: Option<GameScreen>,
 }
 
 impl PokemonGame {
@@ -82,11 +85,24 @@ impl PokemonGame {
             player_name: "RED".to_string(),
             rival_name: "BLUE".to_string(),
             frame_count: 0,
+            black_screen_frames: 0,
+            pending_screen: None,
         }
     }
 
     fn update(&mut self, input: &InputState) {
         self.frame_count += 1;
+
+        if self.black_screen_frames > 0 {
+            self.black_screen_frames -= 1;
+            if self.black_screen_frames == 0 {
+                if let Some(screen) = self.pending_screen.take() {
+                    self.handle_transition(screen);
+                }
+            }
+            return;
+        }
+
         let action = match self.state.screen {
             GameScreen::CopyrightSplash | GameScreen::TitleScreen => {
                 let any_pressed = input.any_just_pressed();
@@ -237,7 +253,17 @@ impl PokemonGame {
         };
 
         if let ScreenAction::Transition(new_screen) = action {
-            self.handle_transition(new_screen);
+            use pokered_core::game_state::MainMenuChoice;
+            let needs_black_screen = new_screen == GameScreen::Overworld
+                && self.state.screen == GameScreen::MainMenu
+                && self.main_menu.last_choice == Some(MainMenuChoice::Continue);
+
+            if needs_black_screen {
+                self.black_screen_frames = BLACK_SCREEN_DURATION;
+                self.pending_screen = Some(new_screen);
+            } else {
+                self.handle_transition(new_screen);
+            }
         }
     }
 
@@ -281,6 +307,11 @@ impl PokemonGame {
     }
 
     fn draw(&self, fb: &mut FrameBuffer) {
+        if self.black_screen_frames > 0 {
+            fb.clear(Rgba::BLACK);
+            return;
+        }
+
         fb.clear(Rgba::WHITE);
         match self.state.screen {
             GameScreen::CopyrightSplash | GameScreen::TitleScreen => {

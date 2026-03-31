@@ -51,6 +51,8 @@ pub struct PokemonGame {
     pub frame_count: u64,
     pub exit_requested: bool,
     pub resources: Option<ResourceManager>,
+    pub black_screen_frames: u32,
+    pub pending_screen: Option<GameScreen>,
     #[cfg(not(target_arch = "wasm32"))]
     pub audio: Option<AudioOutput>,
 }
@@ -122,6 +124,8 @@ impl PokemonGame {
             frame_count: 0,
             exit_requested: false,
             resources,
+            black_screen_frames: 0,
+            pending_screen: None,
             #[cfg(not(target_arch = "wasm32"))]
             audio,
         }
@@ -358,6 +362,8 @@ impl PokemonGame {
     }
 }
 
+const BLACK_SCREEN_DURATION: u32 = 30;
+
 impl GameLoop for PokemonGame {
     fn update(&mut self, input: &InputState) {
         self.frame_count += 1;
@@ -368,6 +374,16 @@ impl GameLoop for PokemonGame {
             if input.is_just_pressed(GbButton::A) {
                 audio.play_sfx(SfxId::PressAB);
             }
+        }
+
+        if self.black_screen_frames > 0 {
+            self.black_screen_frames -= 1;
+            if self.black_screen_frames == 0 {
+                if let Some(screen) = self.pending_screen.take() {
+                    self.handle_transition(screen);
+                }
+            }
+            return;
         }
 
         let action = match self.state.screen {
@@ -518,11 +534,26 @@ impl GameLoop for PokemonGame {
         };
 
         if let ScreenAction::Transition(new_screen) = action {
-            self.handle_transition(new_screen);
+            use pokered_core::game_state::MainMenuChoice;
+            let needs_black_screen = new_screen == GameScreen::Overworld
+                && self.state.screen == GameScreen::MainMenu
+                && self.main_menu.last_choice == Some(MainMenuChoice::Continue);
+
+            if needs_black_screen {
+                self.black_screen_frames = BLACK_SCREEN_DURATION;
+                self.pending_screen = Some(new_screen);
+            } else {
+                self.handle_transition(new_screen);
+            }
         }
     }
 
     fn draw(&mut self, frame_buffer: &mut FrameBuffer) {
+        if self.black_screen_frames > 0 {
+            frame_buffer.clear(Rgba::BLACK);
+            return;
+        }
+
         frame_buffer.clear(Rgba::WHITE);
 
         match self.state.screen {
