@@ -24,7 +24,7 @@ fn main() {
     }
 
     match cli.command {
-        None | Some(crate::cli::Commands::Run) => {
+        None => {
             let config = GameWindowConfig {
                 title: format!(
                     "Pokémon {} - Rust",
@@ -36,12 +36,37 @@ fn main() {
                 scale: 3,
                 resizable: true,
             };
-            let game = PokemonGame::new(version);
+            let game = PokemonGame::new(version, None, None);
             match run(config, game) {
                 Ok(()) => println!("Game exited normally"),
                 Err(e) => eprintln!("Error: {}", e),
             }
         }
+        Some(crate::cli::Commands::Run { save, snapshot }) => {
+            let config = GameWindowConfig {
+                title: format!(
+                    "Pokémon {} - Rust",
+                    match version {
+                        GameVersion::Red => "Red",
+                        GameVersion::Blue => "Blue",
+                    }
+                ),
+                scale: 3,
+                resizable: true,
+            };
+            let game = PokemonGame::new(version, save, snapshot);
+            match run(config, game) {
+                Ok(()) => println!("Game exited normally"),
+                Err(e) => eprintln!("Error: {}", e),
+            }
+        }
+        Some(crate::cli::Commands::ExportSnapshot {
+            ref input,
+            ref output,
+        }) => match PokemonGame::export_snapshot_from_sav(input.as_deref(), output) {
+            Ok(()) => println!("Snapshot exported successfully"),
+            Err(e) => eprintln!("Error: {}", e),
+        },
         Some(crate::cli::Commands::Screenshot {
             ref screen,
             ref output,
