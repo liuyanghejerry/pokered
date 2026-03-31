@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use error_iter::ErrorIter as _;
 use log::error;
@@ -11,6 +12,9 @@ use winit::window::Window;
 
 use crate::input::InputState;
 use crate::{FrameBuffer, DEFAULT_SCALE, SCREEN_HEIGHT, SCREEN_WIDTH};
+
+/// Original Game Boy VBlank frequency: 4194304 Hz / 70224 cycles ≈ 59.7275 Hz
+const FRAME_DURATION: Duration = Duration::from_nanos(16_742_706); // 1e9 / 59.7275
 
 pub struct GameWindowConfig {
     pub title: String,
@@ -82,6 +86,7 @@ pub fn run<G: GameLoop + 'static>(
 
     let mut frame_buffer = FrameBuffer::default();
     let mut input = InputState::new();
+    let mut next_frame_time = Instant::now();
 
     #[allow(deprecated)]
     let res = event_loop.run(move |event, elwt| match event {
@@ -120,13 +125,24 @@ pub fn run<G: GameLoop + 'static>(
             _ => {}
         },
         Event::AboutToWait => {
-            game.update(&input);
-            input.begin_frame();
-            if game.should_exit() {
-                elwt.exit();
-                return;
+            let now = Instant::now();
+            if now >= next_frame_time {
+                game.update(&input);
+                input.begin_frame();
+                if game.should_exit() {
+                    elwt.exit();
+                    return;
+                }
+                window.request_redraw();
+                next_frame_time += FRAME_DURATION;
+                if next_frame_time < now {
+                    next_frame_time = now + FRAME_DURATION;
+                }
             }
-            window.request_redraw();
+            let sleep_duration = next_frame_time.saturating_duration_since(Instant::now());
+            if !sleep_duration.is_zero() {
+                std::thread::sleep(sleep_duration);
+            }
         }
         _ => {}
     });

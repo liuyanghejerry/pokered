@@ -22,7 +22,7 @@ pub fn capture_screen(game: &mut PokemonGame, target: GameScreen, frames: u32) -
 
 pub fn cmd_screenshot(target: &ScreenTarget, output: &PathBuf, frames: u32) {
     let version = GameVersion::Red;
-    let mut game = PokemonGame::new(version);
+    let mut game = PokemonGame::new(version, None, None);
     let screen = screen_target_to_game_screen(target);
     println!(
         "Capturing screen: {} ({} frames)...",
@@ -37,7 +37,7 @@ pub fn cmd_screenshot(target: &ScreenTarget, output: &PathBuf, frames: u32) {
 pub fn cmd_screenshot_all(output_dir: &PathBuf, frames: u32) {
     std::fs::create_dir_all(output_dir).expect("Failed to create output directory");
     let version = GameVersion::Red;
-    let mut game = PokemonGame::new(version);
+    let mut game = PokemonGame::new(version, None, None);
     for &screen in ALL_SCREENS {
         let name = screen_name(&screen);
         let path = output_dir.join(format!("{}.png", name));
@@ -55,7 +55,7 @@ pub fn cmd_screenshot_all(output_dir: &PathBuf, frames: u32) {
 
 pub fn cmd_dump_state(target: &ScreenTarget, frames: u32) {
     let version = GameVersion::Red;
-    let mut game = PokemonGame::new(version);
+    let mut game = PokemonGame::new(version, None, None);
     let screen = screen_target_to_game_screen(target);
     game.handle_transition(screen);
     let input = InputState::new();

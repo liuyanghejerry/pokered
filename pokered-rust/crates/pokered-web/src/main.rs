@@ -15,6 +15,9 @@ use winit::event_loop::EventLoop;
 use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::window::Window;
 
+#[cfg(not(target_arch = "wasm32"))]
+use std::time::{Duration, Instant};
+
 use pokered_core::battle::{BattleInput, BattleScreen};
 use pokered_core::data::maps::MapId;
 use pokered_core::data::wild_data::GameVersion;
@@ -564,6 +567,12 @@ async fn run() {
     let mut frame_buffer = FrameBuffer::default();
     let mut input = InputState::new();
 
+    // GB VBlank: 4194304 Hz / 70224 cycles ≈ 59.7275 Hz
+    #[cfg(not(target_arch = "wasm32"))]
+    const FRAME_DURATION: Duration = Duration::from_nanos(16_742_706);
+    #[cfg(not(target_arch = "wasm32"))]
+    let mut next_frame_time = Instant::now();
+
     #[allow(deprecated)]
     let res = event_loop.run(move |event, elwt| match event {
         Event::WindowEvent { event, .. } => match event {
@@ -599,9 +608,29 @@ async fn run() {
             _ => {}
         },
         Event::AboutToWait => {
-            game.update(&input);
-            input.begin_frame();
-            window.request_redraw();
+            #[cfg(target_arch = "wasm32")]
+            {
+                game.update(&input);
+                input.begin_frame();
+                window.request_redraw();
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                let now = Instant::now();
+                if now >= next_frame_time {
+                    game.update(&input);
+                    input.begin_frame();
+                    window.request_redraw();
+                    next_frame_time += FRAME_DURATION;
+                    if next_frame_time < now {
+                        next_frame_time = now + FRAME_DURATION;
+                    }
+                }
+                let sleep_duration = next_frame_time.saturating_duration_since(Instant::now());
+                if !sleep_duration.is_zero() {
+                    std::thread::sleep(sleep_duration);
+                }
+            }
         }
         _ => {}
     });

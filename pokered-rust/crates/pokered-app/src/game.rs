@@ -1,3 +1,5 @@
+use std::path::{Path, PathBuf};
+
 use pokered_audio::music_data::MusicId;
 use pokered_audio::sfx_data::SfxId;
 use pokered_core::battle::{BattleInput, BattleScreen};
@@ -35,6 +37,17 @@ fn save_file_path() -> std::path::PathBuf {
         .unwrap_or_else(|| std::path::PathBuf::from(SAVE_FILE_NAME))
 }
 
+fn save_summary_from_data(save: &SaveData) -> SaveFileSummary {
+    SaveFileSummary {
+        player_name: save.player_name.clone(),
+        badges: save.game_data.obtained_badges,
+        pokedex_owned: save.game_data.pokedex.owned_count() as u8,
+        play_time_hours: save.game_data.play_time.hours as u16,
+        play_time_minutes: save.game_data.play_time.minutes,
+        play_time_seconds: save.game_data.play_time.seconds,
+    }
+}
+
 pub struct PokemonGame {
     pub state: GameState,
     pub title_screen: TitleScreenState,
@@ -58,8 +71,18 @@ pub struct PokemonGame {
 }
 
 impl PokemonGame {
-    pub fn new(version: GameVersion) -> Self {
-        let (save_data, save_summary) = Self::try_load_save();
+    pub fn new(
+        version: GameVersion,
+        save_path: Option<PathBuf>,
+        snapshot_path: Option<PathBuf>,
+    ) -> Self {
+        let (save_data, save_summary) = if let Some(ref path) = snapshot_path {
+            Self::load_snapshot_from_path(path)
+        } else if let Some(ref path) = save_path {
+            Self::load_sram_from_path(path)
+        } else {
+            Self::try_load_default_save()
+        };
         let state = GameState {
             screen: GameScreen::CopyrightSplash,
             config: pokered_core::game_state::GameConfig::new(version),
@@ -131,22 +154,48 @@ impl PokemonGame {
         }
     }
 
-    fn try_load_save() -> (SaveData, Option<SaveFileSummary>) {
+    fn try_load_default_save() -> (SaveData, Option<SaveFileSummary>) {
         let path = save_file_path();
-        let data = match std::fs::read(&path) {
-            Ok(d) => d,
-            Err(_) => return (SaveData::new(), None),
-        };
-        match import_sram(&data) {
+        match std::fs::read(&path) {
+            Ok(data) => Self::parse_sram(&path, &data),
+            Err(_) => (SaveData::new(), None),
+        }
+    }
+
+    fn load_sram_from_path(path: &Path) -> (SaveData, Option<SaveFileSummary>) {
+        match std::fs::read(path) {
+            Ok(data) => Self::parse_sram(path, &data),
+            Err(e) => {
+                eprintln!("Error: failed to read save file {:?}: {}", path, e);
+                (SaveData::new(), None)
+            }
+        }
+    }
+
+    fn load_snapshot_from_path(path: &Path) -> (SaveData, Option<SaveFileSummary>) {
+        match std::fs::read(path) {
+            Ok(data) => match serde_json::from_slice::<SaveData>(&data) {
+                Ok(save) => {
+                    let summary = save_summary_from_data(&save);
+                    eprintln!("Snapshot loaded: {:?}", path);
+                    (save, Some(summary))
+                }
+                Err(e) => {
+                    eprintln!("Error: failed to parse snapshot {:?}: {}", path, e);
+                    (SaveData::new(), None)
+                }
+            },
+            Err(e) => {
+                eprintln!("Error: failed to read snapshot {:?}: {}", path, e);
+                (SaveData::new(), None)
+            }
+        }
+    }
+
+    fn parse_sram(path: &Path, data: &[u8]) -> (SaveData, Option<SaveFileSummary>) {
+        match import_sram(data) {
             Ok(save) => {
-                let summary = SaveFileSummary {
-                    player_name: save.player_name.clone(),
-                    badges: save.game_data.obtained_badges,
-                    pokedex_owned: save.game_data.pokedex.owned_count() as u8,
-                    play_time_hours: save.game_data.play_time.hours as u16,
-                    play_time_minutes: save.game_data.play_time.minutes,
-                    play_time_seconds: save.game_data.play_time.seconds,
-                };
+                let summary = save_summary_from_data(&save);
                 eprintln!("Save file loaded: {:?}", path);
                 pokered_core::log_save!(
                     "position: map_id={}, x={}, y={}, dir={}",
@@ -158,10 +207,34 @@ impl PokemonGame {
                 (save, Some(summary))
             }
             Err(e) => {
-                eprintln!("Warning: save file exists but failed to load: {:?}", e);
+                eprintln!("Warning: save file {:?} failed to load: {:?}", path, e);
                 (SaveData::new(), None)
             }
         }
+    }
+
+    pub fn export_snapshot_from_sav(
+        input_path: Option<&Path>,
+        output_path: &Path,
+    ) -> Result<(), String> {
+        let sav_path = input_path
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(save_file_path);
+        let data = std::fs::read(&sav_path)
+            .map_err(|e| format!("Failed to read {:?}: {}", sav_path, e))?;
+        let save = import_sram(&data)
+            .map_err(|e| format!("Failed to parse SRAM from {:?}: {:?}", sav_path, e))?;
+        let json = serde_json::to_string_pretty(&save)
+            .map_err(|e| format!("Failed to serialize snapshot: {}", e))?;
+        std::fs::write(output_path, json.as_bytes())
+            .map_err(|e| format!("Failed to write {:?}: {}", output_path, e))?;
+        eprintln!(
+            "Exported snapshot: {:?} -> {:?} ({} bytes)",
+            sav_path,
+            output_path,
+            json.len()
+        );
+        Ok(())
     }
 
     fn build_save_data(&self) -> SaveData {
