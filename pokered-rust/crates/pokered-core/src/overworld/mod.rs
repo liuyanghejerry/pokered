@@ -606,6 +606,7 @@ impl OverworldScreen {
         }
 
         let a_just_pressed = input.a && !self.prev_a_pressed;
+        self.prev_a_pressed = input.a;
 
         // While a dialogue box is active, consume A-button to advance pages;
         // block all movement and Start input.
@@ -615,7 +616,6 @@ impl OverworldScreen {
                     self.pending_dialogue = None;
                 }
             }
-            self.prev_a_pressed = input.a;
             return ScreenAction::Continue;
         }
 
@@ -845,7 +845,6 @@ impl OverworldScreen {
             }
         }
 
-        self.prev_a_pressed = input.a;
         ScreenAction::Continue
     }
 }
