@@ -1954,8 +1954,8 @@ dependencies = [
  "anyhow",
  "clap",
  "cpal",
- "env_logger",
  "image",
+ "log",
  "pokered-audio",
  "pokered-core",
  "pokered-data",
@@ -1978,6 +1978,7 @@ name = "pokered-core"
 version = "0.1.0"
 dependencies = [
  "criterion",
+ "log",
  "pokered-data",
  "rand",
  "serde",
@@ -2002,7 +2003,6 @@ dependencies = [
 name = "pokered-renderer"
 version = "0.1.0"
 dependencies = [
- "env_logger",
  "error-iter",
  "image",
  "log",

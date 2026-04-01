@@ -1,3 +1,5 @@
+use std::path::{Path, PathBuf};
+
 use pokered_audio::music_data::MusicId;
 use pokered_audio::sfx_data::SfxId;
 use pokered_core::battle::{BattleInput, BattleScreen};
@@ -52,6 +54,17 @@ fn save_file_path() -> std::path::PathBuf {
         .unwrap_or_else(|| std::path::PathBuf::from(SAVE_FILE_NAME))
 }
 
+fn save_summary_from_data(save: &SaveData) -> SaveFileSummary {
+    SaveFileSummary {
+        player_name: save.player_name.clone(),
+        badges: save.game_data.obtained_badges,
+        pokedex_owned: save.game_data.pokedex.owned_count() as u8,
+        play_time_hours: save.game_data.play_time.hours as u16,
+        play_time_minutes: save.game_data.play_time.minutes,
+        play_time_seconds: save.game_data.play_time.seconds,
+    }
+}
+
 pub struct PokemonGame {
     pub state: GameState,
     pub title_screen: TitleScreenState,
@@ -70,13 +83,25 @@ pub struct PokemonGame {
     pub resources: Option<ResourceManager>,
     prev_title_phase: Option<TitlePhase>,
     prev_oak_phase_tag: u8,
+    pub black_screen_frames: u32,
+    pub pending_screen: Option<GameScreen>,
     #[cfg(not(target_arch = "wasm32"))]
     pub audio: Option<AudioOutput>,
 }
 
 impl PokemonGame {
-    pub fn new(version: GameVersion) -> Self {
-        let (save_data, save_summary) = Self::try_load_save();
+    pub fn new(
+        version: GameVersion,
+        save_path: Option<PathBuf>,
+        snapshot_path: Option<PathBuf>,
+    ) -> Self {
+        let (save_data, save_summary) = if let Some(ref path) = snapshot_path {
+            Self::load_snapshot_from_path(path)
+        } else if let Some(ref path) = save_path {
+            Self::load_sram_from_path(path)
+        } else {
+            Self::try_load_default_save()
+        };
         let state = GameState {
             screen: GameScreen::CopyrightSplash,
             config: pokered_core::game_state::GameConfig::new(version),
@@ -143,35 +168,94 @@ impl PokemonGame {
             resources,
             prev_title_phase: None,
             prev_oak_phase_tag: 0,
+            black_screen_frames: 0,
+            pending_screen: None,
             #[cfg(not(target_arch = "wasm32"))]
             audio,
         }
     }
 
-    fn try_load_save() -> (SaveData, Option<SaveFileSummary>) {
+    fn try_load_default_save() -> (SaveData, Option<SaveFileSummary>) {
         let path = save_file_path();
-        let data = match std::fs::read(&path) {
-            Ok(d) => d,
-            Err(_) => return (SaveData::new(), None),
-        };
-        match import_sram(&data) {
-            Ok(save) => {
-                let summary = SaveFileSummary {
-                    player_name: save.player_name.clone(),
-                    badges: save.game_data.obtained_badges,
-                    pokedex_owned: save.game_data.pokedex.owned_count() as u8,
-                    play_time_hours: save.game_data.play_time.hours as u16,
-                    play_time_minutes: save.game_data.play_time.minutes,
-                    play_time_seconds: save.game_data.play_time.seconds,
-                };
-                eprintln!("Save file loaded: {:?}", path);
-                (save, Some(summary))
-            }
+        match std::fs::read(&path) {
+            Ok(data) => Self::parse_sram(&path, &data),
+            Err(_) => (SaveData::new(), None),
+        }
+    }
+
+    fn load_sram_from_path(path: &Path) -> (SaveData, Option<SaveFileSummary>) {
+        match std::fs::read(path) {
+            Ok(data) => Self::parse_sram(path, &data),
             Err(e) => {
-                eprintln!("Warning: save file exists but failed to load: {:?}", e);
+                eprintln!("Error: failed to read save file {:?}: {}", path, e);
                 (SaveData::new(), None)
             }
         }
+    }
+
+    fn load_snapshot_from_path(path: &Path) -> (SaveData, Option<SaveFileSummary>) {
+        match std::fs::read(path) {
+            Ok(data) => match serde_json::from_slice::<SaveData>(&data) {
+                Ok(save) => {
+                    let summary = save_summary_from_data(&save);
+                    eprintln!("Snapshot loaded: {:?}", path);
+                    (save, Some(summary))
+                }
+                Err(e) => {
+                    eprintln!("Error: failed to parse snapshot {:?}: {}", path, e);
+                    (SaveData::new(), None)
+                }
+            },
+            Err(e) => {
+                eprintln!("Error: failed to read snapshot {:?}: {}", path, e);
+                (SaveData::new(), None)
+            }
+        }
+    }
+
+    fn parse_sram(path: &Path, data: &[u8]) -> (SaveData, Option<SaveFileSummary>) {
+        match import_sram(data) {
+            Ok(save) => {
+                let summary = save_summary_from_data(&save);
+                eprintln!("Save file loaded: {:?}", path);
+                pokered_core::log_save!(
+                    "position: map_id={}, x={}, y={}, dir={}",
+                    save.game_data.position.map_id,
+                    save.game_data.position.x,
+                    save.game_data.position.y,
+                    save.game_data.player_direction
+                );
+                (save, Some(summary))
+            }
+            Err(e) => {
+                eprintln!("Warning: save file {:?} failed to load: {:?}", path, e);
+                (SaveData::new(), None)
+            }
+        }
+    }
+
+    pub fn export_snapshot_from_sav(
+        input_path: Option<&Path>,
+        output_path: &Path,
+    ) -> Result<(), String> {
+        let sav_path = input_path
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(save_file_path);
+        let data = std::fs::read(&sav_path)
+            .map_err(|e| format!("Failed to read {:?}: {}", sav_path, e))?;
+        let save = import_sram(&data)
+            .map_err(|e| format!("Failed to parse SRAM from {:?}: {:?}", sav_path, e))?;
+        let json = serde_json::to_string_pretty(&save)
+            .map_err(|e| format!("Failed to serialize snapshot: {}", e))?;
+        std::fs::write(output_path, json.as_bytes())
+            .map_err(|e| format!("Failed to write {:?}: {}", output_path, e))?;
+        eprintln!(
+            "Exported snapshot: {:?} -> {:?} ({} bytes)",
+            sav_path,
+            output_path,
+            json.len()
+        );
+        Ok(())
     }
 
     fn build_save_data(&self) -> SaveData {
@@ -182,6 +266,47 @@ impl PokemonGame {
         if let Some(encoded) = pokered_data::charmap::encode_string(&self.rival_name) {
             save.game_data.rival_name = encoded;
         }
+
+        let player = &self.overworld.state.player;
+        let current_map = self.overworld.state.current_map;
+
+        save.game_data.position.map_id = current_map as u8;
+        save.game_data.position.x = player.x as u8;
+        save.game_data.position.y = player.y as u8;
+        save.game_data.position.x_block = (player.x % 2) as u8;
+        save.game_data.position.y_block = (player.y % 2) as u8;
+
+        let facing = match player.facing {
+            pokered_core::overworld::Direction::Down => 0u8,
+            pokered_core::overworld::Direction::Up => 4u8,
+            pokered_core::overworld::Direction::Left => 8u8,
+            pokered_core::overworld::Direction::Right => 12u8,
+        };
+        save.game_data.player_direction = facing;
+        save.game_data.player_last_stop_direction = facing;
+        save.game_data.player_moving_direction = facing;
+
+        pokered_core::log_save!(
+            "build_save_data: map_id={}, x={}, y={}, dir={}, player.x={}, player.y={}",
+            save.game_data.position.map_id,
+            save.game_data.position.x,
+            save.game_data.position.y,
+            facing,
+            player.x,
+            player.y
+        );
+
+        // wCurrentMapHeight2/Width2 = block dimensions × 2
+        let (map_w, map_h) = current_map.dimensions();
+        save.game_data.current_map_height2 = map_h * 2;
+        save.game_data.current_map_width2 = map_w * 2;
+
+        if let Some(ref map_data) = self.overworld.map_data {
+            save.game_data.map_header.tileset = map_data.tileset as u8;
+            save.game_data.map_header.height = map_data.height;
+            save.game_data.map_header.width = map_data.width;
+        }
+
         save
     }
 
@@ -191,7 +316,7 @@ impl PokemonGame {
         let path = save_file_path();
         match std::fs::write(&path, &sram) {
             Ok(()) => {
-                eprintln!("Game saved to {:?} ({} bytes)", path, sram.len());
+                pokered_core::log_save!("game saved to {:?} ({} bytes)", path, sram.len());
                 self.save_data = save;
             }
             Err(e) => {
@@ -219,14 +344,75 @@ impl PokemonGame {
             }
             GameScreen::Overworld => {
                 use pokered_core::data::fly_warp_data::NEW_GAME_WARP;
-                let mut overworld = OverworldScreen::new(NEW_GAME_WARP.map_id);
-                overworld.state.player.x = NEW_GAME_WARP.coords.x as u16;
-                overworld.state.player.y = NEW_GAME_WARP.coords.y as u16;
-                overworld.start_bedroom_dialogue(&self.player_name);
-                self.overworld = overworld;
-                #[cfg(not(target_arch = "wasm32"))]
-                if let Some(ref audio) = self.audio {
-                    audio.play_music(MusicId::PALLET_TOWN);
+                use pokered_core::game_state::MainMenuChoice;
+
+                // Only create a new OverworldScreen when entering from the main menu
+                // (Continue or New Game). When returning from sub-screens (Start menu,
+                // Options, Save, Battle), keep the existing overworld state intact.
+                match self.main_menu.last_choice {
+                    Some(MainMenuChoice::Continue)
+                        if self.state.screen != GameScreen::Overworld
+                            && self.state.screen != GameScreen::StartMenu
+                            && self.state.screen != GameScreen::OptionsMenu
+                            && self.state.screen != GameScreen::SaveMenu
+                            && self.state.screen != GameScreen::Battle =>
+                    {
+                        let pos = &self.save_data.game_data.position;
+                        pokered_core::log_save!(
+                            "continue: loading from save: map_id={}, x={}, y={}, dir={}",
+                            pos.map_id,
+                            pos.x,
+                            pos.y,
+                            self.save_data.game_data.player_direction
+                        );
+                        let map_id = pokered_core::data::maps::MapId::from_u8(pos.map_id)
+                            .unwrap_or(NEW_GAME_WARP.map_id);
+                        let mut overworld = OverworldScreen::new(map_id);
+                        overworld.state.player.x = pos.x as u16;
+                        overworld.state.player.y = pos.y as u16;
+                        overworld.state.player.facing =
+                            match self.save_data.game_data.player_direction {
+                                4 => pokered_core::overworld::Direction::Up,
+                                8 => pokered_core::overworld::Direction::Left,
+                                12 => pokered_core::overworld::Direction::Right,
+                                _ => pokered_core::overworld::Direction::Down,
+                            };
+                        self.player_name =
+                            pokered_data::charmap::decode_string(&self.save_data.player_name);
+                        self.rival_name = pokered_data::charmap::decode_string(
+                            &self.save_data.game_data.rival_name,
+                        );
+                        self.overworld = overworld;
+                        pokered_core::log_save!(
+                            "continue: overworld created: player x={}, y={}, map={:?}",
+                            self.overworld.state.player.x,
+                            self.overworld.state.player.y,
+                            self.overworld.state.current_map
+                        );
+                        #[cfg(not(target_arch = "wasm32"))]
+                        if let Some(ref audio) = self.audio {
+                            audio.play_music(MusicId::PALLET_TOWN);
+                        }
+                    }
+                    Some(MainMenuChoice::NewGame)
+                        if self.state.screen != GameScreen::Overworld
+                            && self.state.screen != GameScreen::StartMenu
+                            && self.state.screen != GameScreen::OptionsMenu
+                            && self.state.screen != GameScreen::SaveMenu
+                            && self.state.screen != GameScreen::Battle =>
+                    {
+                        let mut overworld = OverworldScreen::new(NEW_GAME_WARP.map_id);
+                        overworld.state.player.x = NEW_GAME_WARP.coords.x as u16;
+                        overworld.state.player.y = NEW_GAME_WARP.coords.y as u16;
+                        self.overworld = overworld;
+                        #[cfg(not(target_arch = "wasm32"))]
+                        if let Some(ref audio) = self.audio {
+                            audio.play_music(MusicId::PALLET_TOWN);
+                        }
+                    }
+                    _ => {
+                        // Returning from sub-screen — keep existing overworld intact
+                    }
                 }
             }
             GameScreen::Battle => {
@@ -268,6 +454,8 @@ impl PokemonGame {
     }
 }
 
+const BLACK_SCREEN_DURATION: u32 = 30;
+
 impl GameLoop for PokemonGame {
     fn update(&mut self, input: &InputState) {
         self.frame_count += 1;
@@ -275,6 +463,16 @@ impl GameLoop for PokemonGame {
         #[cfg(not(target_arch = "wasm32"))]
         if let Some(ref audio) = self.audio {
             audio.update_frame();
+        }
+
+        if self.black_screen_frames > 0 {
+            self.black_screen_frames -= 1;
+            if self.black_screen_frames == 0 {
+                if let Some(screen) = self.pending_screen.take() {
+                    self.handle_transition(screen);
+                }
+            }
+            return;
         }
 
         let action = match self.state.screen {
@@ -472,11 +670,26 @@ impl GameLoop for PokemonGame {
         };
 
         if let ScreenAction::Transition(new_screen) = action {
-            self.handle_transition(new_screen);
+            use pokered_core::game_state::MainMenuChoice;
+            let needs_black_screen = new_screen == GameScreen::Overworld
+                && self.state.screen == GameScreen::MainMenu
+                && self.main_menu.last_choice == Some(MainMenuChoice::Continue);
+
+            if needs_black_screen {
+                self.black_screen_frames = BLACK_SCREEN_DURATION;
+                self.pending_screen = Some(new_screen);
+            } else {
+                self.handle_transition(new_screen);
+            }
         }
     }
 
     fn draw(&mut self, frame_buffer: &mut FrameBuffer) {
+        if self.black_screen_frames > 0 {
+            frame_buffer.clear(Rgba::BLACK);
+            return;
+        }
+
         frame_buffer.clear(Rgba::WHITE);
 
         match self.state.screen {

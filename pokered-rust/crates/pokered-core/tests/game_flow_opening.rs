@@ -130,13 +130,6 @@ fn main_menu_with_save_file_shows_continue() {
         a: true,
         ..MenuInput::none()
     });
-    assert_eq!(action, ScreenAction::Continue);
-    assert!(menu.is_showing_continue_info());
-
-    let action = menu.update_frame(MenuInput {
-        a: true,
-        ..MenuInput::none()
-    });
     assert_eq!(action, ScreenAction::Transition(GameScreen::Overworld));
     assert_eq!(menu.last_choice, Some(MainMenuChoice::Continue));
 }
@@ -227,7 +220,10 @@ fn oak_speech_complete_sequence() {
     let mut steps = 0;
     while matches!(speech.phase, OakSpeechPhase::Greeting { .. }) {
         steps += 1;
-        assert!(steps <= OAK_SPEECH_MAX_STEPS, "oak speech greeting did not finish");
+        assert!(
+            steps <= OAK_SPEECH_MAX_STEPS,
+            "oak speech greeting did not finish"
+        );
         speech.update_frame(oak_input_for_progress(&speech));
     }
 

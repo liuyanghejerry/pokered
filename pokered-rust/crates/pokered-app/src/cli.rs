@@ -7,12 +7,34 @@ use clap::{Parser, Subcommand, ValueEnum};
 pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Commands>,
+
+    /// Enable debug logging for specific modules (comma-separated).
+    /// Available modules: save, overworld, battle, menu, audio, warp, event, render, all.
+    /// Example: --debug-modules save,overworld
+    #[arg(long, global = true)]
+    pub debug_modules: Option<String>,
 }
 
 #[derive(Subcommand)]
 pub enum Commands {
     /// Run the game in windowed mode (default)
-    Run,
+    Run {
+        /// Path to a regular SRAM .sav file to load at startup
+        #[arg(long)]
+        save: Option<PathBuf>,
+        /// Path to a JSON snapshot of SaveData to load at startup (for debug/testing)
+        #[arg(long)]
+        snapshot: Option<PathBuf>,
+    },
+    /// Export the current save file (or a specified .sav) as a JSON snapshot
+    ExportSnapshot {
+        /// Input SRAM .sav file path (defaults to the auto-detected pokered.sav)
+        #[arg(long)]
+        input: Option<PathBuf>,
+        /// Output JSON snapshot file path
+        #[arg(short, long, default_value = "snapshot.json")]
+        output: PathBuf,
+    },
     /// Capture a screenshot of a specific game screen
     Screenshot {
         /// Which screen to capture

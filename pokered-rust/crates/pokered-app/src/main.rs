@@ -16,8 +16,15 @@ fn main() {
     let cli = Cli::parse();
     let version = GameVersion::Red;
 
+    if let Some(ref modules) = cli.debug_modules {
+        if let Err(e) = pokered_core::debug_log::init("pokered-debug.log") {
+            eprintln!("Warning: failed to init debug logger: {}", e);
+        }
+        pokered_core::debug_log::enable_from_str(modules);
+    }
+
     match cli.command {
-        None | Some(crate::cli::Commands::Run) => {
+        None => {
             let config = GameWindowConfig {
                 title: format!(
                     "Pokémon {} - Rust",
@@ -29,12 +36,37 @@ fn main() {
                 scale: 3,
                 resizable: true,
             };
-            let game = PokemonGame::new(version);
+            let game = PokemonGame::new(version, None, None);
             match run(config, game) {
                 Ok(()) => println!("Game exited normally"),
                 Err(e) => eprintln!("Error: {}", e),
             }
         }
+        Some(crate::cli::Commands::Run { save, snapshot }) => {
+            let config = GameWindowConfig {
+                title: format!(
+                    "Pokémon {} - Rust",
+                    match version {
+                        GameVersion::Red => "Red",
+                        GameVersion::Blue => "Blue",
+                    }
+                ),
+                scale: 3,
+                resizable: true,
+            };
+            let game = PokemonGame::new(version, save, snapshot);
+            match run(config, game) {
+                Ok(()) => println!("Game exited normally"),
+                Err(e) => eprintln!("Error: {}", e),
+            }
+        }
+        Some(crate::cli::Commands::ExportSnapshot {
+            ref input,
+            ref output,
+        }) => match PokemonGame::export_snapshot_from_sav(input.as_deref(), output) {
+            Ok(()) => println!("Snapshot exported successfully"),
+            Err(e) => eprintln!("Error: {}", e),
+        },
         Some(crate::cli::Commands::Screenshot {
             ref screen,
             ref output,

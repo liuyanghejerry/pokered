@@ -351,3 +351,65 @@ fn test_game_data_event_flags_size() {
     assert_eq!(gd.event_flags.len(), NUM_EVENTS_BYTES);
     assert_eq!(gd.game_progress_flags.len(), GAME_PROGRESS_FLAGS_SIZE);
 }
+
+#[test]
+fn test_position_sram_roundtrip() {
+    use crate::save::game_data::MapPosition;
+    use crate::save::sram_export::export_sram;
+    use crate::save::sram_import::import_sram;
+
+    let mut save = SaveData::new();
+    save.player_name = vec![0x80, 0x81, 0x82, 0x50];
+
+    save.game_data.position = MapPosition {
+        map_id: 0,
+        y: 5,
+        x: 3,
+        y_block: 1,
+        x_block: 1,
+    };
+    save.game_data.player_direction = 4;
+    save.game_data.player_last_stop_direction = 4;
+    save.game_data.player_moving_direction = 4;
+    save.game_data.current_map_height2 = 18;
+    save.game_data.current_map_width2 = 20;
+
+    let sram = export_sram(&save);
+    let restored = import_sram(&sram).expect("roundtrip import should succeed");
+
+    assert_eq!(restored.game_data.position.map_id, 0, "map_id mismatch");
+    assert_eq!(restored.game_data.position.x, 3, "x mismatch");
+    assert_eq!(restored.game_data.position.y, 5, "y mismatch");
+    assert_eq!(restored.game_data.position.x_block, 1, "x_block mismatch");
+    assert_eq!(restored.game_data.position.y_block, 1, "y_block mismatch");
+    assert_eq!(restored.game_data.player_direction, 4, "direction mismatch");
+}
+
+#[test]
+fn test_position_sram_roundtrip_route1() {
+    use crate::save::game_data::MapPosition;
+    use crate::save::sram_export::export_sram;
+    use crate::save::sram_import::import_sram;
+
+    let mut save = SaveData::new();
+    save.player_name = vec![0x87, 0x84, 0x83, 0x50];
+
+    save.game_data.position = MapPosition {
+        map_id: 12,
+        y: 27,
+        x: 4,
+        y_block: 1,
+        x_block: 0,
+    };
+    save.game_data.player_direction = 0;
+    save.game_data.current_map_height2 = 36;
+    save.game_data.current_map_width2 = 20;
+
+    let sram = export_sram(&save);
+    let restored = import_sram(&sram).expect("roundtrip import should succeed");
+
+    assert_eq!(restored.game_data.position.map_id, 12);
+    assert_eq!(restored.game_data.position.x, 4);
+    assert_eq!(restored.game_data.position.y, 27);
+    assert_eq!(restored.game_data.player_direction, 0);
+}

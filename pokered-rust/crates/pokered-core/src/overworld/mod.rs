@@ -364,16 +364,7 @@ pub struct BedroomDialogue {
 }
 
 impl BedroomDialogue {
-    /// Build the bedroom dialogue with the player's name.
     pub fn new(player_name: &str) -> Self {
-        // The original text (data/text/text_2.asm _RedBedroomSNESText):
-        //   text "<PLAYER> is"
-        //   line "playing the SNES!"
-        //   cont "...Okay!"
-        //   cont "It's time to go!"
-        //
-        // We model it as two pages, each requiring an A-press to advance.
-        // The player name is baked into page 1 at construction time.
         let line1 = Box::leak(format!("{} is", player_name).into_boxed_str()) as &'static str;
         Self {
             pages: vec![
@@ -390,12 +381,32 @@ impl BedroomDialogue {
         }
     }
 
-    /// Returns the currently visible page, or `None` if the dialogue is done.
+    pub fn from_text_pages(
+        text_pages: &[pokered_data::map_text_data::TextPage],
+        player_name: &str,
+        rival_name: &str,
+    ) -> Self {
+        let pages = text_pages
+            .iter()
+            .map(|tp| {
+                let l1 = resolve_placeholders(tp.line1, player_name, rival_name);
+                let l2 = resolve_placeholders(tp.line2, player_name, rival_name);
+                DialoguePage {
+                    line1: Box::leak(l1.into_boxed_str()),
+                    line2: Box::leak(l2.into_boxed_str()),
+                }
+            })
+            .collect();
+        Self {
+            pages,
+            current_page: 0,
+        }
+    }
+
     pub fn current(&self) -> Option<&DialoguePage> {
         self.pages.get(self.current_page)
     }
 
-    /// Advance to the next page. Returns `true` if more pages remain, `false` if done.
     pub fn advance(&mut self) -> bool {
         self.current_page += 1;
         self.current_page < self.pages.len()
@@ -406,14 +417,48 @@ impl BedroomDialogue {
     }
 }
 
+fn resolve_placeholders(text: &str, player_name: &str, rival_name: &str) -> String {
+    text.replace("<PLAYER>", player_name)
+        .replace("<RIVAL>", rival_name)
+}
+
+fn build_npc_runtime_states(npcs: &[NpcDefinition]) -> Vec<npc_movement::NpcRuntimeState> {
+    npcs.iter()
+        .enumerate()
+        .map(|(i, npc)| npc_movement::NpcRuntimeState {
+            npc_index: i as u8,
+            sprite_id: npc.sprite_id,
+            x: npc.x as u16,
+            y: npc.y as u16,
+            home_x: npc.x as u16,
+            home_y: npc.y as u16,
+            facing: npc.facing,
+            movement_type: npc.movement,
+            range: npc.range,
+            walk_counter: 0,
+            delay_counter: 0,
+            text_id: npc.text_id,
+            is_trainer: npc.is_trainer,
+            trainer_class: npc.trainer_class,
+            trainer_set: npc.trainer_set,
+            item_id: npc.item_id,
+            defeated: false,
+            visible: true,
+        })
+        .collect()
+}
+
 pub struct OverworldScreen {
     pub state: OverworldState,
     pub map_data: Option<MapData>,
+    pub npc_states: Vec<npc_movement::NpcRuntimeState>,
     pub pending_dialogue: Option<BedroomDialogue>,
     pub map_name_timer: u8,
     pub last_map: Option<MapId>,
     pub warp_fade_state: WarpFadeState,
     pub pending_warp: Option<PendingWarp>,
+    pub player_name: String,
+    pub rival_name: String,
 }
 
 const MAP_NAME_DISPLAY_FRAMES: u8 = 120;
@@ -421,14 +466,21 @@ const MAP_NAME_DISPLAY_FRAMES: u8 = 120;
 impl OverworldScreen {
     pub fn new(start_map: MapId) -> Self {
         let map_data = Some(map_data_loading::load_full_map_data(start_map));
+        let npc_states = map_data
+            .as_ref()
+            .map(|md| build_npc_runtime_states(&md.npcs))
+            .unwrap_or_default();
         Self {
             state: OverworldState::new(start_map),
             map_data,
+            npc_states,
             pending_dialogue: None,
             map_name_timer: 0,
             last_map: Some(MapId::PalletTown),
             warp_fade_state: WarpFadeState::Idle,
             pending_warp: None,
+            player_name: "RED".to_string(),
+            rival_name: "BLUE".to_string(),
         }
     }
 
@@ -461,6 +513,11 @@ impl OverworldScreen {
             self.state.player.x = warp.dest_x as u16;
             self.state.player.y = warp.dest_y as u16;
             self.map_data = Some(map_data_loading::load_full_map_data(warp.dest_map));
+            self.npc_states = self
+                .map_data
+                .as_ref()
+                .map(|md| build_npc_runtime_states(&md.npcs))
+                .unwrap_or_default();
             if !warp.dest_map.is_indoor() {
                 self.map_name_timer = MAP_NAME_DISPLAY_FRAMES;
             }
@@ -542,11 +599,64 @@ impl OverworldScreen {
         if let Some(ref mut dlg) = self.pending_dialogue {
             if input.a {
                 if !dlg.advance() {
-                    // Last page dismissed — clear dialogue.
                     self.pending_dialogue = None;
                 }
             }
             return ScreenAction::Continue;
+        }
+
+        // A-button: check signs first, then NPCs (matches original game priority).
+        if input.a && self.state.player.movement_state == MovementState::Idle {
+            if let Some(map) = &self.map_data {
+                let sign_tuples: Vec<(u8, u8, u8)> =
+                    map.signs.iter().map(|s| (s.x, s.y, s.text_id)).collect();
+
+                if let Some(sign_text_id) = npc_interaction::check_sign_interaction(
+                    &sign_tuples,
+                    self.state.player.x,
+                    self.state.player.y,
+                    self.state.player.facing,
+                ) {
+                    let text_pages = pokered_data::map_text_data::get_sign_text(
+                        self.state.current_map,
+                        sign_text_id,
+                    );
+                    if !text_pages.is_empty() {
+                        self.pending_dialogue = Some(BedroomDialogue::from_text_pages(
+                            text_pages,
+                            &self.player_name,
+                            &self.rival_name,
+                        ));
+                        return ScreenAction::Continue;
+                    }
+                }
+
+                let interaction = npc_interaction::try_interact(
+                    &self.npc_states,
+                    self.state.player.x,
+                    self.state.player.y,
+                    self.state.player.facing,
+                );
+
+                match interaction {
+                    npc_interaction::InteractionResult::Talk { text_id, .. }
+                    | npc_interaction::InteractionResult::AlreadyDefeated { text_id, .. } => {
+                        let text_pages = pokered_data::map_text_data::get_npc_text(
+                            self.state.current_map,
+                            text_id,
+                        );
+                        if !text_pages.is_empty() {
+                            self.pending_dialogue = Some(BedroomDialogue::from_text_pages(
+                                text_pages,
+                                &self.player_name,
+                                &self.rival_name,
+                            ));
+                            return ScreenAction::Continue;
+                        }
+                    }
+                    _ => {}
+                }
+            }
         }
 
         if input.start {
@@ -605,13 +715,11 @@ impl OverworldScreen {
                 standing_tile
             };
 
-            let npc_positions: Vec<collision::SpritePosition> = map
-                .npcs
+            let npc_positions: Vec<collision::SpritePosition> = self
+                .npc_states
                 .iter()
-                .map(|npc| collision::SpritePosition {
-                    x: npc.x as u16,
-                    y: npc.y as u16,
-                })
+                .filter(|npc| npc.visible)
+                .map(|npc| collision::SpritePosition { x: npc.x, y: npc.y })
                 .collect();
 
             let result = player_movement::process_frame(
@@ -657,6 +765,11 @@ impl OverworldScreen {
                             }
                             self.state.current_map = new_map;
                             self.map_data = Some(map_data_loading::load_full_map_data(new_map));
+                            self.npc_states = self
+                                .map_data
+                                .as_ref()
+                                .map(|md| build_npc_runtime_states(&md.npcs))
+                                .unwrap_or_default();
                             self.state.player.x = transition.new_x;
                             self.state.player.y = transition.new_y;
 

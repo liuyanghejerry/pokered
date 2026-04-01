@@ -3,6 +3,8 @@
 use pokered_data::map_data::MAP_HEADER_DATA;
 use pokered_data::map_objects::get_map_warps;
 use pokered_data::maps::MapId;
+use pokered_data::npc_data::{self, NpcEntry, NpcFacing, NpcMovement};
+use pokered_data::sign_data::{self, SignEntry};
 use pokered_data::toggleable_objects;
 
 use super::{
@@ -35,19 +37,14 @@ pub fn load_full_map_data(map_id: MapId) -> MapData {
         })
         .collect();
 
-    // Load NPCs using toggleable objects
+    // Load NPCs from static data tables
     let toggle_entries = toggleable_objects::toggleable_objects_for_map(map_id);
     let mut npcs = Vec::new();
-
-    // For now, using placeholder NPCs data from the per-map data if available
-    // For real implementation, should load from per_map_data for each specific map
-    // Let's load placeholder based on what's available in the data
     let per_map_npcs = load_per_map_npcs(map_id);
     npcs.extend(per_map_npcs);
 
-    // Load signs - in original data this may come from per-map data
+    // Load signs from static data tables
     let mut signs = Vec::new();
-    // Add placeholder signs for now
     let per_map_signs = load_per_map_signs(map_id);
     signs.extend(per_map_signs);
 
@@ -68,39 +65,62 @@ pub fn load_full_map_data(map_id: MapId) -> MapData {
     }
 }
 
-fn load_per_map_npcs(map_id: MapId) -> Vec<NpcDefinition> {
-    match map_id {
-        MapId::RedsHouse1F => load_reds_house_1f_npcs(),
-        MapId::RedsHouse2F => Vec::new(),
-        _ => Vec::new(),
+fn convert_npc_movement(m: NpcMovement) -> NpcMovementType {
+    match m.0 {
+        0 => NpcMovementType::Stationary,
+        1 => NpcMovementType::Wander,
+        2 => NpcMovementType::FixedPath,
+        3 => NpcMovementType::FacePlayer,
+        _ => NpcMovementType::Stationary,
     }
 }
 
-fn load_reds_house_1f_npcs() -> Vec<NpcDefinition> {
-    vec![NpcDefinition {
-        sprite_id: 0x33,
-        x: 5,
-        y: 4,
-        movement: NpcMovementType::Stationary,
-        facing: Direction::Up,
-        range: 0,
-        text_id: 1,
-        is_trainer: false,
-        trainer_class: 0,
-        trainer_set: 0,
-        item_id: 0x00,
-    }]
+fn convert_npc_facing(f: NpcFacing) -> Direction {
+    match f.0 {
+        0 => Direction::Down,
+        1 => Direction::Up,
+        2 => Direction::Left,
+        3 => Direction::Right,
+        _ => Direction::Down,
+    }
+}
+
+fn convert_npc_entry(entry: &NpcEntry) -> NpcDefinition {
+    NpcDefinition {
+        sprite_id: entry.sprite_id,
+        x: entry.x,
+        y: entry.y,
+        movement: convert_npc_movement(entry.movement),
+        facing: convert_npc_facing(entry.facing),
+        range: entry.range,
+        text_id: entry.text_id,
+        is_trainer: entry.is_trainer,
+        trainer_class: entry.trainer_class,
+        trainer_set: entry.trainer_set,
+        item_id: entry.item_id,
+    }
+}
+
+fn convert_sign_entry(entry: &SignEntry) -> Sign {
+    Sign {
+        x: entry.x,
+        y: entry.y,
+        text_id: entry.text_id,
+    }
+}
+
+fn load_per_map_npcs(map_id: MapId) -> Vec<NpcDefinition> {
+    npc_data::get_map_npcs(map_id)
+        .iter()
+        .map(convert_npc_entry)
+        .collect()
 }
 
 fn load_per_map_signs(map_id: MapId) -> Vec<Sign> {
-    match map_id {
-        MapId::RedsHouse1F => vec![Sign {
-            x: 3,
-            y: 1,
-            text_id: 1,
-        }],
-        _ => Vec::new(),
-    }
+    sign_data::get_map_signs(map_id)
+        .iter()
+        .map(convert_sign_entry)
+        .collect()
 }
 
 fn build_connections(map_id: MapId) -> MapConnections {

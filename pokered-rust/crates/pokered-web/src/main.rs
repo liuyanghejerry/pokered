@@ -15,6 +15,9 @@ use winit::event_loop::EventLoop;
 use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::window::Window;
 
+#[cfg(not(target_arch = "wasm32"))]
+use std::time::{Duration, Instant};
+
 use pokered_core::battle::{BattleInput, BattleScreen};
 use pokered_core::data::maps::MapId;
 use pokered_core::data::wild_data::GameVersion;
@@ -32,6 +35,7 @@ use pokered_renderer::input::{GbButton, InputState};
 use pokered_renderer::{FrameBuffer, Rgba, SCREEN_HEIGHT, SCREEN_WIDTH};
 
 const SCALE: u32 = 3;
+const BLACK_SCREEN_DURATION: u32 = 30;
 
 struct PokemonGame {
     state: GameState,
@@ -46,6 +50,8 @@ struct PokemonGame {
     player_name: String,
     rival_name: String,
     frame_count: u64,
+    black_screen_frames: u32,
+    pending_screen: Option<GameScreen>,
 }
 
 impl PokemonGame {
@@ -82,11 +88,24 @@ impl PokemonGame {
             player_name: "RED".to_string(),
             rival_name: "BLUE".to_string(),
             frame_count: 0,
+            black_screen_frames: 0,
+            pending_screen: None,
         }
     }
 
     fn update(&mut self, input: &InputState) {
         self.frame_count += 1;
+
+        if self.black_screen_frames > 0 {
+            self.black_screen_frames -= 1;
+            if self.black_screen_frames == 0 {
+                if let Some(screen) = self.pending_screen.take() {
+                    self.handle_transition(screen);
+                }
+            }
+            return;
+        }
+
         let action = match self.state.screen {
             GameScreen::CopyrightSplash | GameScreen::TitleScreen => {
                 let any_pressed = input.any_just_pressed();
@@ -237,7 +256,17 @@ impl PokemonGame {
         };
 
         if let ScreenAction::Transition(new_screen) = action {
-            self.handle_transition(new_screen);
+            use pokered_core::game_state::MainMenuChoice;
+            let needs_black_screen = new_screen == GameScreen::Overworld
+                && self.state.screen == GameScreen::MainMenu
+                && self.main_menu.last_choice == Some(MainMenuChoice::Continue);
+
+            if needs_black_screen {
+                self.black_screen_frames = BLACK_SCREEN_DURATION;
+                self.pending_screen = Some(new_screen);
+            } else {
+                self.handle_transition(new_screen);
+            }
         }
     }
 
@@ -281,6 +310,11 @@ impl PokemonGame {
     }
 
     fn draw(&self, fb: &mut FrameBuffer) {
+        if self.black_screen_frames > 0 {
+            fb.clear(Rgba::BLACK);
+            return;
+        }
+
         fb.clear(Rgba::WHITE);
         match self.state.screen {
             GameScreen::CopyrightSplash | GameScreen::TitleScreen => {
@@ -533,6 +567,12 @@ async fn run() {
     let mut frame_buffer = FrameBuffer::default();
     let mut input = InputState::new();
 
+    // GB VBlank: 4194304 Hz / 70224 cycles ≈ 59.7275 Hz
+    #[cfg(not(target_arch = "wasm32"))]
+    const FRAME_DURATION: Duration = Duration::from_nanos(16_742_706);
+    #[cfg(not(target_arch = "wasm32"))]
+    let mut next_frame_time = Instant::now();
+
     #[allow(deprecated)]
     let res = event_loop.run(move |event, elwt| match event {
         Event::WindowEvent { event, .. } => match event {
@@ -568,9 +608,29 @@ async fn run() {
             _ => {}
         },
         Event::AboutToWait => {
-            game.update(&input);
-            input.begin_frame();
-            window.request_redraw();
+            #[cfg(target_arch = "wasm32")]
+            {
+                game.update(&input);
+                input.begin_frame();
+                window.request_redraw();
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                let now = Instant::now();
+                if now >= next_frame_time {
+                    game.update(&input);
+                    input.begin_frame();
+                    window.request_redraw();
+                    next_frame_time += FRAME_DURATION;
+                    if next_frame_time < now {
+                        next_frame_time = now + FRAME_DURATION;
+                    }
+                }
+                let sleep_duration = next_frame_time.saturating_duration_since(Instant::now());
+                if !sleep_duration.is_zero() {
+                    std::thread::sleep(sleep_duration);
+                }
+            }
         }
         _ => {}
     });
