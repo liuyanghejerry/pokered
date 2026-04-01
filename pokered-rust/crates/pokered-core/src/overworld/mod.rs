@@ -412,6 +412,10 @@ impl BedroomDialogue {
         self.current_page < self.pages.len()
     }
 
+    pub fn has_more_pages(&self) -> bool {
+        self.current_page + 1 < self.pages.len()
+    }
+
     pub fn is_done(&self) -> bool {
         self.current_page >= self.pages.len()
     }

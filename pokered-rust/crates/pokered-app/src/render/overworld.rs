@@ -227,6 +227,14 @@ pub fn draw_overworld(
                 Rgba::BLACK,
                 fb,
             );
+            // Blinking ▼ arrow indicator (matches original ManualTextScroll behavior).
+            // Toggle visibility every 16 frames (~267ms at 60fps).
+            let blink_visible = (screen.frame_counter / 16) % 2 == 0;
+            if blink_visible {
+                let arrow_x = 18 * TILE_SIZE;
+                let arrow_y = 15 * TILE_SIZE;
+                draw_text("▼", arrow_x, arrow_y, Rgba::BLACK, fb);
+            }
         }
         return;
     }
