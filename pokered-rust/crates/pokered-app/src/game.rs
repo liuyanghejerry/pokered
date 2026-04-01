@@ -6,7 +6,7 @@ use pokered_core::data::wild_data::GameVersion;
 use pokered_core::game_state::{GameScreen, GameState, SaveFileSummary, ScreenAction};
 use pokered_core::main_menu::{MainMenuState, MenuInput};
 use pokered_core::naming_screen::NamingInput;
-use pokered_core::oak_speech::{OakSpeechInput, OakSpeechResult, OakSpeechState};
+use pokered_core::oak_speech::{OakSpeechInput, OakSpeechPhase, OakSpeechResult, OakSpeechState};
 use pokered_core::options_menu::{GameOptions, OptionsInput, OptionsMenuResult, OptionsMenuState};
 use pokered_core::overworld::{OverworldInput, OverworldScreen};
 use pokered_core::save::sram_export::export_sram;
@@ -14,19 +14,36 @@ use pokered_core::save::sram_import::import_sram;
 use pokered_core::save::SaveData;
 use pokered_core::save_menu::{SaveMenuResult, SaveMenuState, SaveScreenInfo, YesNoInput};
 use pokered_core::start_menu::{StartMenuAction, StartMenuInput, StartMenuState};
-use pokered_core::title_screen::TitleScreenState;
+use pokered_core::title_screen::{TitlePhase, TitleScreenState};
 use pokered_renderer::input::{GbButton, InputState};
 use pokered_renderer::resource::{AssetRoot, ResourceManager};
 use pokered_renderer::window::GameLoop;
 use pokered_renderer::{FrameBuffer, Rgba};
 
-use crate::audio::AudioOutput;
+use crate::audio::{species_to_cry, AudioOutput};
 use crate::render::{
     draw_battle, draw_main_menu, draw_oak_speech, draw_options_menu, draw_overworld,
     draw_save_menu, draw_start_menu, draw_title_screen,
 };
 
 const SAVE_FILE_NAME: &str = "pokered.sav";
+
+fn oak_phase_tag(phase: &OakSpeechPhase) -> u8 {
+    match phase {
+        OakSpeechPhase::Greeting { .. } => 1,
+        OakSpeechPhase::ShowNidorino { .. } => 2,
+        OakSpeechPhase::Explanation { .. } => 3,
+        OakSpeechPhase::IntroducePlayer { .. } => 4,
+        OakSpeechPhase::PlayerNameChoice { .. } => 5,
+        OakSpeechPhase::PlayerNaming => 6,
+        OakSpeechPhase::IntroduceRival { .. } => 7,
+        OakSpeechPhase::RivalNameChoice { .. } => 8,
+        OakSpeechPhase::RivalNaming => 9,
+        OakSpeechPhase::FinalSpeech { .. } => 10,
+        OakSpeechPhase::ShrinkPlayer { .. } => 11,
+        OakSpeechPhase::Done => 12,
+    }
+}
 
 fn save_file_path() -> std::path::PathBuf {
     std::env::current_exe()
@@ -51,6 +68,8 @@ pub struct PokemonGame {
     pub frame_count: u64,
     pub exit_requested: bool,
     pub resources: Option<ResourceManager>,
+    prev_title_phase: Option<TitlePhase>,
+    prev_oak_phase_tag: u8,
     #[cfg(not(target_arch = "wasm32"))]
     pub audio: Option<AudioOutput>,
 }
@@ -122,6 +141,8 @@ impl PokemonGame {
             frame_count: 0,
             exit_requested: false,
             resources,
+            prev_title_phase: None,
+            prev_oak_phase_tag: 0,
             #[cfg(not(target_arch = "wasm32"))]
             audio,
         }
@@ -183,10 +204,7 @@ impl PokemonGame {
         match screen {
             GameScreen::TitleScreen => {
                 self.title_screen.reset();
-                #[cfg(not(target_arch = "wasm32"))]
-                if let Some(ref audio) = self.audio {
-                    audio.play_music(MusicId::TITLE_SCREEN);
-                }
+                self.prev_title_phase = Some(TitlePhase::Copyright);
             }
             GameScreen::MainMenu => {
                 self.main_menu = MainMenuState::new(self.state.save_summary.clone());
@@ -195,7 +213,8 @@ impl PokemonGame {
                 self.oak_speech = OakSpeechState::new();
                 #[cfg(not(target_arch = "wasm32"))]
                 if let Some(ref audio) = self.audio {
-                    audio.play_music(MusicId::MEET_PROF_OAK);
+                    audio.stop_all();
+                    audio.play_music(MusicId::ROUTES2);
                 }
             }
             GameScreen::Overworld => {
@@ -256,15 +275,39 @@ impl GameLoop for PokemonGame {
         #[cfg(not(target_arch = "wasm32"))]
         if let Some(ref audio) = self.audio {
             audio.update_frame();
-            if input.is_just_pressed(GbButton::A) {
-                audio.play_sfx(SfxId::PressAB);
-            }
         }
 
         let action = match self.state.screen {
             GameScreen::CopyrightSplash | GameScreen::TitleScreen => {
+                let prev_phase = self.title_screen.phase;
                 let any_pressed = input.any_just_pressed();
-                self.title_screen.update_frame(any_pressed)
+                let action = self.title_screen.update_frame(any_pressed);
+                let new_phase = self.title_screen.phase;
+
+                #[cfg(not(target_arch = "wasm32"))]
+                if prev_phase != new_phase {
+                    if let Some(ref audio) = self.audio {
+                        match new_phase {
+                            TitlePhase::LogoBounce => {
+                                audio.play_sfx(SfxId::IntroCrash);
+                            }
+                            TitlePhase::LogoPause => {
+                                audio.play_sfx(SfxId::IntroWhoosh);
+                            }
+                            TitlePhase::WaitingForInput
+                                if prev_phase == TitlePhase::VersionScroll =>
+                            {
+                                audio.play_music(MusicId::TITLE_SCREEN);
+                            }
+                            TitlePhase::PlayingCry => {
+                                let cry = species_to_cry(self.title_screen.current_mon);
+                                audio.play_sfx(cry);
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                action
             }
             GameScreen::MainMenu => {
                 let menu_input = MenuInput {
@@ -273,10 +316,17 @@ impl GameLoop for PokemonGame {
                     a: input.is_just_pressed(GbButton::A) || input.is_just_pressed(GbButton::Start),
                     b: input.is_just_pressed(GbButton::B),
                 };
+                if input.is_just_pressed(GbButton::A) || input.is_just_pressed(GbButton::Start) {
+                    #[cfg(not(target_arch = "wasm32"))]
+                    if let Some(ref audio) = self.audio {
+                        audio.play_sfx(SfxId::PressAB);
+                    }
+                }
                 self.main_menu.update_frame(menu_input)
             }
             GameScreen::OakSpeech => {
-                if self.oak_speech.is_naming_active() {
+                let prev_tag = self.prev_oak_phase_tag;
+                let result = if self.oak_speech.is_naming_active() {
                     let naming_input = NamingInput {
                         up: input.is_just_pressed(GbButton::Up),
                         down: input.is_just_pressed(GbButton::Down),
@@ -287,20 +337,7 @@ impl GameLoop for PokemonGame {
                         start: input.is_just_pressed(GbButton::Start),
                         select: input.is_just_pressed(GbButton::Select),
                     };
-                    match self.oak_speech.update_naming_frame(naming_input) {
-                        OakSpeechResult::PlayerNameSet(name) => {
-                            self.player_name = name;
-                            ScreenAction::Continue
-                        }
-                        OakSpeechResult::RivalNameSet(name) => {
-                            self.rival_name = name;
-                            ScreenAction::Continue
-                        }
-                        OakSpeechResult::Finished => {
-                            ScreenAction::Transition(GameScreen::Overworld)
-                        }
-                        OakSpeechResult::Active => ScreenAction::Continue,
-                    }
+                    self.oak_speech.update_naming_frame(naming_input)
                 } else {
                     let oak_input = OakSpeechInput {
                         up: input.is_just_pressed(GbButton::Up),
@@ -308,20 +345,46 @@ impl GameLoop for PokemonGame {
                         a: input.is_just_pressed(GbButton::A),
                         b: input.is_just_pressed(GbButton::B),
                     };
-                    match self.oak_speech.update_frame(oak_input) {
-                        OakSpeechResult::PlayerNameSet(name) => {
-                            self.player_name = name;
-                            ScreenAction::Continue
+                    self.oak_speech.update_frame(oak_input)
+                };
+                let new_tag = oak_phase_tag(&self.oak_speech.phase);
+
+                #[cfg(not(target_arch = "wasm32"))]
+                if prev_tag != new_tag {
+                    if let Some(ref audio) = self.audio {
+                        match &self.oak_speech.phase {
+                            OakSpeechPhase::ShowNidorino { .. } if prev_tag != new_tag => {
+                                audio.play_sfx(species_to_cry(
+                                    pokered_data::species::Species::Nidorino,
+                                ));
+                            }
+                            OakSpeechPhase::ShrinkPlayer { .. } => {
+                                audio.play_sfx(SfxId::Shrink);
+                            }
+                            _ => {}
                         }
-                        OakSpeechResult::RivalNameSet(name) => {
-                            self.rival_name = name;
-                            ScreenAction::Continue
-                        }
-                        OakSpeechResult::Finished => {
-                            ScreenAction::Transition(GameScreen::Overworld)
-                        }
-                        OakSpeechResult::Active => ScreenAction::Continue,
                     }
+                    self.prev_oak_phase_tag = new_tag;
+                }
+
+                if input.is_just_pressed(GbButton::A) {
+                    #[cfg(not(target_arch = "wasm32"))]
+                    if let Some(ref audio) = self.audio {
+                        audio.play_sfx(SfxId::PressAB);
+                    }
+                }
+
+                match result {
+                    OakSpeechResult::PlayerNameSet(name) => {
+                        self.player_name = name;
+                        ScreenAction::Continue
+                    }
+                    OakSpeechResult::RivalNameSet(name) => {
+                        self.rival_name = name;
+                        ScreenAction::Continue
+                    }
+                    OakSpeechResult::Finished => ScreenAction::Transition(GameScreen::Overworld),
+                    OakSpeechResult::Active => ScreenAction::Continue,
                 }
             }
             GameScreen::Overworld => {
