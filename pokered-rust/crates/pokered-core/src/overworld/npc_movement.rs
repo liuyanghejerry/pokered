@@ -175,6 +175,7 @@ pub fn update_npc_movement(
     npcs: &mut [NpcRuntimeState],
     player_x: u16,
     player_y: u16,
+    player_dest: Option<(u16, u16)>,
     map_width_blocks: u8,
     map_height_blocks: u8,
     rng_value: u8,
@@ -184,8 +185,25 @@ pub fn update_npc_movement(
     let max_x = (map_width_blocks as u16) * 2;
     let max_y = (map_height_blocks as u16) * 2;
 
-    // Collect current positions to avoid two NPCs walking into each other
-    let positions: Vec<(u16, u16)> = npcs.iter().map(|n| (n.x, n.y)).collect();
+    // Collect current positions AND walk destinations to avoid two NPCs
+    // walking into each other or into a tile another NPC is heading toward.
+    let occupied: Vec<(u16, u16)> = npcs
+        .iter()
+        .filter(|n| n.visible)
+        .flat_map(|n| {
+            let cur = (n.x, n.y);
+            if n.walk_counter > 0 {
+                let (dx, dy) = direction_delta(n.facing);
+                let dest = (
+                    (n.x as i32 + dx as i32).max(0) as u16,
+                    (n.y as i32 + dy as i32).max(0) as u16,
+                );
+                vec![cur, dest]
+            } else {
+                vec![cur]
+            }
+        })
+        .collect();
 
     for i in 0..npcs.len() {
         let npc = &mut npcs[i];
@@ -249,13 +267,13 @@ pub fn update_npc_movement(
                     }
                 }
 
-                // Check collision with other NPCs
-                let blocked = positions
+                // Check collision with other NPCs (current positions and walk destinations)
+                let blocked = occupied
                     .iter()
-                    .enumerate()
-                    .any(|(j, &(ox, oy))| j != i && ox == tx && oy == ty);
-                // Also check player position
-                let player_blocked = tx == player_x && ty == player_y;
+                    .any(|&(ox, oy)| !(ox == npc.x && oy == npc.y) && ox == tx && oy == ty);
+                // Also check player position and player walk destination
+                let player_blocked = (tx == player_x && ty == player_y)
+                    || player_dest.map_or(false, |(px, py)| tx == px && ty == py);
 
                 if blocked || player_blocked {
                     npc.facing = dir;

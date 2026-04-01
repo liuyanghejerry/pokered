@@ -836,10 +836,20 @@ impl OverworldScreen {
                     .wrapping_mul(1103515245)
                     .wrapping_add(12345)
                     >> 16) as u8;
+                let player_dest = if self.state.player.movement_state != MovementState::Idle {
+                    let (dx, dy) = player_movement::direction_delta(self.state.player.facing);
+                    Some((
+                        (self.state.player.x as i32 + dx as i32).max(0) as u16,
+                        (self.state.player.y as i32 + dy as i32).max(0) as u16,
+                    ))
+                } else {
+                    None
+                };
                 npc_movement::update_npc_movement(
                     &mut self.npc_states,
                     self.state.player.x,
                     self.state.player.y,
+                    player_dest,
                     map.width,
                     map.height,
                     rng_value,
