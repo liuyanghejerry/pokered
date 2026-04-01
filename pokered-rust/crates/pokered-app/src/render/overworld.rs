@@ -156,15 +156,15 @@ pub fn draw_overworld(
                         match npc_facing {
                             Direction::Down => (3, false),
                             Direction::Up => (4, false),
-                            Direction::Right => (5, false),
-                            Direction::Left => (5, true),
+                            Direction::Left => (5, false),
+                            Direction::Right => (5, true),
                         }
                     } else {
                         match npc_facing {
                             Direction::Down => (0, false),
                             Direction::Up => (1, false),
-                            Direction::Right => (2, false),
-                            Direction::Left => (2, true),
+                            Direction::Left => (2, false),
+                            Direction::Right => (2, true),
                         }
                     }
                 } else {

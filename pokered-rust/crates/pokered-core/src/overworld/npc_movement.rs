@@ -10,7 +10,9 @@
 //! its current position, facing, walk counter, and movement pattern.
 //! The `update_npc_movement` function advances all NPCs one frame.
 
+use pokered_data::collision::is_tile_passable;
 use pokered_data::npc_data::{NpcEntry, NpcFacing, NpcMovement};
+use pokered_data::tilesets::TilesetId;
 
 use super::collision::SpritePosition;
 use super::player_movement::direction_delta;
@@ -89,6 +91,34 @@ pub const NPC_WALK_FRAMES: u8 = 8;
 /// Maximum wander delay (NPCs wait 0..=63 frames between steps in the original game).
 pub const NPC_MAX_DELAY: u8 = 63;
 
+/// Look up the tile ID at a tile position from raw block data.
+/// Same logic as `player_movement::get_tile_at_position` but operates on
+/// raw block slice + width instead of `MapData`, avoiding circular borrows.
+fn get_tile_at_fake_map(
+    blocks: &[u8],
+    map_width_blocks: u8,
+    tileset: TilesetId,
+    x: u16,
+    y: u16,
+) -> u8 {
+    let block_x = (x / 2) as usize;
+    let block_y = (y / 2) as usize;
+    let sub_x = (x % 2) as usize;
+    let sub_y = (y % 2) as usize;
+    let w = map_width_blocks as usize;
+
+    if block_x < w {
+        let block_idx = block_y * w + block_x;
+        if block_idx < blocks.len() {
+            let block_id = blocks[block_idx];
+            return pokered_data::blockset_data::block_tiles(tileset, block_id)
+                .map(|t| t[(sub_y * 2 + 1) * 4 + sub_x * 2])
+                .unwrap_or(0);
+        }
+    }
+    0
+}
+
 /// Create runtime NPC states from static data for a map.
 pub fn load_map_npcs(npcs: &[NpcEntry]) -> Vec<NpcRuntimeState> {
     npcs.iter()
@@ -148,6 +178,8 @@ pub fn update_npc_movement(
     map_width_blocks: u8,
     map_height_blocks: u8,
     rng_value: u8,
+    blocks: &[u8],
+    tileset: TilesetId,
 ) {
     let max_x = (map_width_blocks as u16) * 2;
     let max_y = (map_height_blocks as u16) * 2;
@@ -226,6 +258,15 @@ pub fn update_npc_movement(
                 let player_blocked = tx == player_x && ty == player_y;
 
                 if blocked || player_blocked {
+                    npc.facing = dir;
+                    npc.delay_counter = rng_value & NPC_MAX_DELAY;
+                    continue;
+                }
+
+                // Check tile passability (CanWalkOntoTile in the original game).
+                // NPCs cannot walk onto impassable tiles (walls, obstacles, water).
+                let target_tile = get_tile_at_fake_map(blocks, map_width_blocks, tileset, tx, ty);
+                if !is_tile_passable(tileset, target_tile) {
                     npc.facing = dir;
                     npc.delay_counter = rng_value & NPC_MAX_DELAY;
                     continue;

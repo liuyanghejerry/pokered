@@ -462,6 +462,10 @@ pub struct OverworldScreen {
     /// Frame counter incremented every update, used as RNG seed for NPC movement.
     /// Mirrors hRandomAdd in the original game, which is updated every VBlank.
     pub frame_counter: u32,
+    /// Previous frame's A-button state for edge detection.
+    /// Mirrors hJoyPressed vs hJoyHeld in the original game — dialogue only
+    /// advances on a rising edge (newly pressed), not while held.
+    prev_a_pressed: bool,
 }
 
 const MAP_NAME_DISPLAY_FRAMES: u8 = 120;
@@ -485,6 +489,7 @@ impl OverworldScreen {
             player_name: "RED".to_string(),
             rival_name: "BLUE".to_string(),
             frame_counter: 0,
+            prev_a_pressed: false,
         }
     }
 
@@ -600,19 +605,22 @@ impl OverworldScreen {
             return ScreenAction::Continue;
         }
 
+        let a_just_pressed = input.a && !self.prev_a_pressed;
+
         // While a dialogue box is active, consume A-button to advance pages;
         // block all movement and Start input.
         if let Some(ref mut dlg) = self.pending_dialogue {
-            if input.a {
+            if a_just_pressed {
                 if !dlg.advance() {
                     self.pending_dialogue = None;
                 }
             }
+            self.prev_a_pressed = input.a;
             return ScreenAction::Continue;
         }
 
         // A-button: check signs first, then NPCs (matches original game priority).
-        if input.a && self.state.player.movement_state == MovementState::Idle {
+        if a_just_pressed && self.state.player.movement_state == MovementState::Idle {
             if let Some(map) = &self.map_data {
                 let sign_tuples: Vec<(u8, u8, u8)> =
                     map.signs.iter().map(|s| (s.x, s.y, s.text_id)).collect();
@@ -814,22 +822,30 @@ impl OverworldScreen {
         }
 
         // Advance NPC movement every frame (DoMovementForAllSprites).
-        if let Some(ref map) = self.map_data {
-            let rng_value = (self
-                .frame_counter
-                .wrapping_mul(1103515245)
-                .wrapping_add(12345)
-                >> 16) as u8;
-            npc_movement::update_npc_movement(
-                &mut self.npc_states,
-                self.state.player.x,
-                self.state.player.y,
-                map.width,
-                map.height,
-                rng_value,
-            );
+        // In the original game, NPC movement is frozen while a text box is displayed
+        // (UpdateSpriteFacingOffsetAndDelayMovement sets delay to $7F).
+        // We skip the entire NPC update when dialogue is active.
+        if self.pending_dialogue.is_none() {
+            if let Some(ref map) = self.map_data {
+                let rng_value = (self
+                    .frame_counter
+                    .wrapping_mul(1103515245)
+                    .wrapping_add(12345)
+                    >> 16) as u8;
+                npc_movement::update_npc_movement(
+                    &mut self.npc_states,
+                    self.state.player.x,
+                    self.state.player.y,
+                    map.width,
+                    map.height,
+                    rng_value,
+                    &map.blocks,
+                    map.tileset,
+                );
+            }
         }
 
+        self.prev_a_pressed = input.a;
         ScreenAction::Continue
     }
 }

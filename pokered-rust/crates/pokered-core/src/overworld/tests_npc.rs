@@ -4,6 +4,7 @@ use super::*;
 use pokered_data::maps::MapId;
 use pokered_data::npc_data::{get_map_npcs, NpcFacing, NpcMovement};
 use pokered_data::sign_data::get_map_signs;
+use pokered_data::tilesets::TilesetId;
 
 // ── Data Integrity Tests ───────────────────────────────────────────
 
@@ -241,7 +242,7 @@ fn make_test_npc(x: u16, y: u16, movement: NpcMovementType) -> NpcRuntimeState {
 fn stationary_npc_does_not_move() {
     let mut npcs = vec![make_test_npc(5, 5, NpcMovementType::Stationary)];
     for rng in 0..=255u8 {
-        update_npc_movement(&mut npcs, 0, 0, 10, 10, rng);
+        update_npc_movement(&mut npcs, 0, 0, 10, 10, rng, &[], TilesetId::Overworld);
     }
     assert_eq!(npcs[0].x, 5);
     assert_eq!(npcs[0].y, 5);
@@ -251,16 +252,16 @@ fn stationary_npc_does_not_move() {
 fn face_player_npc_turns_toward_player() {
     let mut npcs = vec![make_test_npc(5, 5, NpcMovementType::FacePlayer)];
 
-    update_npc_movement(&mut npcs, 8, 5, 10, 10, 0);
+    update_npc_movement(&mut npcs, 8, 5, 10, 10, 0, &[], TilesetId::Overworld);
     assert_eq!(npcs[0].facing, Direction::Right);
 
-    update_npc_movement(&mut npcs, 2, 5, 10, 10, 0);
+    update_npc_movement(&mut npcs, 2, 5, 10, 10, 0, &[], TilesetId::Overworld);
     assert_eq!(npcs[0].facing, Direction::Left);
 
-    update_npc_movement(&mut npcs, 5, 8, 10, 10, 0);
+    update_npc_movement(&mut npcs, 5, 8, 10, 10, 0, &[], TilesetId::Overworld);
     assert_eq!(npcs[0].facing, Direction::Down);
 
-    update_npc_movement(&mut npcs, 5, 2, 10, 10, 0);
+    update_npc_movement(&mut npcs, 5, 2, 10, 10, 0, &[], TilesetId::Overworld);
     assert_eq!(npcs[0].facing, Direction::Up);
 }
 
@@ -271,7 +272,7 @@ fn wander_npc_stays_within_range() {
 
     for frame in 0..1000u32 {
         let rng = (frame * 7 + 13) as u8;
-        update_npc_movement(&mut npcs, 0, 0, 20, 20, rng);
+        update_npc_movement(&mut npcs, 0, 0, 20, 20, rng, &[], TilesetId::Overworld);
     }
 
     let dx = (npcs[0].x as i32 - 10).unsigned_abs();
@@ -290,7 +291,7 @@ fn invisible_npc_not_updated() {
     npcs[0].visible = false;
 
     for rng in 0..=255u8 {
-        update_npc_movement(&mut npcs, 0, 0, 10, 10, rng);
+        update_npc_movement(&mut npcs, 0, 0, 10, 10, rng, &[], TilesetId::Overworld);
     }
     assert_eq!(npcs[0].x, 5);
     assert_eq!(npcs[0].y, 5);
@@ -303,7 +304,7 @@ fn walking_npc_completes_step() {
     npcs[0].facing = Direction::Right;
 
     for _ in 0..NPC_WALK_FRAMES {
-        update_npc_movement(&mut npcs, 0, 0, 10, 10, 0);
+        update_npc_movement(&mut npcs, 0, 0, 10, 10, 0, &[], TilesetId::Overworld);
     }
 
     assert_eq!(npcs[0].x, 6, "NPC should have moved one tile right");
