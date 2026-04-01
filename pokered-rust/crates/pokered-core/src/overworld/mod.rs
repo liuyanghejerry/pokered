@@ -459,6 +459,9 @@ pub struct OverworldScreen {
     pub pending_warp: Option<PendingWarp>,
     pub player_name: String,
     pub rival_name: String,
+    /// Frame counter incremented every update, used as RNG seed for NPC movement.
+    /// Mirrors hRandomAdd in the original game, which is updated every VBlank.
+    pub frame_counter: u32,
 }
 
 const MAP_NAME_DISPLAY_FRAMES: u8 = 120;
@@ -481,6 +484,7 @@ impl OverworldScreen {
             pending_warp: None,
             player_name: "RED".to_string(),
             rival_name: "BLUE".to_string(),
+            frame_counter: 0,
         }
     }
 
@@ -539,6 +543,8 @@ impl OverworldScreen {
     }
 
     pub fn update_frame(&mut self, input: OverworldInput) -> ScreenAction {
+        self.frame_counter = self.frame_counter.wrapping_add(1);
+
         match self.warp_fade_state {
             WarpFadeState::FadingOut { frames_remaining } => {
                 if frames_remaining <= 1 {
@@ -639,8 +645,21 @@ impl OverworldScreen {
                 );
 
                 match interaction {
-                    npc_interaction::InteractionResult::Talk { text_id, .. }
-                    | npc_interaction::InteractionResult::AlreadyDefeated { text_id, .. } => {
+                    npc_interaction::InteractionResult::Talk { npc_index, text_id }
+                    | npc_interaction::InteractionResult::AlreadyDefeated { npc_index, text_id } => {
+                        // MakeNPCFacePlayer: NPC turns to face the player (opposite direction).
+                        // In the original game this is called via UpdateSpriteFacingOffsetAndDelayMovement
+                        // in text_script.asm for every NPC spoken to.
+                        let face_dir =
+                            player_movement::opposite_direction(self.state.player.facing);
+                        if let Some(npc) = self
+                            .npc_states
+                            .iter_mut()
+                            .find(|n| n.npc_index == npc_index)
+                        {
+                            npc.facing = face_dir;
+                        }
+
                         let text_pages = pokered_data::map_text_data::get_npc_text(
                             self.state.current_map,
                             text_id,
@@ -792,6 +811,23 @@ impl OverworldScreen {
                 self.state.player.x = (self.state.player.x as i32 + dx as i32).max(0) as u16;
                 self.state.player.y = (self.state.player.y as i32 + dy as i32).max(0) as u16;
             }
+        }
+
+        // Advance NPC movement every frame (DoMovementForAllSprites).
+        if let Some(ref map) = self.map_data {
+            let rng_value = (self
+                .frame_counter
+                .wrapping_mul(1103515245)
+                .wrapping_add(12345)
+                >> 16) as u8;
+            npc_movement::update_npc_movement(
+                &mut self.npc_states,
+                self.state.player.x,
+                self.state.player.y,
+                map.width,
+                map.height,
+                rng_value,
+            );
         }
 
         ScreenAction::Continue

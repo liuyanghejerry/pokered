@@ -133,70 +133,75 @@ pub fn draw_overworld(
             }
         }
 
-        // Render NPCs
-        if let Some(ref map_data) = screen.map_data {
-            for npc in &map_data.npcs {
-                let sprite_id = match SpriteId::from_u8(npc.sprite_id) {
-                    Some(id) => id,
-                    None => continue,
-                };
+        for npc in &screen.npc_states {
+            if !npc.visible {
+                continue;
+            }
 
-                let sprite_name = sprite_id.sprite_name();
-                if let Ok(cached) = rm.load_sprite(sprite_name) {
-                    let ts = cached.tileset.clone();
-                    let num_frames = (cached.source_size.1 / TILE_SIZE) as usize;
+            let sprite_id = match SpriteId::from_u8(npc.sprite_id) {
+                Some(id) => id,
+                None => continue,
+            };
 
-                    // NPC sprite layout (16x96 = 6 frames or 16x48 = 3 frames):
-                    // 6-frame: [DownStand, UpStand, RightStand, DownWalk, UpWalk, RightWalk]
-                    // 3-frame: [DownStand, DownWalk1, DownWalk2] (single direction)
-                    let (frame, flip_h) = if num_frames >= 6 {
-                        match npc.facing {
+            let sprite_name = sprite_id.sprite_name();
+            if let Ok(cached) = rm.load_sprite(sprite_name) {
+                let ts = cached.tileset.clone();
+                let num_frames = (cached.source_size.1 / TILE_SIZE) as usize;
+
+                let npc_facing = npc.facing;
+
+                let (frame, flip_h) = if num_frames >= 6 {
+                    let is_walking = npc.walk_counter > 0;
+                    if is_walking {
+                        match npc_facing {
+                            Direction::Down => (3, false),
+                            Direction::Up => (4, false),
+                            Direction::Right => (5, false),
+                            Direction::Left => (5, true),
+                        }
+                    } else {
+                        match npc_facing {
                             Direction::Down => (0, false),
                             Direction::Up => (1, false),
                             Direction::Right => (2, false),
                             Direction::Left => (2, true),
                         }
-                    } else {
-                        (0, false)
-                    };
-
-                    let base_tile = frame * 4;
-                    let tpr = cached.source_size.0 / TILE_SIZE;
-
-                    // NPC coordinates are in step units; convert to tile units (* 2)
-                    let npc_screen_x = (npc.x as i32 * 2 - view_origin_tx) as i32;
-                    let npc_screen_y = (npc.y as i32 * 2 - view_origin_ty) as i32;
-
-                    if npc_screen_x < 0
-                        || npc_screen_x >= 20
-                        || npc_screen_y < 0
-                        || npc_screen_y >= 18
-                    {
-                        continue;
                     }
+                } else {
+                    (0, false)
+                };
 
-                    let npc_px_x = npc_screen_x as u32 * TILE_SIZE;
-                    let npc_px_y = npc_screen_y as u32 * TILE_SIZE;
+                let base_tile = frame * 4;
+                let tpr = cached.source_size.0 / TILE_SIZE;
 
-                    for row in 0..2_u32 {
-                        for col in 0..2_u32 {
-                            let src_col = if flip_h { 1 - col } else { col };
-                            let tile_idx =
-                                base_tile + (row as usize * tpr as usize) + src_col as usize;
-                            if tile_idx >= ts.len() {
-                                continue;
-                            }
+                let npc_screen_x = (npc.x as i32 * 2 - view_origin_tx) as i32;
+                let npc_screen_y = (npc.y as i32 * 2 - view_origin_ty) as i32;
 
-                            blit_single_tile_flipped(
-                                fb,
-                                &ts,
-                                tile_idx,
-                                npc_px_x + col * TILE_SIZE,
-                                npc_px_y + row * TILE_SIZE,
-                                &sprite_pal,
-                                flip_h,
-                            );
+                if npc_screen_x < 0 || npc_screen_x >= 20 || npc_screen_y < 0 || npc_screen_y >= 18
+                {
+                    continue;
+                }
+
+                let npc_px_x = npc_screen_x as u32 * TILE_SIZE;
+                let npc_px_y = npc_screen_y as u32 * TILE_SIZE;
+
+                for row in 0..2_u32 {
+                    for col in 0..2_u32 {
+                        let src_col = if flip_h { 1 - col } else { col };
+                        let tile_idx = base_tile + (row as usize * tpr as usize) + src_col as usize;
+                        if tile_idx >= ts.len() {
+                            continue;
                         }
+
+                        blit_single_tile_flipped(
+                            fb,
+                            &ts,
+                            tile_idx,
+                            npc_px_x + col * TILE_SIZE,
+                            npc_px_y + row * TILE_SIZE,
+                            &sprite_pal,
+                            flip_h,
+                        );
                     }
                 }
             }
