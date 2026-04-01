@@ -6,6 +6,7 @@ use pokered_core::battle::{BattleInput, BattleScreen};
 use pokered_core::data::maps::MapId;
 use pokered_core::data::wild_data::GameVersion;
 use pokered_core::game_state::{GameScreen, GameState, SaveFileSummary, ScreenAction};
+use pokered_core::intro_scene::{IntroSceneState, IntroSfxEvent};
 use pokered_core::main_menu::{MainMenuState, MenuInput};
 use pokered_core::naming_screen::NamingInput;
 use pokered_core::oak_speech::{OakSpeechInput, OakSpeechPhase, OakSpeechResult, OakSpeechState};
@@ -24,8 +25,8 @@ use pokered_renderer::{FrameBuffer, Rgba};
 
 use crate::audio::{species_to_cry, AudioOutput};
 use crate::render::{
-    draw_battle, draw_main_menu, draw_oak_speech, draw_options_menu, draw_overworld,
-    draw_save_menu, draw_start_menu, draw_title_screen,
+    draw_battle, draw_intro_scene, draw_main_menu, draw_oak_speech, draw_options_menu,
+    draw_overworld, draw_save_menu, draw_start_menu, draw_title_screen,
 };
 
 const SAVE_FILE_NAME: &str = "pokered.sav";
@@ -68,6 +69,7 @@ fn save_summary_from_data(save: &SaveData) -> SaveFileSummary {
 pub struct PokemonGame {
     pub state: GameState,
     pub title_screen: TitleScreenState,
+    pub intro_scene: IntroSceneState,
     pub main_menu: MainMenuState,
     pub oak_speech: OakSpeechState,
     pub overworld: OverworldScreen,
@@ -153,6 +155,7 @@ impl PokemonGame {
         Self {
             state,
             title_screen,
+            intro_scene: IntroSceneState::new(),
             main_menu,
             oak_speech,
             overworld,
@@ -327,9 +330,21 @@ impl PokemonGame {
 
     pub fn handle_transition(&mut self, screen: GameScreen) {
         match screen {
+            GameScreen::IntroScene => {
+                self.intro_scene.reset();
+                #[cfg(not(target_arch = "wasm32"))]
+                if let Some(ref audio) = self.audio {
+                    audio.play_music(MusicId::INTRO_BATTLE);
+                }
+            }
             GameScreen::TitleScreen => {
+                let coming_from_intro = self.state.screen == GameScreen::IntroScene;
                 self.title_screen.reset();
-                self.prev_title_phase = Some(TitlePhase::Copyright);
+                if coming_from_intro {
+                    // Skip copyright — go straight to Init (logo bounce etc.)
+                    self.title_screen.phase = TitlePhase::Init;
+                }
+                self.prev_title_phase = Some(self.title_screen.phase);
             }
             GameScreen::MainMenu => {
                 self.main_menu = MainMenuState::new(self.state.save_summary.clone());
@@ -476,7 +491,32 @@ impl GameLoop for PokemonGame {
         }
 
         let action = match self.state.screen {
-            GameScreen::CopyrightSplash | GameScreen::TitleScreen => {
+            GameScreen::CopyrightSplash => {
+                let any_pressed = input.any_just_pressed();
+                let action = self.title_screen.update_frame(any_pressed);
+                if self.title_screen.phase == TitlePhase::Init {
+                    ScreenAction::Transition(GameScreen::IntroScene)
+                } else {
+                    action
+                }
+            }
+            GameScreen::IntroScene => {
+                let any_pressed = input.any_just_pressed();
+                let action = self.intro_scene.update_frame(any_pressed);
+                #[cfg(not(target_arch = "wasm32"))]
+                if let Some(ref audio) = self.audio {
+                    match self.intro_scene.sfx_event {
+                        IntroSfxEvent::IntroHip => audio.play_sfx(SfxId::IntroHip),
+                        IntroSfxEvent::IntroHop => audio.play_sfx(SfxId::IntroHop),
+                        IntroSfxEvent::IntroRaise => audio.play_sfx(SfxId::IntroRaise),
+                        IntroSfxEvent::IntroCrash => audio.play_sfx(SfxId::IntroCrash),
+                        IntroSfxEvent::IntroLunge => audio.play_sfx(SfxId::IntroLunge),
+                        IntroSfxEvent::None => {}
+                    }
+                }
+                action
+            }
+            GameScreen::TitleScreen => {
                 let prev_phase = self.title_screen.phase;
                 let any_pressed = input.any_just_pressed();
                 let action = self.title_screen.update_frame(any_pressed);
@@ -693,13 +733,14 @@ impl GameLoop for PokemonGame {
         frame_buffer.clear(Rgba::WHITE);
 
         match self.state.screen {
-            GameScreen::CopyrightSplash | GameScreen::TitleScreen => {
-                draw_title_screen(
-                    &self.title_screen,
-                    self.title_screen.is_copyright(),
-                    &mut self.resources,
-                    frame_buffer,
-                );
+            GameScreen::CopyrightSplash => {
+                draw_title_screen(&self.title_screen, true, &mut self.resources, frame_buffer);
+            }
+            GameScreen::IntroScene => {
+                draw_intro_scene(&self.intro_scene, &mut self.resources, frame_buffer);
+            }
+            GameScreen::TitleScreen => {
+                draw_title_screen(&self.title_screen, false, &mut self.resources, frame_buffer);
             }
             GameScreen::MainMenu => {
                 draw_main_menu(&self.main_menu, frame_buffer);

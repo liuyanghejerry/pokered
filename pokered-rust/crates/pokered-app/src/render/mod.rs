@@ -1,10 +1,12 @@
 mod battle;
+mod intro;
 mod menu;
 mod oak;
 mod overworld;
 mod title;
 
 pub use battle::draw_battle;
+pub use intro::draw_intro_scene;
 pub use menu::{draw_main_menu, draw_options_menu, draw_save_menu, draw_start_menu};
 pub use oak::draw_oak_speech;
 pub use overworld::draw_overworld;

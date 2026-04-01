@@ -9,6 +9,8 @@ use pokered_data::wild_data::GameVersion;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GameScreen {
     CopyrightSplash,
+    /// Gengar vs Nidorino intro battle animation (before title screen).
+    IntroScene,
     TitleScreen,
     MainMenu,
     OakSpeech,
