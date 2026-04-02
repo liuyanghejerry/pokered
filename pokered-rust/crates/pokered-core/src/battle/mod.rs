@@ -100,6 +100,28 @@ impl BattleScreen {
         }
     }
 
+    pub fn from_parties(
+        is_wild: bool,
+        player_party: &[state::Pokemon],
+        enemy_party: &[state::Pokemon],
+    ) -> Self {
+        let player = &player_party[0];
+        let enemy = &enemy_party[0];
+        Self {
+            phase: BattlePhase::Intro { wait_frames: 90 },
+            battle_menu: BattleMenuState::new(),
+            is_wild,
+            enemy_species: enemy.species,
+            enemy_level: enemy.level,
+            enemy_hp: enemy.hp,
+            enemy_max_hp: enemy.max_hp,
+            player_species: player.species,
+            player_level: player.level,
+            player_hp: player.hp,
+            player_max_hp: player.max_hp,
+        }
+    }
+
     pub fn update_frame(&mut self, input: BattleInput) -> ScreenAction {
         match &mut self.phase {
             BattlePhase::Intro { wait_frames } => {

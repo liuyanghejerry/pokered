@@ -161,39 +161,3 @@ pub fn blit_single_tile_flipped(
 pub fn species_to_sprite_name(species_display: &str) -> String {
     species_display.to_lowercase().replace([' ', '-', '\''], "")
 }
-
-fn hp_bar_color(hp: u16, max_hp: u16) -> Rgba {
-    if max_hp == 0 {
-        return Rgba::BLACK;
-    }
-    let ratio = hp as f32 / max_hp as f32;
-    if ratio > 0.5 {
-        Rgba::rgb(0x55, 0xAA, 0x55)
-    } else if ratio > 0.2 {
-        Rgba::rgb(0xAA, 0xAA, 0x55)
-    } else {
-        Rgba::rgb(0xAA, 0x55, 0x55)
-    }
-}
-
-fn draw_hp_bar(fb: &mut FrameBuffer, x: u32, y: u32, width: u32, hp: u16, max_hp: u16) {
-    if max_hp == 0 {
-        return;
-    }
-    let color = hp_bar_color(hp, max_hp);
-    let filled = if hp > 0 {
-        ((hp as f32 / max_hp as f32) * width as f32).ceil() as u32
-    } else {
-        0
-    };
-
-    for i in 0..width {
-        let px = x + i;
-        let c = if i < filled { color } else { Rgba::WHITE };
-        for py in y..y + 8 {
-            if px < SCREEN_WIDTH && py < SCREEN_HEIGHT {
-                fb.set_pixel(px, py, c);
-            }
-        }
-    }
-}

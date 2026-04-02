@@ -1,0 +1,85 @@
+use std::path::Path;
+
+use pokered_core::battle::state::{BattleType, Pokemon};
+use pokered_core::pokemon::stats::create_pokemon_with_moves;
+use pokered_data::moves::MoveId;
+use pokered_data::species::Species;
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+pub struct BattleConfig {
+    #[serde(default = "default_battle_type")]
+    pub battle_type: BattleType,
+    pub player_party: Vec<PokemonConfig>,
+    pub enemy_party: Vec<PokemonConfig>,
+}
+
+fn default_battle_type() -> BattleType {
+    BattleType::Trainer
+}
+
+#[derive(Deserialize)]
+pub struct PokemonConfig {
+    pub species: Species,
+    pub level: u8,
+    #[serde(default = "default_moves")]
+    pub moves: [MoveId; 4],
+    #[serde(default = "default_dvs")]
+    pub dv_bytes: [u8; 2],
+}
+
+fn default_moves() -> [MoveId; 4] {
+    [MoveId::None, MoveId::None, MoveId::None, MoveId::None]
+}
+
+fn default_dvs() -> [u8; 2] {
+    [0xFF, 0xFF]
+}
+
+impl BattleConfig {
+    pub fn load(path: &Path) -> Result<Self, String> {
+        let data = std::fs::read(path).map_err(|e| format!("Failed to read {:?}: {}", path, e))?;
+        serde_json::from_slice(&data)
+            .map_err(|e| format!("Failed to parse battle config {:?}: {}", path, e))
+    }
+
+    pub fn build_parties(&self) -> Result<(Vec<Pokemon>, Vec<Pokemon>), String> {
+        let player = build_party(&self.player_party, "player")?;
+        let enemy = build_party(&self.enemy_party, "enemy")?;
+        Ok((player, enemy))
+    }
+}
+
+fn build_party(configs: &[PokemonConfig], label: &str) -> Result<Vec<Pokemon>, String> {
+    if configs.is_empty() {
+        return Err(format!("{} party is empty", label));
+    }
+    if configs.len() > 6 {
+        return Err(format!("{} party exceeds 6 Pokémon", label));
+    }
+    configs
+        .iter()
+        .enumerate()
+        .map(|(i, cfg)| {
+            let moves = if cfg.moves == [MoveId::None; 4] {
+                None
+            } else {
+                Some(cfg.moves)
+            };
+            match moves {
+                Some(m) => create_pokemon_with_moves(cfg.species, cfg.level, cfg.dv_bytes, m),
+                None => pokered_core::pokemon::stats::create_pokemon(
+                    cfg.species,
+                    cfg.level,
+                    cfg.dv_bytes,
+                ),
+            }
+            .ok_or_else(|| {
+                format!(
+                    "{} party slot {}: unknown species {:?}",
+                    label, i, cfg.species
+                )
+            })
+        })
+        .collect()
+}

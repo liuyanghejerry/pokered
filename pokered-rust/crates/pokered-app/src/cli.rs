@@ -65,6 +65,12 @@ pub enum Commands {
         #[arg(short, long, default_value_t = 0)]
         frames: u32,
     },
+    /// Start a direct battle from a JSON config file (bypasses all menus/story)
+    Battle {
+        /// Path to the battle configuration JSON file
+        #[arg(short, long)]
+        config: PathBuf,
+    },
 }
 
 #[derive(Clone, ValueEnum)]
