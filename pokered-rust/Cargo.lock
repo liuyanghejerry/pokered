@@ -349,6 +349,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "cargo-run-wasm"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fa9c33bbfab116bda01ec67729b988895b34167a1e9cf034343099092421ed43"
+dependencies = [
+ "devserver_lib",
+ "pico-args",
+ "serde_json",
+ "wasm-bindgen-cli-support",
+]
+
+[[package]]
 name = "cast"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2018,6 +2030,7 @@ dependencies = [
 name = "pokered-web"
 version = "0.1.0"
 dependencies = [
+ "cargo-run-wasm 0.4.0",
  "console_error_panic_hook",
  "console_log",
  "env_logger",
@@ -2264,7 +2277,7 @@ dependencies = [
 name = "run-wasm"
 version = "0.1.0"
 dependencies = [
- "cargo-run-wasm",
+ "cargo-run-wasm 0.3.2",
 ]
 
 [[package]]

@@ -2,3 +2,6 @@
 # Homebrew LLVM's libclang may have broken dylib paths.
 [env]
 LIBCLANG_PATH = "/Library/Developer/CommandLineTools/usr/lib"
+
+[alias]
+run-wasm = "run --release --package run-wasm --"
