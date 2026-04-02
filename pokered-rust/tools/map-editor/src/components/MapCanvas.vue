@@ -12,6 +12,7 @@ const {
   render,
   tooltip,
   tooltipPosition,
+  hoveringClickable,
   handleCanvasClick,
   handleCanvasMouseMove,
   handleCanvasMouseLeave,
@@ -32,11 +33,20 @@ function handleKeydown(e: KeyboardEvent) {
     case 'e':
       store.setTool('edit')
       break
+    case 'Escape':
+      store.selectEntity(null)
+      break
   }
 }
 
 function toHex(n: number, pad = 2): string {
   return '0x' + n.toString(16).padStart(pad, '0')
+}
+
+function canvasCursorClass(): string {
+  if (currentTool.value === 'edit') return 'cursor-crosshair'
+  if (hoveringClickable.value) return 'cursor-pointer'
+  return 'cursor-default'
 }
 
 onMounted(() => {
@@ -55,7 +65,7 @@ onUnmounted(() => {
       <canvas
         ref="canvasRef"
         class="border-2 border-accent rounded"
-        :class="currentTool === 'edit' ? 'cursor-crosshair' : 'cursor-default'"
+        :class="canvasCursorClass()"
         @click="handleCanvasClick"
         @mousemove="handleCanvasMouseMove"
         @mouseleave="handleCanvasMouseLeave"
@@ -80,6 +90,23 @@ onUnmounted(() => {
         <b :class="tooltip.passable ? 'text-accent' : 'text-danger'">
           {{ tooltip.passable ? 'PASSABLE' : 'BLOCKED' }}
         </b>
+        <template v-if="tooltip.warp">
+          <br />
+          <b class="text-[#3498db]">WARP</b>
+          <template v-if="tooltip.warp.dest_map_name"> → {{ tooltip.warp.dest_map_name }}</template>
+        </template>
+        <template v-if="tooltip.sign">
+          <br /><b class="text-[#f1c40f]">SIGN</b> text#{{ tooltip.sign.text_id }}
+        </template>
+        <template v-if="tooltip.npc">
+          <br />
+          <b :class="tooltip.npc.is_trainer ? 'text-danger' : tooltip.npc.item_id != null ? 'text-accent' : 'text-[#9b59b6]'">
+            {{ tooltip.npc.is_trainer ? 'TRAINER' : tooltip.npc.item_id != null ? 'ITEM' : 'NPC' }}
+          </b>
+          {{ tooltip.npc.sprite_name }}
+          <template v-if="tooltip.npc.is_trainer"> ({{ tooltip.npc.trainer_class }})</template>
+          <template v-if="tooltip.npc.item_id != null"> item={{ toHex(tooltip.npc.item_id) }}</template>
+        </template>
       </div>
     </Teleport>
   </div>

@@ -2,11 +2,16 @@ import { ref, watch, type Ref } from 'vue'
 import { useMapStore } from '../stores/mapStore'
 import { TILE_SIZE, BLOCK_TILES } from '../types/constants'
 import type { TileInfo } from '../types'
+import { renderTilesAndCollision, renderGrid } from './renderTiles'
+import { renderWarps, renderSigns, renderNpcs, renderSelectionHighlight } from './renderOverlays'
+import { getTileInfoAt, hasClickableEntity } from './hitTest'
 
 export function useMapRenderer(canvasRef: Ref<HTMLCanvasElement | null>) {
   const store = useMapStore()
   const tooltip = ref<TileInfo | null>(null)
   const tooltipPosition = ref({ x: 0, y: 0 })
+  const hoveringClickable = ref(false)
+  let animationFrameId: number | null = null
 
   function render() {
     const canvas = canvasRef.value
@@ -28,134 +33,111 @@ export function useMapRenderer(canvasRef: Ref<HTMLCanvasElement | null>) {
     ctx.fillStyle = '#000'
     ctx.fillRect(0, 0, pw, ph)
 
-    const { showTiles, showCollision, showGrid, showWarps } = store.displayOptions
+    const { showTiles, showCollision, showGrid, showWarps, showSigns, showNpcs } = store.displayOptions
     const blockset = store.getBlockset(map.tileset_name)
     const tilesetImg = store.tilesetImages[map.tileset_name]
 
-    for (let by = 0; by < map.height; by++) {
-      for (let bx = 0; bx < map.width; bx++) {
-        const blockIdx = by * map.width + bx
-        const blockId = map.blocks[blockIdx]
-        const px = bx * BLOCK_TILES * TILE_SIZE
-        const py = by * BLOCK_TILES * TILE_SIZE
-
-        if (showTiles && blockset && tilesetImg) {
-          const blockTiles = blockset.blocks[blockId]
-          if (blockTiles) {
-            const tilesPerRow = Math.floor(tilesetImg.width / TILE_SIZE)
-            for (let ty = 0; ty < 4; ty++) {
-              for (let tx = 0; tx < 4; tx++) {
-                const tileId = blockTiles[ty * 4 + tx]
-                const srcX = (tileId % tilesPerRow) * TILE_SIZE
-                const srcY = Math.floor(tileId / tilesPerRow) * TILE_SIZE
-                ctx.drawImage(
-                  tilesetImg,
-                  srcX, srcY, TILE_SIZE, TILE_SIZE,
-                  px + tx * TILE_SIZE, py + ty * TILE_SIZE, TILE_SIZE, TILE_SIZE,
-                )
-              }
-            }
-          }
-        } else {
-          ctx.fillStyle = `hsl(${blockId * 7}, 50%, 40%)`
-          ctx.fillRect(px, py, BLOCK_TILES * TILE_SIZE, BLOCK_TILES * TILE_SIZE)
-        }
-
-        if (showCollision && blockset && blockset.blocks[blockId]) {
-          const blockTiles = blockset.blocks[blockId]
-          for (let ty = 0; ty < 4; ty++) {
-            for (let tx = 0; tx < 4; tx++) {
-              const tileId = blockTiles[ty * 4 + tx]
-              const passable = map.passable_tiles.includes(tileId)
-              ctx.fillStyle = passable
-                ? 'rgba(78, 204, 163, 0.25)'
-                : 'rgba(231, 76, 60, 0.35)'
-              ctx.fillRect(
-                px + tx * TILE_SIZE,
-                py + ty * TILE_SIZE,
-                TILE_SIZE,
-                TILE_SIZE,
-              )
-            }
-          }
-        }
-      }
-    }
+    renderTilesAndCollision(ctx, map, blockset, tilesetImg, showTiles, showCollision)
 
     if (showGrid) {
-      ctx.strokeStyle = 'rgba(255, 255, 0, 0.3)'
-      ctx.lineWidth = 0.5
-      for (let x = 0; x <= pw; x += BLOCK_TILES * TILE_SIZE) {
-        ctx.beginPath()
-        ctx.moveTo(x, 0)
-        ctx.lineTo(x, ph)
-        ctx.stroke()
-      }
-      for (let y = 0; y <= ph; y += BLOCK_TILES * TILE_SIZE) {
-        ctx.beginPath()
-        ctx.moveTo(0, y)
-        ctx.lineTo(pw, y)
-        ctx.stroke()
-      }
+      renderGrid(ctx, pw, ph)
     }
 
     if (showWarps && map.warps) {
-      map.warps.forEach((warp) => {
-        const tileX = warp.x * 2
-        const tileY = warp.y * 2
-        const wpx = tileX * TILE_SIZE
-        const wpy = tileY * TILE_SIZE
-        ctx.fillStyle = 'rgba(52, 152, 219, 0.8)'
-        ctx.fillRect(wpx, wpy, TILE_SIZE * 2, TILE_SIZE * 2)
-        ctx.strokeStyle = '#3498db'
-        ctx.lineWidth = 2
-        ctx.strokeRect(wpx, wpy, TILE_SIZE * 2, TILE_SIZE * 2)
-      })
+      renderWarps(ctx, map.warps)
+    }
+
+    if (showSigns && map.signs) {
+      renderSigns(ctx, map.signs)
+    }
+
+    if (showNpcs && map.npcs) {
+      renderNpcs(ctx, map.npcs)
+    }
+
+    if (store.selectedEntity) {
+      renderSelectionHighlight(ctx, store.selectedEntity)
     }
   }
 
-  function getTileInfoAt(clientX: number, clientY: number): TileInfo | null {
-    const canvas = canvasRef.value
-    const map = store.currentMap
-    if (!canvas || !map) return null
-
-    const rect = canvas.getBoundingClientRect()
-    const x = Math.floor((clientX - rect.left) / (TILE_SIZE * store.zoom))
-    const y = Math.floor((clientY - rect.top) / (TILE_SIZE * store.zoom))
-    const blockX = Math.floor(x / BLOCK_TILES)
-    const blockY = Math.floor(y / BLOCK_TILES)
-    const subX = x % BLOCK_TILES
-    const subY = y % BLOCK_TILES
-    const blockIndex = blockY * map.width + blockX
-    const blockId = map.blocks?.[blockIndex] ?? 0
-
-    let tileId = 0
-    let passable = false
-    const blockset = store.getBlockset(map.tileset_name)
-    if (blockset && blockset.blocks[blockId]) {
-      tileId = blockset.blocks[blockId][subY * 4 + subX]
-      passable = map.passable_tiles.includes(tileId)
+  function startSelectionAnimation() {
+    if (animationFrameId != null) return
+    function loop() {
+      render()
+      if (store.selectedEntity) {
+        animationFrameId = requestAnimationFrame(loop)
+      } else {
+        animationFrameId = null
+      }
     }
+    loop()
+  }
 
-    return { tileX: x, tileY: y, blockX, blockY, blockIndex, blockId, tileId, passable }
+  function stopSelectionAnimation() {
+    if (animationFrameId != null) {
+      cancelAnimationFrame(animationFrameId)
+      animationFrameId = null
+    }
   }
 
   function handleCanvasClick(e: MouseEvent) {
-    if (store.currentTool !== 'edit') return
-    const info = getTileInfoAt(e.clientX, e.clientY)
+    const canvas = canvasRef.value
+    const map = store.currentMap
+    if (!canvas || !map) return
+
+    const info = getTileInfoAt(canvas, map, store.getBlockset(map.tileset_name), store.zoom, e.clientX, e.clientY)
     if (!info) return
-    store.togglePassableTile(info.tileId)
-    render()
+
+    if (store.currentTool === 'edit') {
+      store.togglePassableTile(info.tileId)
+      render()
+      return
+    }
+
+    if (info.warp) {
+      const warpIndex = map.warps?.indexOf(info.warp) ?? -1
+      if (info.warp.dest_map_name) {
+        store.navigateToMap(info.warp.dest_map_name)
+      } else {
+        store.selectEntity({ type: 'warp', data: info.warp, index: warpIndex })
+      }
+      return
+    }
+
+    if (info.sign) {
+      const signIndex = map.signs?.indexOf(info.sign) ?? -1
+      store.selectEntity({ type: 'sign', data: info.sign, index: signIndex })
+      return
+    }
+
+    if (info.npc) {
+      const npcIndex = map.npcs?.indexOf(info.npc) ?? -1
+      store.selectEntity({ type: 'npc', data: info.npc, index: npcIndex })
+      return
+    }
+
+    store.selectEntity(null)
   }
 
   function handleCanvasMouseMove(e: MouseEvent) {
-    const info = getTileInfoAt(e.clientX, e.clientY)
+    const canvas = canvasRef.value
+    const map = store.currentMap
+    if (!canvas || !map) return
+
+    const info = getTileInfoAt(canvas, map, store.getBlockset(map.tileset_name), store.zoom, e.clientX, e.clientY)
     tooltip.value = info
     tooltipPosition.value = { x: e.clientX + 15, y: e.clientY + 15 }
+
+    if (store.currentTool === 'view' && info) {
+      hoveringClickable.value = hasClickableEntity(info)
+    } else {
+      hoveringClickable.value = false
+    }
   }
 
   function handleCanvasMouseLeave() {
     tooltip.value = null
+    hoveringClickable.value = false
   }
 
   watch(
@@ -165,6 +147,8 @@ export function useMapRenderer(canvasRef: Ref<HTMLCanvasElement | null>) {
       store.displayOptions.showTiles,
       store.displayOptions.showCollision,
       store.displayOptions.showWarps,
+      store.displayOptions.showSigns,
+      store.displayOptions.showNpcs,
       store.displayOptions.showGrid,
       store.tilesetImages,
     ],
@@ -172,10 +156,23 @@ export function useMapRenderer(canvasRef: Ref<HTMLCanvasElement | null>) {
     { deep: true },
   )
 
+  watch(
+    () => store.selectedEntity,
+    (entity) => {
+      if (entity) {
+        startSelectionAnimation()
+      } else {
+        stopSelectionAnimation()
+        render()
+      }
+    },
+  )
+
   return {
     render,
     tooltip,
     tooltipPosition,
+    hoveringClickable,
     handleCanvasClick,
     handleCanvasMouseMove,
     handleCanvasMouseLeave,

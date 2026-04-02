@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { useMapStore } from '../stores/mapStore'
 import { storeToRefs } from 'pinia'
+import EntityDetailPanel from './EntityDetailPanel.vue'
+import MapInfoPanel from './MapInfoPanel.vue'
 
 const store = useMapStore()
 const {
@@ -10,6 +12,7 @@ const {
   searchQuery,
   displayOptions,
   hasUnsavedChanges,
+  canGoBack,
 } = storeToRefs(store)
 
 async function handleFileChange(e: Event) {
@@ -27,10 +30,6 @@ function handleMapChange(e: Event) {
   const select = e.target as HTMLSelectElement
   store.selectMap(parseInt(select.value))
 }
-
-function toHex(n: number, pad = 2): string {
-  return '0x' + n.toString(16).padStart(pad, '0')
-}
 </script>
 
 <template>
@@ -39,6 +38,14 @@ function toHex(n: number, pad = 2): string {
     style="max-height: calc(100vh - 40px)"
   >
     <h2 class="text-accent text-base font-bold mb-4">Map Editor</h2>
+
+    <button
+      v-if="canGoBack"
+      class="w-full mb-3 px-3 py-1.5 bg-[#e67e22] text-white border-none rounded cursor-pointer text-[11px] font-bold hover:bg-[#d35400]"
+      @click="store.goBack()"
+    >
+      ← Back
+    </button>
 
     <label class="block text-xs mb-1 mt-3">Data File:</label>
     <input
@@ -85,6 +92,14 @@ function toHex(n: number, pad = 2): string {
         Show Warps
       </label>
       <label class="flex items-center gap-1.5 cursor-pointer text-xs">
+        <input v-model="displayOptions.showSigns" type="checkbox" class="w-auto" />
+        Show Signs
+      </label>
+      <label class="flex items-center gap-1.5 cursor-pointer text-xs">
+        <input v-model="displayOptions.showNpcs" type="checkbox" class="w-auto" />
+        Show NPCs
+      </label>
+      <label class="flex items-center gap-1.5 cursor-pointer text-xs">
         <input v-model="displayOptions.showGrid" type="checkbox" class="w-auto" />
         Show Grid
       </label>
@@ -127,36 +142,18 @@ function toHex(n: number, pad = 2): string {
           :key="tileId"
           class="flex items-center gap-1.5 p-0.5 hover:bg-bg"
         >
-          <span class="w-[30px]">{{ toHex(tileId) }}</span>
+          <span class="w-[30px]">{{ '0x' + tileId.toString(16).padStart(2, '0') }}</span>
           <span class="text-accent">Passable</span>
         </div>
       </div>
     </div>
 
-    <div class="mt-4 bg-bg-inset p-2.5 rounded-md font-mono text-[11px]">
-      <h3 class="text-accent text-[13px] font-bold mb-2 font-sans">Map Info</h3>
-      <template v-if="currentMap">
-        <p class="my-0.5"><b>{{ currentMap.name }}</b></p>
-        <p class="my-0.5">ID: <code class="text-accent">{{ toHex(currentMap.id) }}</code></p>
-        <p class="my-0.5">Size: {{ currentMap.width }}x{{ currentMap.height }} blocks</p>
-        <p class="my-0.5">Tiles: {{ currentMap.width * 4 }}x{{ currentMap.height * 4 }}</p>
-        <p class="my-0.5">Tileset: {{ currentMap.tileset_name }}</p>
-        <template v-if="currentMap.warps && currentMap.warps.length > 0">
-          <p class="my-0.5"><b>Warps:</b></p>
-          <p
-            v-for="(warp, i) in currentMap.warps"
-            :key="i"
-            class="my-0.5 ml-2.5"
-          >
-            Warp {{ i }}: tiles ({{ warp.x * 2 }}-{{ warp.x * 2 + 1 }}, {{ warp.y * 2 }}-{{ warp.y * 2 + 1 }})
-            <template v-if="warp.dest_map_name"> → {{ warp.dest_map_name }}</template>
-          </p>
-        </template>
-        <p class="my-0.5">Passable tiles: {{ currentMap.passable_tiles.length }}</p>
-      </template>
-      <template v-else>
-        <p>Load data file to begin</p>
-      </template>
+    <div class="mt-4">
+      <EntityDetailPanel />
+    </div>
+
+    <div class="mt-4">
+      <MapInfoPanel />
     </div>
 
     <div class="mt-4 bg-bg-inset p-2.5 rounded-md">
@@ -172,6 +169,22 @@ function toHex(n: number, pad = 2): string {
       <div class="flex items-center gap-2 text-[11px] my-1">
         <div class="w-3.5 h-3.5 rounded-sm" style="background: rgba(52, 152, 219, 0.8)"></div>
         Warp
+      </div>
+      <div class="flex items-center gap-2 text-[11px] my-1">
+        <div class="w-3.5 h-3.5 rounded-sm" style="background: rgba(241, 196, 15, 0.8)"></div>
+        Sign
+      </div>
+      <div class="flex items-center gap-2 text-[11px] my-1">
+        <div class="w-3.5 h-3.5 rounded-sm" style="background: rgba(231, 76, 60, 0.8)"></div>
+        NPC (Trainer)
+      </div>
+      <div class="flex items-center gap-2 text-[11px] my-1">
+        <div class="w-3.5 h-3.5 rounded-sm" style="background: rgba(46, 204, 113, 0.8)"></div>
+        NPC (Item)
+      </div>
+      <div class="flex items-center gap-2 text-[11px] my-1">
+        <div class="w-3.5 h-3.5 rounded-sm" style="background: rgba(155, 89, 182, 0.8)"></div>
+        NPC (Regular)
       </div>
     </div>
   </aside>

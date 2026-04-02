@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { ExportData, MapData, Blockset, EditorTool, DisplayOptions } from '../types'
+import type { ExportData, MapData, Blockset, EditorTool, DisplayOptions, SelectedEntity } from '../types'
 import { TILESET_FILES } from '../types/constants'
 
 export const useMapStore = defineStore('map', () => {
@@ -14,11 +14,15 @@ export const useMapStore = defineStore('map', () => {
   const statusMessage = ref('Ready')
   const searchQuery = ref('')
   const tilesetImages = ref<Record<string, HTMLImageElement>>({})
+  const selectedEntity = ref<SelectedEntity | null>(null)
+  const mapHistory = ref<number[]>([])
 
   const displayOptions = ref<DisplayOptions>({
     showTiles: true,
     showCollision: true,
     showWarps: true,
+    showSigns: true,
+    showNpcs: true,
     showGrid: false,
   })
 
@@ -26,6 +30,8 @@ export const useMapStore = defineStore('map', () => {
     if (maps.value.length === 0) return null
     return maps.value[currentMapIndex.value] ?? null
   })
+
+  const canGoBack = computed(() => mapHistory.value.length > 0)
 
   const filteredMaps = computed(() => {
     if (!searchQuery.value) return maps.value.map((m, i) => ({ map: m, index: i }))
@@ -47,6 +53,8 @@ export const useMapStore = defineStore('map', () => {
     blocksets.value = data.blocksets || []
     await loadTilesets()
     currentMapIndex.value = 0
+    selectedEntity.value = null
+    mapHistory.value = []
     updateStatus(`Loaded ${maps.value.length} maps`)
   }
 
@@ -70,23 +78,54 @@ export const useMapStore = defineStore('map', () => {
   function selectMap(index: number) {
     if (index >= 0 && index < maps.value.length) {
       currentMapIndex.value = index
+      selectedEntity.value = null
     }
+  }
+
+  function navigateToMap(mapName: string) {
+    const targetIndex = maps.value.findIndex((m) => m.name === mapName)
+    if (targetIndex < 0) {
+      updateStatus(`Map "${mapName}" not found`)
+      return
+    }
+    mapHistory.value.push(currentMapIndex.value)
+    currentMapIndex.value = targetIndex
+    selectedEntity.value = null
+    updateStatus(`Navigated to ${mapName}`)
+  }
+
+  function goBack() {
+    const prev = mapHistory.value.pop()
+    if (prev != null) {
+      currentMapIndex.value = prev
+      selectedEntity.value = null
+      updateStatus(`Back to ${maps.value[prev]?.name ?? 'unknown'}`)
+    }
+  }
+
+  function selectEntity(entity: SelectedEntity | null) {
+    selectedEntity.value = entity
   }
 
   function nextMap() {
     if (currentMapIndex.value < maps.value.length - 1) {
       currentMapIndex.value++
+      selectedEntity.value = null
     }
   }
 
   function prevMap() {
     if (currentMapIndex.value > 0) {
       currentMapIndex.value--
+      selectedEntity.value = null
     }
   }
 
   function setTool(tool: EditorTool) {
     currentTool.value = tool
+    if (tool === 'edit') {
+      selectedEntity.value = null
+    }
   }
 
   function zoomIn() {
@@ -141,11 +180,17 @@ export const useMapStore = defineStore('map', () => {
     searchQuery,
     tilesetImages,
     displayOptions,
+    selectedEntity,
+    mapHistory,
     currentMap,
+    canGoBack,
     filteredMaps,
     getBlockset,
     loadFile,
     selectMap,
+    navigateToMap,
+    goBack,
+    selectEntity,
     nextMap,
     prevMap,
     setTool,
