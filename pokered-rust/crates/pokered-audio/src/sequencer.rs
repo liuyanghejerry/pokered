@@ -222,6 +222,10 @@ pub struct ChannelState {
 
     /// Vibrato-modified frequency low byte for APU write (None = no vibrato active).
     pub vibrato_freq_lo: Option<u8>,
+
+    /// Pitch sweep value for NR10 (channel 1 only). Set by PitchSweep command.
+    /// Written to 0xFF10 when a note triggers on HW channel 0.
+    pub pitch_sweep_value: u8,
 }
 
 impl ChannelState {
@@ -251,6 +255,7 @@ impl ChannelState {
             stereo_panning: 0xFF,
             trigger: false,
             vibrato_freq_lo: None,
+            pitch_sweep_value: 0,
         }
     }
 
@@ -507,8 +512,11 @@ impl Sequencer {
 
             let pos = ch.ptr;
             let is_noise = hw_channel_for(ch_idx) == 3;
+            let is_sfx = is_sfx_channel(ch_idx);
+            let exec_music = ch.flags2.contains(ChannelFlags2::EXECUTE_MUSIC);
             let data_clone = ch.data.clone(); // Clone to avoid borrow conflict
-            let (cmd, new_pos) = commands::decode_command(&data_clone, pos, is_noise);
+            let (cmd, new_pos) =
+                commands::decode_command(&data_clone, pos, is_noise, is_sfx, exec_music);
             self.channels[ch_idx].ptr = new_pos;
 
             match cmd {
@@ -602,6 +610,25 @@ impl Sequencer {
                         self.check_sfx_end(ch_idx);
                         return;
                     }
+                }
+                Command::PitchSweep { param } => {
+                    self.handle_pitch_sweep_sfx(ch_idx, param);
+                }
+                Command::SfxSquareNote {
+                    length,
+                    volume_envelope,
+                    frequency,
+                } => {
+                    self.handle_sfx_square_note(ch_idx, length, volume_envelope, frequency);
+                    return; // Note starts playing — wait for delay
+                }
+                Command::SfxNoiseNote {
+                    length,
+                    volume_envelope,
+                    noise_params,
+                } => {
+                    self.handle_sfx_noise_note(ch_idx, length, volume_envelope, noise_params);
+                    return; // Note starts playing — wait for delay
                 }
                 Command::EndOfData => {
                     self.channels[ch_idx].active = false;
@@ -795,6 +822,56 @@ impl Sequencer {
         }
     }
 
+    /// Handle SFX pitch sweep — writes param directly to NR10 (0xFF10).
+    /// Replicates engine_1.asm lines 628-642.
+    fn handle_pitch_sweep_sfx(&mut self, ch_idx: usize, param: u8) {
+        self.channels[ch_idx].pitch_sweep_value = param;
+    }
+
+    /// Handle SFX square note — directly sets volume, frequency, and triggers.
+    /// Replicates engine_1.asm lines 575-618 (square_note path).
+    fn handle_sfx_square_note(
+        &mut self,
+        ch_idx: usize,
+        length: u8,
+        volume_envelope: u8,
+        frequency: u16,
+    ) {
+        let ch = &mut self.channels[ch_idx];
+
+        let tempo = self.sfx_tempo;
+        let (delay, new_frac) =
+            commands::calculate_delay(length + 1, ch.note_speed, tempo, ch.delay_frac);
+        ch.delay_counter = delay;
+        ch.delay_frac = new_frac;
+
+        ch.volume_envelope = volume_envelope;
+        ch.frequency = frequency;
+        ch.trigger = true;
+    }
+
+    /// Handle SFX noise note — directly sets volume, noise params, and triggers.
+    /// Replicates engine_1.asm lines 575-626 (noise_note path).
+    fn handle_sfx_noise_note(
+        &mut self,
+        ch_idx: usize,
+        length: u8,
+        volume_envelope: u8,
+        noise_params: u8,
+    ) {
+        let ch = &mut self.channels[ch_idx];
+
+        let tempo = self.sfx_tempo;
+        let (delay, new_frac) =
+            commands::calculate_delay(length + 1, ch.note_speed, tempo, ch.delay_frac);
+        ch.delay_counter = delay;
+        ch.delay_frac = new_frac;
+
+        ch.volume_envelope = volume_envelope;
+        ch.frequency = noise_params as u16;
+        ch.trigger = true;
+    }
+
     /// Check if a SFX channel has ended and resume corresponding music channel.
     fn check_sfx_end(&mut self, ch_idx: usize) {
         if !is_sfx_channel(ch_idx) {
@@ -892,6 +969,7 @@ impl Sequencer {
             let nrx4 = 0x80 | ((freq >> 8) & 0x07) as u8;
 
             if is_ch1 {
+                apu.write_register(0xFF10, ch.pitch_sweep_value);
                 apu.write_register(0xFF11, nrx1);
                 apu.write_register(0xFF12, nrx2);
                 apu.write_register(0xFF13, nrx3);

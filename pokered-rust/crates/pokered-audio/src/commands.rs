@@ -77,11 +77,41 @@ pub enum Command {
     /// Return from sound_call subroutine.
     SoundRet,
 
+    /// Pitch sweep for channel 1 (NR10).
+    /// Only valid on SFX channels (CHAN5-CHAN8) when not in execute_music mode.
+    /// The param byte is written directly to NR10 (0xFF10).
+    PitchSweep { param: u8 },
+
+    /// SFX square note — directly specifies volume envelope + frequency.
+    /// Used by square_note macro ($20-$2F) on SFX channels (CHAN4+).
+    /// `length` is from the low nibble of the command byte (0-15).
+    /// `volume_envelope` is the vol/fade byte (high nibble=vol, low=fade).
+    /// `frequency` is the 11-bit frequency register value (little-endian in data).
+    SfxSquareNote {
+        length: u8,
+        volume_envelope: u8,
+        frequency: u16,
+    },
+
+    /// SFX noise note — directly specifies volume envelope + noise params.
+    /// Used by noise_note macro ($20-$2F) on noise SFX channels (CHAN8).
+    /// `length` is from the low nibble of the command byte (0-15).
+    /// `volume_envelope` is the vol/fade byte.
+    /// `noise_params` is the polynomial counter byte.
+    SfxNoiseNote {
+        length: u8,
+        volume_envelope: u8,
+        noise_params: u8,
+    },
+
     /// End of data / unrecognized.
     EndOfData,
 }
 
 // ── Command Byte Constants ───────────────────────────────────────────────
+
+pub const CMD_PITCH_SWEEP_CMD: u8 = 0x10;
+pub const CMD_SFX_NOTE_CMD: u8 = 0x20;
 
 pub const CMD_TOGGLE_PERFECT_PITCH: u8 = 0xE8;
 // 0xE9 is unused
@@ -105,14 +135,17 @@ pub const CMD_SOUND_RET: u8 = 0xFF;
 /// Decode one command from a byte slice starting at `pos`.
 ///
 /// `is_noise_channel` must be true when decoding for CHAN4/CHAN8 (noise channels).
-/// This affects:
-/// - Bytes $B0-$BF: on noise channels these are drum_note (2 bytes); on other
-///   channels they are regular notes with pitch 11 (B natural, 1 byte).
-/// - note_type ($D0-$DF): on noise channels there is no param byte (1 byte total);
-///   on other channels a param byte follows (2 bytes total).
+/// `is_sfx_channel` must be true when decoding for CHAN5-CHAN8 (SFX channels).
+/// `execute_music` must be true when the channel's EXECUTE_MUSIC flag is set.
 ///
 /// Returns (command, new_pos).
-pub fn decode_command(data: &[u8], pos: usize, is_noise_channel: bool) -> (Command, usize) {
+pub fn decode_command(
+    data: &[u8],
+    pos: usize,
+    is_noise_channel: bool,
+    is_sfx_channel: bool,
+    execute_music: bool,
+) -> (Command, usize) {
     if pos >= data.len() {
         return (Command::EndOfData, pos);
     }
@@ -121,8 +154,43 @@ pub fn decode_command(data: &[u8], pos: usize, is_noise_channel: bool) -> (Comma
     let mut next = pos + 1;
 
     match byte {
+        // SFX note ($20-$2F): only on SFX channels (>= CHAN4) when not execute_music.
+        // On non-SFX channels or with execute_music, falls through to regular note.
+        b if (b & 0xF0) == CMD_SFX_NOTE_CMD && is_sfx_channel && !execute_music => {
+            let length = b & 0x0F;
+            let volume_envelope = read_byte_at(data, &mut next);
+            if is_noise_channel {
+                let noise_params = read_byte_at(data, &mut next);
+                (
+                    Command::SfxNoiseNote {
+                        length,
+                        volume_envelope,
+                        noise_params,
+                    },
+                    next,
+                )
+            } else {
+                let freq_lo = read_byte_at(data, &mut next);
+                let freq_hi = read_byte_at(data, &mut next);
+                let frequency = (freq_hi as u16) << 8 | freq_lo as u16;
+                (
+                    Command::SfxSquareNote {
+                        length,
+                        volume_envelope,
+                        frequency,
+                    },
+                    next,
+                )
+            }
+        }
+
+        // Pitch sweep ($10): only on SFX channels (>= CHAN5) when not execute_music.
+        CMD_PITCH_SWEEP_CMD if is_sfx_channel && !execute_music => {
+            let param = read_byte_at(data, &mut next);
+            (Command::PitchSweep { param }, next)
+        }
+
         // Notes: $00-$AF
-        // High nibble (0-10) = pitch index, low nibble = length - 1
         0x00..=0xAF => {
             let pitch = byte >> 4;
             let length = (byte & 0x0F) + 1;

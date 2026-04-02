@@ -107,7 +107,7 @@ impl PokemonGame {
         }
 
         let action = match self.state.screen {
-            GameScreen::CopyrightSplash | GameScreen::TitleScreen => {
+            GameScreen::CopyrightSplash | GameScreen::TitleScreen | GameScreen::IntroScene => {
                 let any_pressed = input.any_just_pressed();
                 self.title_screen.update_frame(any_pressed)
             }
@@ -305,6 +305,7 @@ impl PokemonGame {
                 );
             }
             GameScreen::CopyrightSplash => self.title_screen.reset(),
+            GameScreen::IntroScene => self.title_screen.reset(),
         }
         self.state.transition_to(screen);
     }
@@ -317,7 +318,7 @@ impl PokemonGame {
 
         fb.clear(Rgba::WHITE);
         match self.state.screen {
-            GameScreen::CopyrightSplash | GameScreen::TitleScreen => {
+            GameScreen::CopyrightSplash | GameScreen::TitleScreen | GameScreen::IntroScene => {
                 draw_title_screen(&self.title_screen, fb);
             }
             GameScreen::MainMenu => draw_main_menu(&self.main_menu, fb),

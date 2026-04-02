@@ -108,6 +108,7 @@ pub fn screen_name(screen: &pokered_core::game_state::GameScreen) -> &'static st
         GameScreen::Overworld => "overworld",
         GameScreen::Battle => "battle",
         GameScreen::StartMenu => "start-menu",
+        GameScreen::IntroScene => "intro",
         GameScreen::OptionsMenu => "options",
         GameScreen::SaveMenu => "save",
     }
@@ -121,6 +122,7 @@ pub const ALL_SCREENS: &[pokered_core::game_state::GameScreen] = &[
     pokered_core::game_state::GameScreen::Overworld,
     pokered_core::game_state::GameScreen::Battle,
     pokered_core::game_state::GameScreen::StartMenu,
+    pokered_core::game_state::GameScreen::IntroScene,
     pokered_core::game_state::GameScreen::OptionsMenu,
     pokered_core::game_state::GameScreen::SaveMenu,
 ];
