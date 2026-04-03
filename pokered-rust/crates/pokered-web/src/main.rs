@@ -60,8 +60,7 @@ impl PokemonGame {
         let title_screen = TitleScreenState::new(version);
         let main_menu = MainMenuState::new(None);
         let oak_speech = OakSpeechState::new();
-        let overworld = OverworldScreen::new(MapId::PalletTown);
-        let battle = BattleScreen::new(true);
+        let overworld = OverworldScreen::new(MapId::PalletTown, None);        let battle = BattleScreen::new(true);
         let start_menu = StartMenuState::new(false, false, false);
         let options_menu = OptionsMenuState::new(GameOptions::default());
         let save_menu = SaveMenuState::new(
@@ -280,7 +279,7 @@ impl PokemonGame {
                 self.oak_speech = OakSpeechState::new();
             }
             GameScreen::Overworld => {
-                self.overworld = OverworldScreen::new(MapId::PalletTown);
+                self.overworld = OverworldScreen::new(MapId::PalletTown, None);
             }
             GameScreen::Battle => {
                 self.battle = BattleScreen::new(true);

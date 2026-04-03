@@ -196,6 +196,7 @@ impl ScriptLoader {
         reloaded
     }
 
+    #[cfg(feature = "embedded-scripts")]
     pub fn load_embedded(&mut self) -> usize {
         let embedded_scripts: &[(&str, &str)] = &[
             (
@@ -260,6 +261,29 @@ impl ScriptLoader {
         log::info!("ScriptLoader: loaded {} embedded scripts + configs", count);
         count
     }
+
+    #[cfg(feature = "embedded-scripts")]
+    pub fn load_auto(
+        &mut self,
+        _scripts_dir: Option<&std::path::Path>,
+    ) -> Result<usize, ScriptLoaderError> {
+        let count = self.load_embedded();
+        Ok(count)
+    }
+
+    #[cfg(all(not(feature = "embedded-scripts"), not(target_arch = "wasm32")))]
+    pub fn load_auto(
+        &mut self,
+        scripts_dir: Option<&std::path::Path>,
+    ) -> Result<usize, ScriptLoaderError> {
+        let dir = scripts_dir.ok_or_else(|| {
+            ScriptLoaderError::NotADirectory(
+                "no scripts directory provided (required without embedded-scripts feature)"
+                    .to_string(),
+            )
+        })?;
+        self.load_from_directory(dir)
+    }
 }
 
 impl Default for ScriptLoader {
@@ -319,6 +343,7 @@ mod tests {
         assert_eq!(config.resolve_map_script_index("stateOak"), Some(1));
     }
 
+    #[cfg(feature = "embedded-scripts")]
     #[test]
     fn test_load_embedded() {
         let mut loader = ScriptLoader::new();

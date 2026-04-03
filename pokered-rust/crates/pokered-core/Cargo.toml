@@ -3,6 +3,9 @@ name = "pokered-core"
 version.workspace = true
 edition.workspace = true
 
+[features]
+embedded-scripts = ["pokered-script/embedded-scripts"]
+
 [dependencies]
 pokered-data = { path = "../pokered-data" }
 pokered-script = { path = "../pokered-script" }

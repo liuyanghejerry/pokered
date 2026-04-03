@@ -3,6 +3,11 @@ name = "pokered-script"
 version.workspace = true
 edition.workspace = true
 
+[features]
+## Embed JS/JSON scripts into the binary via `include_str!`.
+## When disabled, scripts MUST be loaded from disk at runtime.
+embedded-scripts = []
+
 [dependencies]
 pokered-data = { path = "../pokered-data" }
 boa_engine = { version = "0.20", default-features = false }

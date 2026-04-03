@@ -36,7 +36,7 @@ fn main() {
                 scale: 3,
                 resizable: true,
             };
-            let game = PokemonGame::new(version, None, None);
+            let game = PokemonGame::new(version, None, None, cli.scripts_dir);
             match run(config, game) {
                 Ok(()) => println!("Game exited normally"),
                 Err(e) => eprintln!("Error: {}", e),
@@ -54,7 +54,7 @@ fn main() {
                 scale: 3,
                 resizable: true,
             };
-            let game = PokemonGame::new(version, save, snapshot);
+            let game = PokemonGame::new(version, save, snapshot, cli.scripts_dir);
             match run(config, game) {
                 Ok(()) => println!("Game exited normally"),
                 Err(e) => eprintln!("Error: {}", e),

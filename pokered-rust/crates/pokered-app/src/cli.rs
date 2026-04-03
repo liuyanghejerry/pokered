@@ -13,6 +13,11 @@ pub struct Cli {
     /// Example: --debug-modules save,overworld
     #[arg(long, global = true)]
     pub debug_modules: Option<String>,
+
+    /// Path to the scripts directory (JS/JSON map scripts).
+    /// Only used when compiled without the `embedded-scripts` feature.
+    #[arg(long, global = true)]
+    pub scripts_dir: Option<PathBuf>,
 }
 
 #[derive(Subcommand)]

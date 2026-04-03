@@ -87,6 +87,7 @@ pub struct PokemonGame {
     prev_oak_phase_tag: u8,
     pub black_screen_frames: u32,
     pub pending_screen: Option<GameScreen>,
+    pub scripts_dir: Option<PathBuf>,
     #[cfg(not(target_arch = "wasm32"))]
     pub audio: Option<AudioOutput>,
 }
@@ -96,6 +97,7 @@ impl PokemonGame {
         version: GameVersion,
         save_path: Option<PathBuf>,
         snapshot_path: Option<PathBuf>,
+        scripts_dir: Option<PathBuf>,
     ) -> Self {
         let (save_data, save_summary) = if let Some(ref path) = snapshot_path {
             Self::load_snapshot_from_path(path)
@@ -112,7 +114,7 @@ impl PokemonGame {
         let title_screen = TitleScreenState::new(version);
         let main_menu = MainMenuState::new(save_summary);
         let oak_speech = OakSpeechState::new();
-        let overworld = OverworldScreen::new(MapId::PalletTown);
+        let overworld = OverworldScreen::new(MapId::PalletTown, scripts_dir.clone());
         let battle = BattleScreen::new(true);
         let start_menu = StartMenuState::new(false, false, false);
         let options_menu = OptionsMenuState::new(GameOptions::default());
@@ -173,6 +175,7 @@ impl PokemonGame {
             prev_oak_phase_tag: 0,
             black_screen_frames: 0,
             pending_screen: None,
+            scripts_dir,
             #[cfg(not(target_arch = "wasm32"))]
             audio,
         }
@@ -382,7 +385,7 @@ impl PokemonGame {
                         );
                         let map_id = pokered_core::data::maps::MapId::from_u8(pos.map_id)
                             .unwrap_or(NEW_GAME_WARP.map_id);
-                        let mut overworld = OverworldScreen::new(map_id);
+                        let mut overworld = OverworldScreen::new(map_id, self.scripts_dir.clone());
                         overworld.state.player.x = pos.x as u16;
                         overworld.state.player.y = pos.y as u16;
                         overworld.state.player.facing =
@@ -416,7 +419,8 @@ impl PokemonGame {
                             && self.state.screen != GameScreen::SaveMenu
                             && self.state.screen != GameScreen::Battle =>
                     {
-                        let mut overworld = OverworldScreen::new(NEW_GAME_WARP.map_id);
+                        let mut overworld =
+                            OverworldScreen::new(NEW_GAME_WARP.map_id, self.scripts_dir.clone());
                         overworld.state.player.x = NEW_GAME_WARP.coords.x as u16;
                         overworld.state.player.y = NEW_GAME_WARP.coords.y as u16;
                         self.overworld = overworld;

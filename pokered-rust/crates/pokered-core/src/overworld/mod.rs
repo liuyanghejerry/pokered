@@ -478,12 +478,13 @@ pub struct OverworldScreen {
     active_script_effect: Option<script_bridge::ScriptEffect>,
     joy_ignore_mask: u8,
     map_script_index: u8,
+    scripts_dir: Option<std::path::PathBuf>,
 }
 
 const MAP_NAME_DISPLAY_FRAMES: u8 = 120;
 
 impl OverworldScreen {
-    pub fn new(start_map: MapId) -> Self {
+    pub fn new(start_map: MapId, scripts_dir: Option<std::path::PathBuf>) -> Self {
         let map_data = Some(map_data_loading::load_full_map_data(start_map));
         let npc_states = map_data
             .as_ref()
@@ -491,7 +492,10 @@ impl OverworldScreen {
             .unwrap_or_default();
 
         let mut script_loader = ScriptLoader::new();
-        script_loader.load_embedded();
+        match script_loader.load_auto(scripts_dir.as_deref()) {
+            Ok(count) => log::info!("ScriptLoader: loaded {} files via load_auto", count),
+            Err(e) => log::error!("ScriptLoader: load_auto failed: {}", e),
+        }
 
         let mut script_engine = ScriptEngine::new();
         let map_key = script_bridge::map_id_to_script_key(start_map);
@@ -522,6 +526,7 @@ impl OverworldScreen {
             active_script_effect: None,
             joy_ignore_mask: 0,
             map_script_index: 0,
+            scripts_dir,
         }
     }
 

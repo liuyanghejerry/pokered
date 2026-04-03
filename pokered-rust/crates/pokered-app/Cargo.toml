@@ -7,6 +7,9 @@ edition.workspace = true
 name = "export_map_data"
 path = "../../tools/export_map_data.rs"
 
+[features]
+embedded-scripts = ["pokered-core/embedded-scripts"]
+
 [dependencies]
 pokered-core = { path = "../pokered-core" }
 pokered-data = { path = "../pokered-data" }
