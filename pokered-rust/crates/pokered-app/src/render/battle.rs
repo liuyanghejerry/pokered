@@ -260,8 +260,50 @@ fn draw_battle_menu(buf: &mut ScreenTileBuffer, selected_row: usize, selected_co
 
 /// Draw battle dialog text into the text box area.
 fn draw_battle_text(buf: &mut ScreenTileBuffer, text: &str) {
-    let tiles = ascii_to_tiles(text);
-    write_tiles_at(buf, 1, 14, &tiles);
+    const LINE_WIDTH: usize = 18;
+
+    let mut wrapped: Vec<String> = Vec::new();
+
+    for raw_line in text.split('\n') {
+        let words: Vec<&str> = raw_line.split_whitespace().collect();
+        if words.is_empty() {
+            wrapped.push(String::new());
+            continue;
+        }
+
+        let mut current = String::new();
+        for word in words {
+            let word_chars: Vec<char> = word.chars().collect();
+            let mut start = 0;
+            while start < word_chars.len() {
+                let end = (start + LINE_WIDTH).min(word_chars.len());
+                let part: String = word_chars[start..end].iter().collect();
+
+                if current.is_empty() {
+                    current.push_str(&part);
+                } else if current.chars().count() + 1 + part.chars().count() <= LINE_WIDTH {
+                    current.push(' ');
+                    current.push_str(&part);
+                } else {
+                    wrapped.push(current);
+                    current = part;
+                }
+
+                start = end;
+            }
+        }
+
+        if !current.is_empty() {
+            wrapped.push(current);
+        }
+    }
+
+    if let Some(line1) = wrapped.first() {
+        write_tiles_at(buf, 1, 14, &ascii_to_tiles(line1));
+    }
+    if let Some(line2) = wrapped.get(1) {
+        write_tiles_at(buf, 1, 16, &ascii_to_tiles(line2));
+    }
 }
 
 fn move_display_name(move_id: pokered_data::moves::MoveId) -> String {

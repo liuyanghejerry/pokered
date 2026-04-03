@@ -95,6 +95,84 @@ impl BattleInput {
 
 use status_checks::CannotMoveReason;
 
+const BATTLE_TEXT_LINE_WIDTH: usize = 18;
+const BATTLE_TEXT_LINES_PER_PAGE: usize = 2;
+
+fn hard_wrap_word(word: &str, width: usize) -> Vec<String> {
+    if width == 0 {
+        return vec![];
+    }
+    let chars: Vec<char> = word.chars().collect();
+    if chars.is_empty() {
+        return vec![String::new()];
+    }
+
+    let mut out = Vec::new();
+    let mut start = 0;
+    while start < chars.len() {
+        let end = (start + width).min(chars.len());
+        out.push(chars[start..end].iter().collect());
+        start = end;
+    }
+    out
+}
+
+fn wrap_battle_text_lines(text: &str, width: usize) -> Vec<String> {
+    let mut out = Vec::new();
+
+    for raw_line in text.split('\n') {
+        if raw_line.trim().is_empty() {
+            out.push(String::new());
+            continue;
+        }
+
+        let mut current = String::new();
+        for word in raw_line.split_whitespace() {
+            let parts = hard_wrap_word(word, width);
+            for part in parts {
+                if current.is_empty() {
+                    current.push_str(&part);
+                    continue;
+                }
+
+                let candidate_len = current.chars().count() + 1 + part.chars().count();
+                if candidate_len <= width {
+                    current.push(' ');
+                    current.push_str(&part);
+                } else {
+                    out.push(current);
+                    current = part;
+                }
+            }
+        }
+
+        if !current.is_empty() {
+            out.push(current);
+        }
+    }
+
+    if out.is_empty() {
+        out.push(String::new());
+    }
+
+    out
+}
+
+fn paginate_battle_text(text: &str) -> Vec<String> {
+    let lines = wrap_battle_text_lines(text, BATTLE_TEXT_LINE_WIDTH);
+    let mut pages = Vec::new();
+
+    for chunk in lines.chunks(BATTLE_TEXT_LINES_PER_PAGE) {
+        pages.push(chunk.join("\n"));
+    }
+
+    if pages.is_empty() {
+        pages.push(String::new());
+    }
+
+    pages
+}
+
 /// Convert a PascalCase MoveId Debug name to game-style uppercase with spaces.
 /// e.g. "QuickAttack" → "QUICK ATTACK", "Thunderbolt" → "THUNDERBOLT",
 ///      "HiJumpKick" → "HI JUMP KICK", "ThunderWave" → "THUNDER WAVE"
@@ -562,9 +640,20 @@ impl BattleScreen {
             self.phase = next;
             return;
         }
-        self.current_message = Some(messages[0].clone());
+
+        let expanded: Vec<String> = messages
+            .iter()
+            .flat_map(|m| paginate_battle_text(m))
+            .collect();
+
+        if expanded.is_empty() {
+            self.phase = next;
+            return;
+        }
+
+        self.current_message = Some(expanded[0].clone());
         self.phase = BattlePhase::ShowingText {
-            messages,
+            messages: expanded,
             current: 0,
             wait_frames: 10,
             next_phase: Box::new(next),
