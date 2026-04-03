@@ -97,6 +97,7 @@ use status_checks::CannotMoveReason;
 
 const BATTLE_TEXT_LINE_WIDTH: usize = 18;
 const BATTLE_TEXT_LINES_PER_PAGE: usize = 2;
+const BATTLE_TEXT_PAGE_WAIT_FRAMES: u16 = 10;
 
 fn hard_wrap_word(word: &str, width: usize) -> Vec<String> {
     if width == 0 {
@@ -543,7 +544,7 @@ impl BattleScreen {
                         self.phase = BattlePhase::ShowingText {
                             messages,
                             current: next_idx,
-                            wait_frames: 0,
+                            wait_frames: BATTLE_TEXT_PAGE_WAIT_FRAMES,
                             next_phase,
                         };
                     }
@@ -655,7 +656,7 @@ impl BattleScreen {
         self.phase = BattlePhase::ShowingText {
             messages: expanded,
             current: 0,
-            wait_frames: 10,
+            wait_frames: BATTLE_TEXT_PAGE_WAIT_FRAMES,
             next_phase: Box::new(next),
         };
     }

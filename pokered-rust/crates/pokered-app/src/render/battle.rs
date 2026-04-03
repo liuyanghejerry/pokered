@@ -489,6 +489,19 @@ pub fn draw_battle(screen: &BattleScreen, res: &mut Option<ResourceManager>, fb:
             if let Some(ref text) = phase_text {
                 draw_battle_text(&mut tile_buf, text);
             }
+
+            if let BattlePhase::ShowingText {
+                messages,
+                current,
+                wait_frames,
+                ..
+            } = &screen.phase
+            {
+                let has_next_page = *current + 1 < messages.len();
+                if has_next_page && *wait_frames == 0 {
+                    dialog_box.show_down_arrow(&mut tile_buf);
+                }
+            }
         }
 
         // ── Render tile buffer to framebuffer ────────────────────────
