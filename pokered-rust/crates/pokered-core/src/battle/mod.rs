@@ -23,9 +23,18 @@ mod menu_tests;
 // ── BattleScreen (frame-loop adapter) ─────────────────────────────
 
 use crate::game_state::{GameScreen, ScreenAction};
-use menu::{BattleMenuAction, BattleMenuInput, BattleMenuState};
+use crate::main_menu::MenuInput;
+use effects::EffectRandoms;
+use escape::{try_run_from_battle, RunResult};
+use menu::{
+    BattleMenuAction, BattleMenuInput, BattleMenuState, MoveMenuResult, MoveMenuState, MoveSlot,
+};
+use move_execution::MoveRandoms;
+use pokered_data::move_data::MoveData;
+use pokered_data::moves::MoveId;
 use pokered_data::species::Species;
-use state::StatusCondition;
+use state::{BattleState, BattleType, Side, StatusCondition};
+use turn::{execute_turn, TurnRandoms};
 
 /// High-level battle phase (frame-loop granularity).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -36,12 +45,24 @@ pub enum BattlePhase {
     PlayerMenu,
     /// Player picks a move from the move list.
     MoveSelect,
-    /// Turn is being executed (animation/text playback).
-    TurnExecution { wait_frames: u16 },
-    /// A Pokémon fainted — show message, check for next.
-    FaintCheck { wait_frames: u16 },
-    /// Battle ended — victory / loss / ran away.
-    Finished { won: bool, wait_frames: u16 },
+    /// Displaying sequential text messages (turn results, status, etc.).
+    /// Advances on A press. After all messages → next phase.
+    ShowingText {
+        messages: Vec<String>,
+        current: usize,
+        /// Frames to auto-wait before accepting input (brief pause).
+        wait_frames: u16,
+        /// Phase to transition to after all messages are shown.
+        next_phase: Box<BattlePhase>,
+    },
+    /// Player chooses which party member to switch to.
+    PartySelect,
+    /// Enemy trainer sends out next Pokémon after one faints.
+    EnemySendingNext { wait_frames: u16 },
+    /// Player must choose replacement after their Pokémon faints.
+    PlayerFaintSwitch,
+    /// Battle is over — display final message then exit.
+    BattleOver { won: bool, wait_frames: u16 },
 }
 
 /// Input forwarded to the battle screen each frame.
@@ -68,12 +89,28 @@ impl BattleInput {
     }
 }
 
-/// Top-level battle screen adapter that wraps the battle subsystems
-/// into a frame-by-frame update loop compatible with ScreenAction.
+use status_checks::CannotMoveReason;
+
+fn format_cannot_move(reason: &CannotMoveReason) -> &'static str {
+    match reason {
+        CannotMoveReason::Asleep => "is fast asleep!",
+        CannotMoveReason::WokeUpButLostTurn => "woke up!",
+        CannotMoveReason::Frozen => "is frozen solid!",
+        CannotMoveReason::TrappedByEnemy => "can't move!",
+        CannotMoveReason::Flinched => "flinched!",
+        CannotMoveReason::MustRecharge => "must recharge!",
+        CannotMoveReason::ConfusedSelfHit => "hurt itself in confusion!",
+        CannotMoveReason::MoveDisabled => "is disabled!",
+        CannotMoveReason::FullyParalyzed => "is fully paralyzed!",
+    }
+}
+
 pub struct BattleScreen {
     pub phase: BattlePhase,
     pub battle_menu: BattleMenuState,
     pub is_wild: bool,
+
+    // Display fields (synced from battle_state after every action)
     pub enemy_species: Species,
     pub enemy_level: u8,
     pub enemy_hp: u16,
@@ -86,6 +123,12 @@ pub struct BattleScreen {
     pub player_status: StatusCondition,
     pub player_party_size: usize,
     pub enemy_party_size: usize,
+
+    // Real battle engine state
+    pub battle_state: Option<BattleState>,
+    pub move_menu: Option<MoveMenuState>,
+    pub current_message: Option<String>,
+    pub party_cursor: usize,
 }
 
 impl BattleScreen {
@@ -106,6 +149,10 @@ impl BattleScreen {
             player_status: StatusCondition::None,
             player_party_size: 1,
             enemy_party_size: 1,
+            battle_state: None,
+            move_menu: None,
+            current_message: None,
+            party_cursor: 0,
         }
     }
 
@@ -116,6 +163,12 @@ impl BattleScreen {
     ) -> Self {
         let player = &player_party[0];
         let enemy = &enemy_party[0];
+        let battle_type = if is_wild {
+            BattleType::Wild
+        } else {
+            BattleType::Trainer
+        };
+        let bs = state::new_battle_state(battle_type, player_party.to_vec(), enemy_party.to_vec());
         Self {
             phase: BattlePhase::Intro { wait_frames: 90 },
             battle_menu: BattleMenuState::new(),
@@ -132,17 +185,126 @@ impl BattleScreen {
             player_status: player.status,
             player_party_size: player_party.len(),
             enemy_party_size: enemy_party.len(),
+            battle_state: Some(bs),
+            move_menu: None,
+            current_message: None,
+            party_cursor: 0,
         }
     }
 
-    pub fn update_frame(&mut self, input: BattleInput) -> ScreenAction {
-        match &mut self.phase {
-            BattlePhase::Intro { wait_frames } => {
-                if input.a || input.b {
-                    *wait_frames = 0;
+    fn sync_display_from_state(&mut self) {
+        if let Some(ref bs) = self.battle_state {
+            let p = bs.player.active_mon();
+            self.player_species = p.species;
+            self.player_level = p.level;
+            self.player_hp = p.hp;
+            self.player_max_hp = p.max_hp;
+            self.player_status = p.status;
+            self.player_party_size = bs.player.party.len();
+
+            let e = bs.enemy.active_mon();
+            self.enemy_species = e.species;
+            self.enemy_level = e.level;
+            self.enemy_hp = e.hp;
+            self.enemy_max_hp = e.max_hp;
+            self.enemy_status = e.status;
+            self.enemy_party_size = bs.enemy.party.len();
+        }
+    }
+
+    fn generate_move_randoms() -> MoveRandoms {
+        MoveRandoms {
+            confusion_roll: rand::random(),
+            paralysis_roll: rand::random(),
+            crit_roll: rand::random(),
+            accuracy_roll: rand::random(),
+            damage_roll: rand::random(),
+            effect_randoms: EffectRandoms {
+                side_effect_roll: rand::random(),
+                duration_roll: rand::random(),
+                multi_hit_roll: rand::random(),
+            },
+        }
+    }
+
+    fn generate_turn_randoms() -> TurnRandoms {
+        TurnRandoms {
+            order_random: rand::random(),
+            first_mover: Self::generate_move_randoms(),
+            second_mover: Self::generate_move_randoms(),
+        }
+    }
+
+    fn pick_enemy_move(bs: &BattleState) -> MoveId {
+        let mon = bs.enemy.active_mon();
+        let available: Vec<MoveId> = mon
+            .moves
+            .iter()
+            .enumerate()
+            .filter(|(i, m)| **m != MoveId::None && mon.pp[*i] > 0)
+            .map(|(_, m)| *m)
+            .collect();
+        if available.is_empty() {
+            MoveId::Struggle
+        } else {
+            let idx: usize = rand::random::<usize>() % available.len();
+            available[idx]
+        }
+    }
+
+    fn build_move_menu_from_state(bs: &BattleState) -> MoveMenuState {
+        let mon = bs.player.active_mon();
+        let slots: Vec<MoveSlot> = mon
+            .moves
+            .iter()
+            .enumerate()
+            .filter(|(_, m)| **m != MoveId::None)
+            .map(|(i, m)| {
+                let max_pp = MoveData::get(*m).map_or(0, |d| d.pp);
+                MoveSlot {
+                    move_id: *m,
+                    current_pp: mon.pp[i],
+                    max_pp,
+                    is_disabled: bs.player.disabled_move > 0
+                        && bs.player.disabled_move == (i as u8 + 1),
                 }
-                if *wait_frames > 0 {
-                    *wait_frames -= 1;
+            })
+            .collect();
+        MoveMenuState::new(slots)
+    }
+
+    fn format_move_outcome(
+        side_name: &str,
+        move_name: &str,
+        outcome: &move_execution::MoveOutcome,
+        _target_name: &str,
+    ) -> Vec<String> {
+        let mut msgs = vec![format!("{} used {}!", side_name, move_name)];
+        match outcome {
+            move_execution::MoveOutcome::Success { .. } => {}
+
+            move_execution::MoveOutcome::Missed => {
+                msgs.push(format!("{}'s attack missed!", side_name));
+            }
+            move_execution::MoveOutcome::CannotMove(reason) => {
+                msgs.clear();
+                msgs.push(format!("{} {}", side_name, format_cannot_move(reason)));
+            }
+            move_execution::MoveOutcome::NoDamageMove { .. } => {}
+        }
+        msgs
+    }
+
+    pub fn update_frame(&mut self, input: BattleInput) -> ScreenAction {
+        match self.phase.clone() {
+            BattlePhase::Intro { mut wait_frames } => {
+                if input.a || input.b {
+                    wait_frames = 0;
+                }
+                if wait_frames > 0 {
+                    self.phase = BattlePhase::Intro {
+                        wait_frames: wait_frames - 1,
+                    };
                     return ScreenAction::Continue;
                 }
                 self.battle_menu = BattleMenuState::new();
@@ -161,55 +323,471 @@ impl BattleScreen {
                 if let Some(action) = self.battle_menu.update_frame(menu_input) {
                     match action {
                         BattleMenuAction::Fight => {
-                            // Simplified: go straight to turn execution
-                            self.phase = BattlePhase::TurnExecution { wait_frames: 60 };
+                            if let Some(ref bs) = self.battle_state {
+                                self.move_menu = Some(Self::build_move_menu_from_state(bs));
+                            }
+                            self.phase = BattlePhase::MoveSelect;
                         }
                         BattleMenuAction::Run => {
-                            if self.is_wild {
-                                self.phase = BattlePhase::Finished {
-                                    won: false,
-                                    wait_frames: 30,
-                                };
-                            }
-                            // Can't run from trainer battles — stay in menu
+                            self.handle_run();
                         }
-                        BattleMenuAction::Bag | BattleMenuAction::Pokemon => {
-                            // TODO: open sub-menus
+                        BattleMenuAction::Pokemon => {
+                            if let Some(ref bs) = self.battle_state {
+                                if bs.player.party.len() > 1 {
+                                    self.party_cursor = 0;
+                                    self.phase = BattlePhase::PartySelect;
+                                } else {
+                                    self.show_text_then(
+                                        vec!["No other POKeMON!".to_string()],
+                                        BattlePhase::PlayerMenu,
+                                    );
+                                }
+                            }
+                        }
+                        BattleMenuAction::Bag => {
+                            self.show_text_then(
+                                vec!["No items!".to_string()],
+                                BattlePhase::PlayerMenu,
+                            );
                         }
                     }
                 }
                 ScreenAction::Continue
             }
             BattlePhase::MoveSelect => {
-                // TODO: integrate MoveMenuState
-                self.phase = BattlePhase::TurnExecution { wait_frames: 60 };
+                let menu_input = MenuInput {
+                    up: input.up,
+                    down: input.down,
+                    a: input.a,
+                    b: input.b,
+                };
+                if let Some(ref mut mm) = self.move_menu {
+                    if let Some(result) = mm.update_frame(menu_input) {
+                        match result {
+                            MoveMenuResult::Selected(idx) => {
+                                self.execute_turn_with_move(idx);
+                            }
+                            MoveMenuResult::Cancelled => {
+                                self.move_menu = None;
+                                self.battle_menu = BattleMenuState::new();
+                                self.phase = BattlePhase::PlayerMenu;
+                            }
+                            MoveMenuResult::NoPP(_) => {
+                                self.current_message = Some("No PP left!".to_string());
+                            }
+                            MoveMenuResult::Disabled(_) => {
+                                self.current_message = Some("Move is disabled!".to_string());
+                            }
+                        }
+                    }
+                }
                 ScreenAction::Continue
             }
-            BattlePhase::TurnExecution { wait_frames } => {
-                if *wait_frames > 0 {
-                    *wait_frames -= 1;
+            BattlePhase::ShowingText {
+                messages,
+                current,
+                wait_frames,
+                next_phase,
+            } => {
+                if wait_frames > 0 {
+                    self.phase = BattlePhase::ShowingText {
+                        messages: messages.clone(),
+                        current,
+                        wait_frames: wait_frames - 1,
+                        next_phase,
+                    };
                     return ScreenAction::Continue;
                 }
-                self.phase = BattlePhase::FaintCheck { wait_frames: 30 };
+                self.current_message = Some(messages[current].clone());
+                if input.a || input.b {
+                    let next_idx = current + 1;
+                    if next_idx >= messages.len() {
+                        self.current_message = None;
+                        self.phase = *next_phase;
+                        self.post_text_transition();
+                    } else {
+                        self.phase = BattlePhase::ShowingText {
+                            messages,
+                            current: next_idx,
+                            wait_frames: 0,
+                            next_phase,
+                        };
+                    }
+                }
                 ScreenAction::Continue
             }
-            BattlePhase::FaintCheck { wait_frames } => {
-                if *wait_frames > 0 {
-                    *wait_frames -= 1;
+            BattlePhase::PartySelect => {
+                if input.b {
+                    self.battle_menu = BattleMenuState::new();
+                    self.phase = BattlePhase::PlayerMenu;
                     return ScreenAction::Continue;
                 }
-                // Simplified: after faint check, go back to menu or end
+                if let Some(ref bs) = self.battle_state {
+                    let party_len = bs.player.party.len();
+                    if input.down {
+                        self.party_cursor = (self.party_cursor + 1) % party_len;
+                    } else if input.up {
+                        self.party_cursor = if self.party_cursor == 0 {
+                            party_len - 1
+                        } else {
+                            self.party_cursor - 1
+                        };
+                    }
+                    if input.a {
+                        let chosen = self.party_cursor;
+                        let active = bs.player.active_pokemon_index;
+                        if chosen == active {
+                            self.current_message = Some("Already out!".to_string());
+                        } else if bs.player.party[chosen].hp == 0 {
+                            self.current_message = Some("No energy left!".to_string());
+                        } else {
+                            self.switch_player_pokemon(chosen);
+                        }
+                    }
+                }
+                ScreenAction::Continue
+            }
+            BattlePhase::EnemySendingNext { mut wait_frames } => {
+                if wait_frames > 0 {
+                    self.phase = BattlePhase::EnemySendingNext {
+                        wait_frames: wait_frames - 1,
+                    };
+                    return ScreenAction::Continue;
+                }
+                self.sync_display_from_state();
                 self.battle_menu = BattleMenuState::new();
                 self.phase = BattlePhase::PlayerMenu;
                 ScreenAction::Continue
             }
-            BattlePhase::Finished { wait_frames, .. } => {
-                if *wait_frames > 0 {
-                    *wait_frames -= 1;
+            BattlePhase::PlayerFaintSwitch => {
+                if let Some(ref bs) = self.battle_state {
+                    let party_len = bs.player.party.len();
+                    if input.down {
+                        self.party_cursor = (self.party_cursor + 1) % party_len;
+                    } else if input.up {
+                        self.party_cursor = if self.party_cursor == 0 {
+                            party_len - 1
+                        } else {
+                            self.party_cursor - 1
+                        };
+                    }
+                    if input.a {
+                        let chosen = self.party_cursor;
+                        if bs.player.party[chosen].hp == 0 {
+                            self.current_message = Some("No energy left!".to_string());
+                        } else {
+                            self.force_switch_player(chosen);
+                        }
+                    }
+                }
+                ScreenAction::Continue
+            }
+            BattlePhase::BattleOver {
+                won,
+                mut wait_frames,
+            } => {
+                if input.a || input.b {
+                    wait_frames = 0;
+                }
+                if wait_frames > 0 {
+                    self.phase = BattlePhase::BattleOver {
+                        won,
+                        wait_frames: wait_frames - 1,
+                    };
                     return ScreenAction::Continue;
                 }
                 ScreenAction::Transition(GameScreen::Overworld)
             }
+        }
+    }
+
+    fn show_text_then(&mut self, messages: Vec<String>, next: BattlePhase) {
+        if messages.is_empty() {
+            self.phase = next;
+            return;
+        }
+        self.current_message = Some(messages[0].clone());
+        self.phase = BattlePhase::ShowingText {
+            messages,
+            current: 0,
+            wait_frames: 10,
+            next_phase: Box::new(next),
+        };
+    }
+
+    fn handle_run(&mut self) {
+        if let Some(ref mut bs) = self.battle_state {
+            let result = try_run_from_battle(bs, rand::random());
+            match result {
+                RunResult::Escaped => {
+                    self.show_text_then(
+                        vec!["Got away safely!".to_string()],
+                        BattlePhase::BattleOver {
+                            won: false,
+                            wait_frames: 30,
+                        },
+                    );
+                }
+                RunResult::CannotRun => {
+                    self.show_text_then(
+                        vec!["No! There's no running from a trainer battle!".to_string()],
+                        BattlePhase::PlayerMenu,
+                    );
+                }
+                RunResult::FailedToEscape => {
+                    self.execute_enemy_free_turn();
+                }
+            }
+        } else {
+            self.phase = BattlePhase::BattleOver {
+                won: false,
+                wait_frames: 30,
+            };
+        }
+    }
+
+    fn execute_enemy_free_turn(&mut self) {
+        if let Some(ref mut bs) = self.battle_state {
+            let enemy_move_id = Self::pick_enemy_move(bs);
+            let enemy_move = match MoveData::get(enemy_move_id) {
+                Some(m) => m,
+                None => return,
+            };
+            bs.whose_turn = Side::Enemy;
+            let randoms = Self::generate_move_randoms();
+            let outcome = move_execution::execute_move(bs, enemy_move, &randoms);
+
+            let enemy_name = format!("{}", bs.enemy.active_mon().species).to_uppercase();
+            let move_name = format!("{:?}", enemy_move_id);
+
+            let mut msgs = vec!["Can't escape!".to_string()];
+            msgs.extend(Self::format_move_outcome(
+                &format!("Enemy {}", enemy_name),
+                &move_name,
+                &outcome,
+                &format!("{}", bs.player.active_mon().species).to_uppercase(),
+            ));
+
+            self.sync_display_from_state();
+            let next = self.check_faint_after_turn();
+            self.show_text_then(msgs, next);
+        }
+    }
+
+    fn execute_turn_with_move(&mut self, move_index: usize) {
+        let (player_move_id, enemy_move_id, player_name, enemy_name);
+
+        if let Some(ref bs) = self.battle_state {
+            let mon = bs.player.active_mon();
+            player_move_id = mon.moves[move_index];
+            enemy_move_id = Self::pick_enemy_move(bs);
+            player_name = format!("{}", mon.species).to_uppercase();
+            enemy_name = format!("{}", bs.enemy.active_mon().species).to_uppercase();
+        } else {
+            return;
+        }
+
+        let player_move = match MoveData::get(player_move_id) {
+            Some(m) => m,
+            None => return,
+        };
+        let enemy_move = match MoveData::get(enemy_move_id) {
+            Some(m) => m,
+            None => return,
+        };
+
+        let randoms = Self::generate_turn_randoms();
+
+        if let Some(ref mut bs) = self.battle_state {
+            bs.player.selected_move = player_move_id;
+            bs.player.selected_move_index = move_index as u8;
+            bs.enemy.selected_move = enemy_move_id;
+
+            let result = execute_turn(bs, player_move, enemy_move, &randoms);
+
+            let mut msgs = Vec::new();
+
+            let (first_name, first_move_name, second_name, second_move_name) =
+                if result.first == Side::Player {
+                    (
+                        player_name.clone(),
+                        format!("{:?}", player_move_id),
+                        format!("Enemy {}", enemy_name),
+                        format!("{:?}", enemy_move_id),
+                    )
+                } else {
+                    (
+                        format!("Enemy {}", enemy_name),
+                        format!("{:?}", enemy_move_id),
+                        player_name.clone(),
+                        format!("{:?}", player_move_id),
+                    )
+                };
+
+            let first_target = if result.first == Side::Player {
+                format!("Enemy {}", enemy_name)
+            } else {
+                player_name.clone()
+            };
+            msgs.extend(Self::format_move_outcome(
+                &first_name,
+                &first_move_name,
+                &result.first_outcome,
+                &first_target,
+            ));
+
+            if let Some(side) = result.first_fainted {
+                let fainted_name = if side == Side::Player {
+                    player_name.clone()
+                } else {
+                    format!("Enemy {}", enemy_name)
+                };
+                msgs.push(format!("{} fainted!", fainted_name));
+            }
+
+            if let Some(ref second_outcome) = result.second_outcome {
+                let second_target = if result.first == Side::Player {
+                    player_name.clone()
+                } else {
+                    format!("Enemy {}", enemy_name)
+                };
+                msgs.extend(Self::format_move_outcome(
+                    &second_name,
+                    &second_move_name,
+                    second_outcome,
+                    &second_target,
+                ));
+
+                if let Some(side) = result.second_fainted {
+                    let fainted_name = if side == Side::Player {
+                        player_name.clone()
+                    } else {
+                        format!("Enemy {}", enemy_name)
+                    };
+                    msgs.push(format!("{} fainted!", fainted_name));
+                }
+            }
+
+            self.move_menu = None;
+            self.sync_display_from_state();
+            let next = self.check_faint_after_turn();
+            self.show_text_then(msgs, next);
+        }
+    }
+
+    fn check_faint_after_turn(&self) -> BattlePhase {
+        if let Some(ref bs) = self.battle_state {
+            let player_fainted = bs.player.active_mon().hp == 0;
+            let enemy_fainted = bs.enemy.active_mon().hp == 0;
+
+            if enemy_fainted {
+                let alive_enemies = bs
+                    .enemy
+                    .party
+                    .iter()
+                    .any(|p| p.hp > 0 && !std::ptr::eq(p, bs.enemy.active_mon()));
+                if !alive_enemies {
+                    return BattlePhase::BattleOver {
+                        won: true,
+                        wait_frames: 60,
+                    };
+                }
+                return BattlePhase::EnemySendingNext { wait_frames: 30 };
+            }
+
+            if player_fainted {
+                let alive_player = bs
+                    .player
+                    .party
+                    .iter()
+                    .any(|p| p.hp > 0 && !std::ptr::eq(p, bs.player.active_mon()));
+                if !alive_player {
+                    return BattlePhase::BattleOver {
+                        won: false,
+                        wait_frames: 60,
+                    };
+                }
+                return BattlePhase::PlayerFaintSwitch;
+            }
+        }
+        BattlePhase::PlayerMenu
+    }
+
+    fn post_text_transition(&mut self) {
+        match &self.phase {
+            BattlePhase::PlayerMenu => {
+                self.battle_menu = BattleMenuState::new();
+            }
+            BattlePhase::EnemySendingNext { .. } => {
+                self.send_next_enemy();
+            }
+            _ => {}
+        }
+    }
+
+    fn send_next_enemy(&mut self) {
+        if let Some(ref mut bs) = self.battle_state {
+            let next_idx = bs.enemy.party.iter().position(|p| p.hp > 0);
+            if let Some(idx) = next_idx {
+                bs.enemy.active_pokemon_index = idx;
+                bs.enemy.reset_volatile_status();
+                self.sync_display_from_state();
+            }
+        }
+    }
+
+    fn switch_player_pokemon(&mut self, new_index: usize) {
+        if let Some(ref mut bs) = self.battle_state {
+            let old_name = format!("{}", bs.player.active_mon().species).to_uppercase();
+            bs.player.active_pokemon_index = new_index;
+            bs.player.reset_volatile_status();
+            let new_name = format!("{}", bs.player.active_mon().species).to_uppercase();
+
+            self.sync_display_from_state();
+
+            let msgs = vec![
+                format!("{}, come back!", old_name),
+                format!("Go! {}!", new_name),
+            ];
+
+            self.execute_enemy_free_turn_after_switch(msgs);
+        }
+    }
+
+    fn execute_enemy_free_turn_after_switch(&mut self, mut msgs: Vec<String>) {
+        if let Some(ref mut bs) = self.battle_state {
+            let enemy_move_id = Self::pick_enemy_move(bs);
+            if let Some(enemy_move) = MoveData::get(enemy_move_id) {
+                bs.whose_turn = Side::Enemy;
+                let randoms = Self::generate_move_randoms();
+                let outcome = move_execution::execute_move(bs, enemy_move, &randoms);
+
+                let enemy_name = format!("{}", bs.enemy.active_mon().species).to_uppercase();
+                let move_name = format!("{:?}", enemy_move_id);
+                let player_name = format!("{}", bs.player.active_mon().species).to_uppercase();
+
+                msgs.extend(Self::format_move_outcome(
+                    &format!("Enemy {}", enemy_name),
+                    &move_name,
+                    &outcome,
+                    &player_name,
+                ));
+            }
+
+            self.sync_display_from_state();
+            let next = self.check_faint_after_turn();
+            self.show_text_then(msgs, next);
+        }
+    }
+
+    fn force_switch_player(&mut self, new_index: usize) {
+        if let Some(ref mut bs) = self.battle_state {
+            bs.player.active_pokemon_index = new_index;
+            bs.player.reset_volatile_status();
+            let new_name = format!("{}", bs.player.active_mon().species).to_uppercase();
+
+            self.sync_display_from_state();
+            self.show_text_then(vec![format!("Go! {}!", new_name)], BattlePhase::PlayerMenu);
         }
     }
 }

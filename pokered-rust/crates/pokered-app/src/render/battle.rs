@@ -261,8 +261,55 @@ fn draw_battle_menu(buf: &mut ScreenTileBuffer, selected_row: usize, selected_co
 /// Draw battle dialog text into the text box area.
 fn draw_battle_text(buf: &mut ScreenTileBuffer, text: &str) {
     let tiles = ascii_to_tiles(text);
-    // Text starts at (1, 14) — inside the dialog box, first text line
     write_tiles_at(buf, 1, 14, &tiles);
+}
+
+fn draw_move_menu(buf: &mut ScreenTileBuffer, screen: &BattleScreen) {
+    if let Some(ref mm) = screen.move_menu {
+        let moves = mm.moves();
+        for (i, slot) in moves.iter().enumerate() {
+            let name = format!("{:?}", slot.move_id);
+            let name_upper = name.to_uppercase();
+            let name_tiles = ascii_to_tiles(&name_upper);
+            let y = 14 + i as u32;
+            write_tiles_at(buf, 2, y, &name_tiles);
+
+            let pp_text = format!("{}/{}", slot.current_pp, slot.max_pp);
+            let pp_tiles = ascii_to_tiles(&pp_text);
+            write_tiles_at(buf, 15, y, &pp_tiles);
+        }
+
+        let cursor_y = 14 + mm.cursor() as u32;
+        buf.set(1, cursor_y, 0xED);
+    }
+
+    if let Some(ref msg) = screen.current_message {
+        let tiles = ascii_to_tiles(msg);
+        write_tiles_at(buf, 1, 16, &tiles);
+    }
+}
+
+fn draw_party_menu(buf: &mut ScreenTileBuffer, screen: &BattleScreen) {
+    if let Some(ref bs) = screen.battle_state {
+        for (i, mon) in bs.player.party.iter().enumerate() {
+            let name = format!("{}", mon.species).to_uppercase();
+            let line = if mon.hp == 0 {
+                format!("{} FNT", name)
+            } else {
+                format!("{} {}/{}", name, mon.hp, mon.max_hp)
+            };
+            let tiles = ascii_to_tiles(&line);
+            let y = 14 + (i.min(3)) as u32;
+            write_tiles_at(buf, 2, y, &tiles);
+        }
+        let cursor_y = 14 + (screen.party_cursor.min(3)) as u32;
+        buf.set(1, cursor_y, 0xED);
+    }
+
+    if let Some(ref msg) = screen.current_message {
+        let msg_tiles = ascii_to_tiles(msg);
+        write_tiles_at(buf, 1, 16, &msg_tiles);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -320,35 +367,38 @@ pub fn draw_battle(screen: &BattleScreen, res: &mut Option<ResourceManager>, fb:
         dialog_box.draw_frame(&mut tile_buf);
 
         if matches!(screen.phase, BattlePhase::PlayerMenu) {
-            // Battle menu in right half
             draw_battle_menu(
                 &mut tile_buf,
                 screen.battle_menu.row(),
                 screen.battle_menu.col(),
             );
+        } else if matches!(screen.phase, BattlePhase::MoveSelect) {
+            draw_move_menu(&mut tile_buf, screen);
+        } else if matches!(
+            screen.phase,
+            BattlePhase::PartySelect | BattlePhase::PlayerFaintSwitch
+        ) {
+            draw_party_menu(&mut tile_buf, screen);
         } else {
-            // Phase-dependent message text
             let phase_text = match &screen.phase {
                 BattlePhase::Intro { .. } => {
                     if screen.is_wild {
-                        format!("Wild {} appeared!", enemy_name)
+                        Some(format!("Wild {} appeared!", enemy_name))
                     } else {
-                        format!("{} wants to fight!", enemy_name)
+                        Some(format!("{} wants to fight!", enemy_name))
                     }
                 }
-                BattlePhase::TurnExecution { .. } => format!("{} used SCRATCH!", player_name),
-                BattlePhase::FaintCheck { .. } => format!("Enemy {} fainted!", enemy_name),
-                BattlePhase::Finished { won, .. } => {
+                BattlePhase::BattleOver { won, .. } => {
                     if *won {
-                        "You won!".to_string()
+                        Some("You won!".to_string())
                     } else {
-                        "You lost...".to_string()
+                        Some("You lost...".to_string())
                     }
                 }
-                _ => String::new(),
+                _ => screen.current_message.clone(),
             };
-            if !phase_text.is_empty() {
-                draw_battle_text(&mut tile_buf, &phase_text);
+            if let Some(ref text) = phase_text {
+                draw_battle_text(&mut tile_buf, text);
             }
         }
 
