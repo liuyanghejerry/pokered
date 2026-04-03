@@ -1,0 +1,103 @@
+{
+  "id": 100,
+  "name": "SSAnneKitchen",
+  "header": {
+    "tileset": "Ship",
+    "music": "SSAnne",
+    "connectionFlags": 0,
+    "width": 7,
+    "height": 8,
+    "borderBlock": 0
+  },
+  "connections": {},
+  "warps": [
+    {
+      "x": 6,
+      "y": 0,
+      "destMap": "SSAnne1F",
+      "destWarpId": 10
+    }
+  ],
+  "npcs": [
+    {
+      "spriteId": 20,
+      "spriteName": "Cook",
+      "x": 1,
+      "y": 8,
+      "movement": "Wander",
+      "facing": "Down",
+      "range": 1,
+      "textId": 1,
+      "isTrainer": false
+    },
+    {
+      "spriteId": 20,
+      "spriteName": "Cook",
+      "x": 5,
+      "y": 8,
+      "movement": "Wander",
+      "facing": "Down",
+      "range": 1,
+      "textId": 2,
+      "isTrainer": false
+    },
+    {
+      "spriteId": 20,
+      "spriteName": "Cook",
+      "x": 9,
+      "y": 7,
+      "movement": "Wander",
+      "facing": "Down",
+      "range": 1,
+      "textId": 3,
+      "isTrainer": false
+    },
+    {
+      "spriteId": 20,
+      "spriteName": "Cook",
+      "x": 13,
+      "y": 6,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 4,
+      "isTrainer": false
+    },
+    {
+      "spriteId": 20,
+      "spriteName": "Cook",
+      "x": 13,
+      "y": 8,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 5,
+      "isTrainer": false
+    },
+    {
+      "spriteId": 20,
+      "spriteName": "Cook",
+      "x": 13,
+      "y": 10,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 6,
+      "isTrainer": false
+    },
+    {
+      "spriteId": 20,
+      "spriteName": "Cook",
+      "x": 11,
+      "y": 13,
+      "movement": "Stationary",
+      "facing": "Up",
+      "range": 0,
+      "textId": 7,
+      "isTrainer": false
+    }
+  ],
+  "signs": [],
+  "text": {},
+  "wild": null
+}

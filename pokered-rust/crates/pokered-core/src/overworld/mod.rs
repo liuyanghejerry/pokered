@@ -382,15 +382,15 @@ impl BedroomDialogue {
     }
 
     pub fn from_text_pages(
-        text_pages: &[pokered_data::map_text_data::TextPage],
+        text_pages: &[pokered_data::map_json::TextPageJson],
         player_name: &str,
         rival_name: &str,
     ) -> Self {
         let pages = text_pages
             .iter()
             .map(|tp| {
-                let l1 = resolve_placeholders(tp.line1, player_name, rival_name);
-                let l2 = resolve_placeholders(tp.line2, player_name, rival_name);
+                let l1 = resolve_placeholders(&tp.line1, player_name, rival_name);
+                let l2 = resolve_placeholders(&tp.line2, player_name, rival_name);
                 DialoguePage {
                     line1: Box::leak(l1.into_boxed_str()),
                     line2: Box::leak(l2.into_boxed_str()),
@@ -457,6 +457,24 @@ fn build_npc_runtime_states(npcs: &[NpcDefinition]) -> Vec<npc_movement::NpcRunt
             visible: true,
         })
         .collect()
+}
+
+fn get_npc_text_from_json(
+    map_id: MapId,
+    text_id: u8,
+) -> Option<Vec<pokered_data::map_json::TextPageJson>> {
+    let map_json = pokered_data::map_data_loader::get_map_json(map_id)?;
+    let key = text_id.to_string();
+    map_json.text.npc.get(&key).cloned()
+}
+
+fn get_sign_text_from_json(
+    map_id: MapId,
+    text_id: u8,
+) -> Option<Vec<pokered_data::map_json::TextPageJson>> {
+    let map_json = pokered_data::map_data_loader::get_map_json(map_id)?;
+    let key = text_id.to_string();
+    map_json.text.sign.get(&key).cloned()
 }
 
 pub struct OverworldScreen {
@@ -690,17 +708,17 @@ impl OverworldScreen {
                     if self.try_call_script_sign_talk(sign_text_id) {
                         return ScreenAction::Continue;
                     }
-                    let text_pages = pokered_data::map_text_data::get_sign_text(
-                        self.state.current_map,
-                        sign_text_id,
-                    );
-                    if !text_pages.is_empty() {
-                        self.pending_dialogue = Some(BedroomDialogue::from_text_pages(
-                            text_pages,
-                            &self.player_name,
-                            &self.rival_name,
-                        ));
-                        return ScreenAction::Continue;
+                    if let Some(text_pages) =
+                        get_sign_text_from_json(self.state.current_map, sign_text_id)
+                    {
+                        if !text_pages.is_empty() {
+                            self.pending_dialogue = Some(BedroomDialogue::from_text_pages(
+                                &text_pages,
+                                &self.player_name,
+                                &self.rival_name,
+                            ));
+                            return ScreenAction::Continue;
+                        }
                     }
                 }
 
@@ -728,17 +746,17 @@ impl OverworldScreen {
                             return ScreenAction::Continue;
                         }
 
-                        let text_pages = pokered_data::map_text_data::get_npc_text(
-                            self.state.current_map,
-                            text_id,
-                        );
-                        if !text_pages.is_empty() {
-                            self.pending_dialogue = Some(BedroomDialogue::from_text_pages(
-                                text_pages,
-                                &self.player_name,
-                                &self.rival_name,
-                            ));
-                            return ScreenAction::Continue;
+                        if let Some(text_pages) =
+                            get_npc_text_from_json(self.state.current_map, text_id)
+                        {
+                            if !text_pages.is_empty() {
+                                self.pending_dialogue = Some(BedroomDialogue::from_text_pages(
+                                    &text_pages,
+                                    &self.player_name,
+                                    &self.rival_name,
+                                ));
+                                return ScreenAction::Continue;
+                            }
                         }
                     }
                     _ => {}

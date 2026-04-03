@@ -1,0 +1,255 @@
+{
+  "id": 21,
+  "name": "Route10",
+  "header": {
+    "tileset": "Overworld",
+    "music": "Routes3",
+    "connectionFlags": 6,
+    "width": 10,
+    "height": 36,
+    "borderBlock": 44
+  },
+  "connections": {
+    "south": {
+      "targetMap": "LavenderTown",
+      "offset": 0
+    },
+    "west": {
+      "targetMap": "Route9",
+      "offset": 0
+    }
+  },
+  "warps": [
+    {
+      "x": 11,
+      "y": 19,
+      "destMap": "RockTunnelPokecenter",
+      "destWarpId": 0
+    },
+    {
+      "x": 8,
+      "y": 17,
+      "destMap": "RockTunnel1F",
+      "destWarpId": 0
+    },
+    {
+      "x": 8,
+      "y": 53,
+      "destMap": "RockTunnel1F",
+      "destWarpId": 2
+    },
+    {
+      "x": 6,
+      "y": 39,
+      "destMap": "PowerPlant",
+      "destWarpId": 0
+    }
+  ],
+  "npcs": [
+    {
+      "spriteId": 12,
+      "spriteName": "SuperNerd",
+      "x": 10,
+      "y": 44,
+      "movement": "Stationary",
+      "facing": "Left",
+      "range": 0,
+      "textId": 1,
+      "isTrainer": true,
+      "trainerClass": "Pokemaniac",
+      "trainerSet": 1
+    },
+    {
+      "spriteId": 14,
+      "spriteName": "Hiker",
+      "x": 3,
+      "y": 57,
+      "movement": "Stationary",
+      "facing": "Up",
+      "range": 0,
+      "textId": 2,
+      "isTrainer": true,
+      "trainerClass": "Hiker",
+      "trainerSet": 7
+    },
+    {
+      "spriteId": 12,
+      "spriteName": "SuperNerd",
+      "x": 14,
+      "y": 64,
+      "movement": "Stationary",
+      "facing": "Left",
+      "range": 0,
+      "textId": 3,
+      "isTrainer": true,
+      "trainerClass": "Pokemaniac",
+      "trainerSet": 2
+    },
+    {
+      "spriteId": 6,
+      "spriteName": "CooltrainerF",
+      "x": 7,
+      "y": 25,
+      "movement": "Stationary",
+      "facing": "Left",
+      "range": 0,
+      "textId": 4,
+      "isTrainer": true,
+      "trainerClass": "JrTrainerF",
+      "trainerSet": 7
+    },
+    {
+      "spriteId": 14,
+      "spriteName": "Hiker",
+      "x": 3,
+      "y": 61,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 5,
+      "isTrainer": true,
+      "trainerClass": "Hiker",
+      "trainerSet": 8
+    },
+    {
+      "spriteId": 6,
+      "spriteName": "CooltrainerF",
+      "x": 7,
+      "y": 54,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 6,
+      "isTrainer": true,
+      "trainerClass": "JrTrainerF",
+      "trainerSet": 8
+    }
+  ],
+  "signs": [
+    {
+      "x": 7,
+      "y": 19,
+      "textId": 1
+    },
+    {
+      "x": 12,
+      "y": 19,
+      "textId": 2
+    },
+    {
+      "x": 9,
+      "y": 55,
+      "textId": 3
+    },
+    {
+      "x": 5,
+      "y": 41,
+      "textId": 4
+    }
+  ],
+  "text": {},
+  "wild": {
+    "red": {
+      "grass": {
+        "encounterRate": 15,
+        "mons": [
+          {
+            "level": 16,
+            "species": "Voltorb"
+          },
+          {
+            "level": 16,
+            "species": "Spearow"
+          },
+          {
+            "level": 14,
+            "species": "Voltorb"
+          },
+          {
+            "level": 11,
+            "species": "Ekans"
+          },
+          {
+            "level": 13,
+            "species": "Spearow"
+          },
+          {
+            "level": 15,
+            "species": "Ekans"
+          },
+          {
+            "level": 17,
+            "species": "Voltorb"
+          },
+          {
+            "level": 17,
+            "species": "Spearow"
+          },
+          {
+            "level": 13,
+            "species": "Ekans"
+          },
+          {
+            "level": 17,
+            "species": "Ekans"
+          }
+        ]
+      },
+      "water": {
+        "encounterRate": 0,
+        "mons": []
+      }
+    },
+    "blue": {
+      "grass": {
+        "encounterRate": 15,
+        "mons": [
+          {
+            "level": 16,
+            "species": "Voltorb"
+          },
+          {
+            "level": 16,
+            "species": "Spearow"
+          },
+          {
+            "level": 14,
+            "species": "Voltorb"
+          },
+          {
+            "level": 11,
+            "species": "Sandshrew"
+          },
+          {
+            "level": 13,
+            "species": "Spearow"
+          },
+          {
+            "level": 15,
+            "species": "Sandshrew"
+          },
+          {
+            "level": 17,
+            "species": "Voltorb"
+          },
+          {
+            "level": 17,
+            "species": "Spearow"
+          },
+          {
+            "level": 13,
+            "species": "Sandshrew"
+          },
+          {
+            "level": 17,
+            "species": "Sandshrew"
+          }
+        ]
+      },
+      "water": {
+        "encounterRate": 0,
+        "mons": []
+      }
+    }
+  }
+}

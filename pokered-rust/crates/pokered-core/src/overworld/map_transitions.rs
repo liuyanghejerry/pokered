@@ -10,8 +10,7 @@
 //! When the player steps on a warp tile, `execute_warp` handles the
 //! destination lookup.
 
-use pokered_data::map_connections::get_map_connections;
-use pokered_data::map_objects::get_map_warps;
+use pokered_data::map_data_loader::{get_map_json, resolve_map_id};
 use pokered_data::maps::MapId;
 
 use super::Direction;
@@ -56,74 +55,66 @@ pub fn calculate_connection_transition(
     py: u16,
     direction: Direction,
 ) -> Option<ConnectionTransition> {
-    let conns = get_map_connections(current_map);
-    let current_w = current_map.width() as u16 * 2; // tile width
-    let current_h = current_map.height() as u16 * 2; // tile height
+    let map_json = get_map_json(current_map)?;
+    let conns = &map_json.connections;
+    let current_w = current_map.width() as u16 * 2;
+    let current_h = current_map.height() as u16 * 2;
 
     match direction {
         Direction::Up => {
-            // Player is at Y=0, moving up → north connection
             if py != 0 {
                 return None;
             }
             let conn = conns.north.as_ref()?;
-            let dest = conn;
-            let dest_h = dest.target_map.height() as u16 * 2;
-            // New Y: bottom edge of destination map
+            let target_map = resolve_map_id(&conn.target_map)?;
+            let dest_h = target_map.height() as u16 * 2;
             let new_y = dest_h - 1;
-            // New X: current X adjusted by connection offset (in blocks → *2 for tiles)
-            let new_x = apply_offset(px, dest.offset);
+            let new_x = apply_offset(px, conn.offset);
             Some(ConnectionTransition {
-                new_map: dest.target_map,
+                new_map: target_map,
                 new_x,
                 new_y,
             })
         }
         Direction::Down => {
-            // Player is at Y=map_h*2-1, moving down → south connection
             if py != current_h - 1 {
                 return None;
             }
             let conn = conns.south.as_ref()?;
-            let dest = conn;
-            // New Y: top edge of destination map
+            let target_map = resolve_map_id(&conn.target_map)?;
             let new_y = 0;
-            let new_x = apply_offset(px, dest.offset);
+            let new_x = apply_offset(px, conn.offset);
             Some(ConnectionTransition {
-                new_map: dest.target_map,
+                new_map: target_map,
                 new_x,
                 new_y,
             })
         }
         Direction::Left => {
-            // Player is at X=0, moving left → west connection
             if px != 0 {
                 return None;
             }
             let conn = conns.west.as_ref()?;
-            let dest = conn;
-            let dest_w = dest.target_map.width() as u16 * 2;
-            // New X: right edge of destination map
+            let target_map = resolve_map_id(&conn.target_map)?;
+            let dest_w = target_map.width() as u16 * 2;
             let new_x = dest_w - 1;
-            let new_y = apply_offset(py, dest.offset);
+            let new_y = apply_offset(py, conn.offset);
             Some(ConnectionTransition {
-                new_map: dest.target_map,
+                new_map: target_map,
                 new_x,
                 new_y,
             })
         }
         Direction::Right => {
-            // Player is at X=map_w*2-1, moving right → east connection
             if px != current_w - 1 {
                 return None;
             }
             let conn = conns.east.as_ref()?;
-            let dest = conn;
-            // New X: left edge of destination map
+            let target_map = resolve_map_id(&conn.target_map)?;
             let new_x = 0;
-            let new_y = apply_offset(py, dest.offset);
+            let new_y = apply_offset(py, conn.offset);
             Some(ConnectionTransition {
-                new_map: dest.target_map,
+                new_map: target_map,
                 new_x,
                 new_y,
             })
@@ -142,7 +133,6 @@ pub fn calculate_connection_transition(
 /// (offset is in blocks, coordinates are in tiles, 2 tiles per block)
 fn apply_offset(coord: u16, offset: i8) -> u16 {
     let adjusted = coord as i32 + (offset as i32 * 2);
-    // Clamp to valid range (shouldn't go negative in practice for valid data)
     adjusted.max(0) as u16
 }
 
@@ -167,21 +157,20 @@ pub struct WarpTransition {
 ///
 /// Warp coordinates and player coordinates are both in step units
 /// (2 per block, matching the original game's wXCoord/wYCoord).
-///
-/// # Arguments
-/// - `current_map` — the map the player is on
-/// - `px`, `py` — player's step coordinates
-///
-/// # Returns
-/// `Some(WarpTransition)` if standing on a warp, `None` otherwise.
 pub fn check_warp_at(current_map: MapId, px: u8, py: u8) -> Option<WarpTransition> {
-    let warps = get_map_warps(current_map);
-    for warp in warps {
+    let map_json = get_map_json(current_map)?;
+    for warp in &map_json.warps {
         if (px as u16) == warp.x as u16 && (py as u16) == warp.y as u16 {
+            let is_last_map = warp.dest_map.is_none();
+            let new_map = warp
+                .dest_map
+                .as_ref()
+                .and_then(|name| resolve_map_id(name))
+                .unwrap_or(current_map);
             return Some(WarpTransition {
-                new_map: warp.dest_map.unwrap_or(current_map),
+                new_map,
                 dest_warp_id: warp.dest_warp_id,
-                is_last_map: warp.dest_map.is_none(),
+                is_last_map,
             });
         }
     }
@@ -193,21 +182,11 @@ pub fn check_warp_at(current_map: MapId, px: u8, py: u8) -> Option<WarpTransitio
 ///
 /// When warping, the game places the player at the position of the
 /// destination warp (indexed by dest_warp_id) in the target map.
-///
-/// Warp coordinates are in step units, returned directly.
-///
-/// # Arguments
-/// - `dest_map` — the destination map
-/// - `dest_warp_id` — the warp index in the destination map (0-based)
-///
-/// # Returns
-/// `Some((x, y))` step coordinates of the destination warp, or `None`
-/// if the warp index is out of bounds.
 pub fn resolve_warp_destination(dest_map: MapId, dest_warp_id: u8) -> Option<(u8, u8)> {
-    let warps = get_map_warps(dest_map);
+    let map_json = get_map_json(dest_map)?;
     let idx = dest_warp_id as usize;
-    if idx < warps.len() {
-        Some((warps[idx].x, warps[idx].y))
+    if idx < map_json.warps.len() {
+        Some((map_json.warps[idx].x, map_json.warps[idx].y))
     } else {
         None
     }
@@ -216,18 +195,7 @@ pub fn resolve_warp_destination(dest_map: MapId, dest_warp_id: u8) -> Option<(u8
 /// Full warp execution: check if at a warp, resolve destination coordinates.
 ///
 /// Combines `check_warp_at` and `resolve_warp_destination` into one call.
-/// Returns the new map and the player's destination tile coordinates.
-///
-/// For "last map" warps, the caller must supply `last_map` (the map the
-/// player came from). If `last_map` is None, last-map warps return None.
-///
-/// # Arguments
-/// - `current_map` — current map
-/// - `px`, `py` — player tile position
-/// - `last_map` — the previous map (for LAST_MAP warps)
-///
-/// # Returns
-/// `Some((map, x, y))` if a warp is found and resolvable.
+/// For "last map" warps, the caller must supply `last_map`.
 pub fn execute_warp(
     current_map: MapId,
     px: u8,

@@ -1,0 +1,266 @@
+{
+  "id": 20,
+  "name": "Route9",
+  "header": {
+    "tileset": "Overworld",
+    "music": "Routes3",
+    "connectionFlags": 3,
+    "width": 30,
+    "height": 9,
+    "borderBlock": 44
+  },
+  "connections": {
+    "west": {
+      "targetMap": "CeruleanCity",
+      "offset": -4
+    },
+    "east": {
+      "targetMap": "Route10",
+      "offset": 0
+    }
+  },
+  "warps": [],
+  "npcs": [
+    {
+      "spriteId": 6,
+      "spriteName": "CooltrainerF",
+      "x": 13,
+      "y": 10,
+      "movement": "Stationary",
+      "facing": "Left",
+      "range": 0,
+      "textId": 1,
+      "isTrainer": true,
+      "trainerClass": "JrTrainerF",
+      "trainerSet": 5
+    },
+    {
+      "spriteId": 7,
+      "spriteName": "CooltrainerM",
+      "x": 24,
+      "y": 7,
+      "movement": "Stationary",
+      "facing": "Left",
+      "range": 0,
+      "textId": 2,
+      "isTrainer": true,
+      "trainerClass": "JrTrainerM",
+      "trainerSet": 7
+    },
+    {
+      "spriteId": 7,
+      "spriteName": "CooltrainerM",
+      "x": 31,
+      "y": 7,
+      "movement": "Stationary",
+      "facing": "Right",
+      "range": 0,
+      "textId": 3,
+      "isTrainer": true,
+      "trainerClass": "JrTrainerM",
+      "trainerSet": 8
+    },
+    {
+      "spriteId": 6,
+      "spriteName": "CooltrainerF",
+      "x": 48,
+      "y": 8,
+      "movement": "Stationary",
+      "facing": "Right",
+      "range": 0,
+      "textId": 4,
+      "isTrainer": true,
+      "trainerClass": "JrTrainerF",
+      "trainerSet": 6
+    },
+    {
+      "spriteId": 14,
+      "spriteName": "Hiker",
+      "x": 16,
+      "y": 15,
+      "movement": "Stationary",
+      "facing": "Left",
+      "range": 0,
+      "textId": 5,
+      "isTrainer": true,
+      "trainerClass": "Hiker",
+      "trainerSet": 11
+    },
+    {
+      "spriteId": 14,
+      "spriteName": "Hiker",
+      "x": 43,
+      "y": 3,
+      "movement": "Stationary",
+      "facing": "Left",
+      "range": 0,
+      "textId": 6,
+      "isTrainer": true,
+      "trainerClass": "Hiker",
+      "trainerSet": 6
+    },
+    {
+      "spriteId": 4,
+      "spriteName": "Youngster",
+      "x": 22,
+      "y": 2,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 7,
+      "isTrainer": true,
+      "trainerClass": "BugCatcher",
+      "trainerSet": 13
+    },
+    {
+      "spriteId": 14,
+      "spriteName": "Hiker",
+      "x": 45,
+      "y": 15,
+      "movement": "Stationary",
+      "facing": "Right",
+      "range": 0,
+      "textId": 8,
+      "isTrainer": true,
+      "trainerClass": "Hiker",
+      "trainerSet": 5
+    },
+    {
+      "spriteId": 4,
+      "spriteName": "Youngster",
+      "x": 40,
+      "y": 8,
+      "movement": "Stationary",
+      "facing": "Right",
+      "range": 0,
+      "textId": 9,
+      "isTrainer": true,
+      "trainerClass": "BugCatcher",
+      "trainerSet": 14
+    },
+    {
+      "spriteId": 61,
+      "spriteName": "PokeBall",
+      "x": 10,
+      "y": 15,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 10,
+      "isTrainer": false,
+      "itemId": 230
+    }
+  ],
+  "signs": [
+    {
+      "x": 25,
+      "y": 7,
+      "textId": 1
+    }
+  ],
+  "text": {},
+  "wild": {
+    "red": {
+      "grass": {
+        "encounterRate": 15,
+        "mons": [
+          {
+            "level": 16,
+            "species": "Rattata"
+          },
+          {
+            "level": 16,
+            "species": "Spearow"
+          },
+          {
+            "level": 14,
+            "species": "Rattata"
+          },
+          {
+            "level": 11,
+            "species": "Ekans"
+          },
+          {
+            "level": 13,
+            "species": "Spearow"
+          },
+          {
+            "level": 15,
+            "species": "Ekans"
+          },
+          {
+            "level": 17,
+            "species": "Rattata"
+          },
+          {
+            "level": 17,
+            "species": "Spearow"
+          },
+          {
+            "level": 13,
+            "species": "Ekans"
+          },
+          {
+            "level": 17,
+            "species": "Ekans"
+          }
+        ]
+      },
+      "water": {
+        "encounterRate": 0,
+        "mons": []
+      }
+    },
+    "blue": {
+      "grass": {
+        "encounterRate": 15,
+        "mons": [
+          {
+            "level": 16,
+            "species": "Rattata"
+          },
+          {
+            "level": 16,
+            "species": "Spearow"
+          },
+          {
+            "level": 14,
+            "species": "Rattata"
+          },
+          {
+            "level": 11,
+            "species": "Sandshrew"
+          },
+          {
+            "level": 13,
+            "species": "Spearow"
+          },
+          {
+            "level": 15,
+            "species": "Sandshrew"
+          },
+          {
+            "level": 17,
+            "species": "Rattata"
+          },
+          {
+            "level": 17,
+            "species": "Spearow"
+          },
+          {
+            "level": 13,
+            "species": "Sandshrew"
+          },
+          {
+            "level": 17,
+            "species": "Sandshrew"
+          }
+        ]
+      },
+      "water": {
+        "encounterRate": 0,
+        "mons": []
+      }
+    }
+  }
+}

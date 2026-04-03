@@ -1,0 +1,277 @@
+{
+  "id": 24,
+  "name": "Route13",
+  "header": {
+    "tileset": "Overworld",
+    "music": "Routes4",
+    "connectionFlags": 10,
+    "width": 30,
+    "height": 9,
+    "borderBlock": 67
+  },
+  "connections": {
+    "north": {
+      "targetMap": "Route12",
+      "offset": 20
+    },
+    "west": {
+      "targetMap": "Route14",
+      "offset": 0
+    }
+  },
+  "warps": [],
+  "npcs": [
+    {
+      "spriteId": 7,
+      "spriteName": "CooltrainerM",
+      "x": 49,
+      "y": 10,
+      "movement": "Stationary",
+      "facing": "Right",
+      "range": 0,
+      "textId": 1,
+      "isTrainer": true,
+      "trainerClass": "BirdKeeper",
+      "trainerSet": 1
+    },
+    {
+      "spriteId": 6,
+      "spriteName": "CooltrainerF",
+      "x": 48,
+      "y": 10,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 2,
+      "isTrainer": true,
+      "trainerClass": "JrTrainerF",
+      "trainerSet": 12
+    },
+    {
+      "spriteId": 6,
+      "spriteName": "CooltrainerF",
+      "x": 27,
+      "y": 9,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 3,
+      "isTrainer": true,
+      "trainerClass": "JrTrainerF",
+      "trainerSet": 13
+    },
+    {
+      "spriteId": 6,
+      "spriteName": "CooltrainerF",
+      "x": 23,
+      "y": 10,
+      "movement": "Stationary",
+      "facing": "Left",
+      "range": 0,
+      "textId": 4,
+      "isTrainer": true,
+      "trainerClass": "JrTrainerF",
+      "trainerSet": 14
+    },
+    {
+      "spriteId": 6,
+      "spriteName": "CooltrainerF",
+      "x": 50,
+      "y": 5,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 5,
+      "isTrainer": true,
+      "trainerClass": "JrTrainerF",
+      "trainerSet": 15
+    },
+    {
+      "spriteId": 7,
+      "spriteName": "CooltrainerM",
+      "x": 12,
+      "y": 4,
+      "movement": "Stationary",
+      "facing": "Right",
+      "range": 0,
+      "textId": 6,
+      "isTrainer": true,
+      "trainerClass": "BirdKeeper",
+      "trainerSet": 2
+    },
+    {
+      "spriteId": 15,
+      "spriteName": "Beauty",
+      "x": 33,
+      "y": 6,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 7,
+      "isTrainer": true,
+      "trainerClass": "Beauty",
+      "trainerSet": 4
+    },
+    {
+      "spriteId": 15,
+      "spriteName": "Beauty",
+      "x": 32,
+      "y": 6,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 8,
+      "isTrainer": true,
+      "trainerClass": "Beauty",
+      "trainerSet": 5
+    },
+    {
+      "spriteId": 18,
+      "spriteName": "Biker",
+      "x": 10,
+      "y": 7,
+      "movement": "Stationary",
+      "facing": "Up",
+      "range": 0,
+      "textId": 9,
+      "isTrainer": true,
+      "trainerClass": "Biker",
+      "trainerSet": 1
+    },
+    {
+      "spriteId": 7,
+      "spriteName": "CooltrainerM",
+      "x": 7,
+      "y": 13,
+      "movement": "Stationary",
+      "facing": "Up",
+      "range": 0,
+      "textId": 10,
+      "isTrainer": true,
+      "trainerClass": "BirdKeeper",
+      "trainerSet": 3
+    }
+  ],
+  "signs": [
+    {
+      "x": 15,
+      "y": 13,
+      "textId": 1
+    },
+    {
+      "x": 33,
+      "y": 5,
+      "textId": 2
+    },
+    {
+      "x": 31,
+      "y": 11,
+      "textId": 3
+    }
+  ],
+  "text": {},
+  "wild": {
+    "red": {
+      "grass": {
+        "encounterRate": 20,
+        "mons": [
+          {
+            "level": 24,
+            "species": "Oddish"
+          },
+          {
+            "level": 25,
+            "species": "Pidgey"
+          },
+          {
+            "level": 27,
+            "species": "Pidgey"
+          },
+          {
+            "level": 24,
+            "species": "Venonat"
+          },
+          {
+            "level": 22,
+            "species": "Oddish"
+          },
+          {
+            "level": 26,
+            "species": "Venonat"
+          },
+          {
+            "level": 26,
+            "species": "Oddish"
+          },
+          {
+            "level": 25,
+            "species": "Ditto"
+          },
+          {
+            "level": 28,
+            "species": "Gloom"
+          },
+          {
+            "level": 30,
+            "species": "Gloom"
+          }
+        ]
+      },
+      "water": {
+        "encounterRate": 0,
+        "mons": []
+      }
+    },
+    "blue": {
+      "grass": {
+        "encounterRate": 20,
+        "mons": [
+          {
+            "level": 24,
+            "species": "Bellsprout"
+          },
+          {
+            "level": 25,
+            "species": "Pidgey"
+          },
+          {
+            "level": 27,
+            "species": "Pidgey"
+          },
+          {
+            "level": 24,
+            "species": "Venonat"
+          },
+          {
+            "level": 22,
+            "species": "Bellsprout"
+          },
+          {
+            "level": 26,
+            "species": "Venonat"
+          },
+          {
+            "level": 26,
+            "species": "Bellsprout"
+          },
+          {
+            "level": 25,
+            "species": "Ditto"
+          },
+          {
+            "level": 28,
+            "species": "Weepinbell"
+          },
+          {
+            "level": 30,
+            "species": "Weepinbell"
+          }
+        ]
+      },
+      "water": {
+        "encounterRate": 0,
+        "mons": []
+      }
+    }
+  }
+}

@@ -1,0 +1,304 @@
+{
+  "id": 26,
+  "name": "Route15",
+  "header": {
+    "tileset": "Overworld",
+    "music": "Routes4",
+    "connectionFlags": 3,
+    "width": 30,
+    "height": 9,
+    "borderBlock": 67
+  },
+  "connections": {
+    "west": {
+      "targetMap": "FuchsiaCity",
+      "offset": -4
+    },
+    "east": {
+      "targetMap": "Route14",
+      "offset": -18
+    }
+  },
+  "warps": [
+    {
+      "x": 7,
+      "y": 8,
+      "destMap": "Route15Gate1F",
+      "destWarpId": 0
+    },
+    {
+      "x": 7,
+      "y": 9,
+      "destMap": "Route15Gate1F",
+      "destWarpId": 1
+    },
+    {
+      "x": 14,
+      "y": 8,
+      "destMap": "Route15Gate1F",
+      "destWarpId": 2
+    },
+    {
+      "x": 14,
+      "y": 9,
+      "destMap": "Route15Gate1F",
+      "destWarpId": 3
+    }
+  ],
+  "npcs": [
+    {
+      "spriteId": 6,
+      "spriteName": "CooltrainerF",
+      "x": 41,
+      "y": 11,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 1,
+      "isTrainer": true,
+      "trainerClass": "JrTrainerF",
+      "trainerSet": 20
+    },
+    {
+      "spriteId": 6,
+      "spriteName": "CooltrainerF",
+      "x": 53,
+      "y": 10,
+      "movement": "Stationary",
+      "facing": "Left",
+      "range": 0,
+      "textId": 2,
+      "isTrainer": true,
+      "trainerClass": "JrTrainerF",
+      "trainerSet": 21
+    },
+    {
+      "spriteId": 7,
+      "spriteName": "CooltrainerM",
+      "x": 31,
+      "y": 13,
+      "movement": "Stationary",
+      "facing": "Up",
+      "range": 0,
+      "textId": 3,
+      "isTrainer": true,
+      "trainerClass": "BirdKeeper",
+      "trainerSet": 6
+    },
+    {
+      "spriteId": 7,
+      "spriteName": "CooltrainerM",
+      "x": 35,
+      "y": 13,
+      "movement": "Stationary",
+      "facing": "Up",
+      "range": 0,
+      "textId": 4,
+      "isTrainer": true,
+      "trainerClass": "BirdKeeper",
+      "trainerSet": 7
+    },
+    {
+      "spriteId": 15,
+      "spriteName": "Beauty",
+      "x": 53,
+      "y": 11,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 5,
+      "isTrainer": true,
+      "trainerClass": "Beauty",
+      "trainerSet": 9
+    },
+    {
+      "spriteId": 15,
+      "spriteName": "Beauty",
+      "x": 41,
+      "y": 10,
+      "movement": "Stationary",
+      "facing": "Right",
+      "range": 0,
+      "textId": 6,
+      "isTrainer": true,
+      "trainerClass": "Beauty",
+      "trainerSet": 10
+    },
+    {
+      "spriteId": 18,
+      "spriteName": "Biker",
+      "x": 48,
+      "y": 10,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 7,
+      "isTrainer": true,
+      "trainerClass": "Biker",
+      "trainerSet": 3
+    },
+    {
+      "spriteId": 18,
+      "spriteName": "Biker",
+      "x": 46,
+      "y": 10,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 8,
+      "isTrainer": true,
+      "trainerClass": "Biker",
+      "trainerSet": 4
+    },
+    {
+      "spriteId": 6,
+      "spriteName": "CooltrainerF",
+      "x": 37,
+      "y": 5,
+      "movement": "Stationary",
+      "facing": "Right",
+      "range": 0,
+      "textId": 9,
+      "isTrainer": true,
+      "trainerClass": "JrTrainerF",
+      "trainerSet": 22
+    },
+    {
+      "spriteId": 6,
+      "spriteName": "CooltrainerF",
+      "x": 18,
+      "y": 13,
+      "movement": "Stationary",
+      "facing": "Up",
+      "range": 0,
+      "textId": 10,
+      "isTrainer": true,
+      "trainerClass": "JrTrainerF",
+      "trainerSet": 23
+    },
+    {
+      "spriteId": 61,
+      "spriteName": "PokeBall",
+      "x": 18,
+      "y": 5,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 11,
+      "isTrainer": false,
+      "itemId": 220
+    }
+  ],
+  "signs": [
+    {
+      "x": 39,
+      "y": 9,
+      "textId": 1
+    }
+  ],
+  "text": {},
+  "wild": {
+    "red": {
+      "grass": {
+        "encounterRate": 15,
+        "mons": [
+          {
+            "level": 24,
+            "species": "Oddish"
+          },
+          {
+            "level": 26,
+            "species": "Ditto"
+          },
+          {
+            "level": 23,
+            "species": "Pidgey"
+          },
+          {
+            "level": 26,
+            "species": "Venonat"
+          },
+          {
+            "level": 22,
+            "species": "Oddish"
+          },
+          {
+            "level": 28,
+            "species": "Venonat"
+          },
+          {
+            "level": 26,
+            "species": "Oddish"
+          },
+          {
+            "level": 30,
+            "species": "Gloom"
+          },
+          {
+            "level": 28,
+            "species": "Pidgeotto"
+          },
+          {
+            "level": 30,
+            "species": "Pidgeotto"
+          }
+        ]
+      },
+      "water": {
+        "encounterRate": 0,
+        "mons": []
+      }
+    },
+    "blue": {
+      "grass": {
+        "encounterRate": 15,
+        "mons": [
+          {
+            "level": 24,
+            "species": "Bellsprout"
+          },
+          {
+            "level": 26,
+            "species": "Ditto"
+          },
+          {
+            "level": 23,
+            "species": "Pidgey"
+          },
+          {
+            "level": 26,
+            "species": "Venonat"
+          },
+          {
+            "level": 22,
+            "species": "Bellsprout"
+          },
+          {
+            "level": 28,
+            "species": "Venonat"
+          },
+          {
+            "level": 26,
+            "species": "Bellsprout"
+          },
+          {
+            "level": 30,
+            "species": "Weepinbell"
+          },
+          {
+            "level": 28,
+            "species": "Pidgeotto"
+          },
+          {
+            "level": 30,
+            "species": "Pidgeotto"
+          }
+        ]
+      },
+      "water": {
+        "encounterRate": 0,
+        "mons": []
+      }
+    }
+  }
+}

@@ -1,0 +1,262 @@
+{
+  "id": 40,
+  "name": "OaksLab",
+  "header": {
+    "tileset": "Dojo",
+    "music": "OaksLab",
+    "connectionFlags": 0,
+    "width": 5,
+    "height": 6,
+    "borderBlock": 3
+  },
+  "connections": {},
+  "warps": [
+    {
+      "x": 4,
+      "y": 11,
+      "destWarpId": 2
+    },
+    {
+      "x": 5,
+      "y": 11,
+      "destWarpId": 2
+    }
+  ],
+  "npcs": [
+    {
+      "spriteId": 2,
+      "spriteName": "Blue",
+      "x": 4,
+      "y": 3,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 1,
+      "isTrainer": true,
+      "trainerClass": "Rival1",
+      "trainerSet": 1
+    },
+    {
+      "spriteId": 61,
+      "spriteName": "PokeBall",
+      "x": 6,
+      "y": 3,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 2,
+      "isTrainer": false
+    },
+    {
+      "spriteId": 61,
+      "spriteName": "PokeBall",
+      "x": 7,
+      "y": 3,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 3,
+      "isTrainer": false
+    },
+    {
+      "spriteId": 61,
+      "spriteName": "PokeBall",
+      "x": 8,
+      "y": 3,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 4,
+      "isTrainer": false
+    },
+    {
+      "spriteId": 3,
+      "spriteName": "Oak",
+      "x": 5,
+      "y": 2,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 5,
+      "isTrainer": false
+    },
+    {
+      "spriteId": 65,
+      "spriteName": "Pokedex",
+      "x": 2,
+      "y": 1,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 6,
+      "isTrainer": false
+    },
+    {
+      "spriteId": 65,
+      "spriteName": "Pokedex",
+      "x": 3,
+      "y": 1,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 7,
+      "isTrainer": false
+    },
+    {
+      "spriteId": 3,
+      "spriteName": "Oak",
+      "x": 5,
+      "y": 10,
+      "movement": "Stationary",
+      "facing": "Up",
+      "range": 0,
+      "textId": 8,
+      "isTrainer": false
+    },
+    {
+      "spriteId": 13,
+      "spriteName": "Girl",
+      "x": 1,
+      "y": 9,
+      "movement": "Wander",
+      "facing": "Down",
+      "range": 1,
+      "textId": 9,
+      "isTrainer": false
+    },
+    {
+      "spriteId": 32,
+      "spriteName": "Scientist",
+      "x": 2,
+      "y": 10,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 10,
+      "isTrainer": false
+    },
+    {
+      "spriteId": 32,
+      "spriteName": "Scientist",
+      "x": 8,
+      "y": 10,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 11,
+      "isTrainer": false
+    }
+  ],
+  "signs": [],
+  "text": {
+    "npc": {
+      "8": [
+        {
+          "line1": "?",
+          "line2": ""
+        }
+      ],
+      "6": [
+        {
+          "line1": "It's encyclopedia-",
+          "line2": "like, but the"
+        },
+        {
+          "line1": "pages are blank!",
+          "line2": ""
+        }
+      ],
+      "3": [
+        {
+          "line1": "Those are POKe",
+          "line2": "BALLs. They"
+        },
+        {
+          "line1": "contain POKeMON!",
+          "line2": ""
+        }
+      ],
+      "5": [
+        {
+          "line1": "OAK: If a wild",
+          "line2": "POKeMON appears,"
+        },
+        {
+          "line1": "your POKeMON can",
+          "line2": "fight against it!"
+        }
+      ],
+      "9": [
+        {
+          "line1": "PROF.OAK is the",
+          "line2": "authority on"
+        },
+        {
+          "line1": "POKeMON!",
+          "line2": ""
+        },
+        {
+          "line1": "Many POKeMON",
+          "line2": "trainers hold him"
+        },
+        {
+          "line1": "in high regard!",
+          "line2": ""
+        }
+      ],
+      "11": [
+        {
+          "line1": "I study POKeMON as",
+          "line2": "PROF.OAK's AIDE."
+        }
+      ],
+      "7": [
+        {
+          "line1": "It's encyclopedia-",
+          "line2": "like, but the"
+        },
+        {
+          "line1": "pages are blank!",
+          "line2": ""
+        }
+      ],
+      "1": [
+        {
+          "line1": "<RIVAL>: Yo",
+          "line2": "<PLAYER>! Gramps"
+        },
+        {
+          "line1": "isn't around!",
+          "line2": ""
+        }
+      ],
+      "10": [
+        {
+          "line1": "I study POKeMON as",
+          "line2": "PROF.OAK's AIDE."
+        }
+      ],
+      "2": [
+        {
+          "line1": "Those are POKe",
+          "line2": "BALLs. They"
+        },
+        {
+          "line1": "contain POKeMON!",
+          "line2": ""
+        }
+      ],
+      "4": [
+        {
+          "line1": "Those are POKe",
+          "line2": "BALLs. They"
+        },
+        {
+          "line1": "contain POKeMON!",
+          "line2": ""
+        }
+      ]
+    }
+  },
+  "wild": null
+}

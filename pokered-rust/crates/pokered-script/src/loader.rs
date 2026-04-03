@@ -81,6 +81,8 @@ impl ScriptLoader {
         }
 
         let mut count = 0;
+        // Scan subdirectories — each subdirectory is a map name folder
+        // containing optional script.js and script_config.json
         for entry in fs::read_dir(dir)
             .map_err(|e| ScriptLoaderError::IoError(dir.to_string_lossy().to_string(), e))?
         {
@@ -88,50 +90,65 @@ impl ScriptLoader {
                 .map_err(|e| ScriptLoaderError::IoError(dir.to_string_lossy().to_string(), e))?;
             let path = entry.path();
 
-            let ext = path.extension().and_then(|e| e.to_str());
-            if ext != Some("js") && ext != Some("json") {
+            if !path.is_dir() {
                 continue;
             }
 
             let map_id = path
-                .file_stem()
+                .file_name()
                 .and_then(|s| s.to_str())
                 .ok_or_else(|| {
                     ScriptLoaderError::InvalidFileName(path.to_string_lossy().to_string())
                 })?
                 .to_string();
 
-            let content = fs::read_to_string(&path)
-                .map_err(|e| ScriptLoaderError::IoError(path.to_string_lossy().to_string(), e))?;
+            let js_path = path.join("script.js");
+            if js_path.is_file() {
+                let content = fs::read_to_string(&js_path).map_err(|e| {
+                    ScriptLoaderError::IoError(js_path.to_string_lossy().to_string(), e)
+                })?;
 
-            let modified = fs::metadata(&path)
-                .and_then(|m| m.modified())
-                .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+                let modified = fs::metadata(&js_path)
+                    .and_then(|m| m.modified())
+                    .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
 
-            match ext {
-                Some("js") => {
-                    self.scripts.insert(map_id.clone(), content);
-                }
-                Some("json") => {
-                    let config: MapScriptConfig = serde_json::from_str(&content).map_err(|e| {
-                        ScriptLoaderError::IoError(
-                            path.to_string_lossy().to_string(),
-                            std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()),
-                        )
-                    })?;
-                    self.configs.insert(map_id.clone(), config);
-                }
-                _ => continue,
+                self.scripts.insert(map_id.clone(), content);
+                self.file_meta.insert(
+                    format!("{}:js", map_id),
+                    ScriptFileMeta {
+                        path: js_path,
+                        modified,
+                    },
+                );
+                count += 1;
             }
 
-            self.file_meta.insert(
-                format!("{}:{}", map_id, ext.unwrap_or("")),
-                ScriptFileMeta {
-                    path: path.clone(),
-                    modified,
-                },
-            );
-            count += 1;
+            let config_path = path.join("script_config.json");
+            if config_path.is_file() {
+                let content = fs::read_to_string(&config_path).map_err(|e| {
+                    ScriptLoaderError::IoError(config_path.to_string_lossy().to_string(), e)
+                })?;
+
+                let modified = fs::metadata(&config_path)
+                    .and_then(|m| m.modified())
+                    .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+
+                let config: MapScriptConfig = serde_json::from_str(&content).map_err(|e| {
+                    ScriptLoaderError::IoError(
+                        config_path.to_string_lossy().to_string(),
+                        std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()),
+                    )
+                })?;
+                self.configs.insert(map_id.clone(), config);
+                self.file_meta.insert(
+                    format!("{}:json", map_id),
+                    ScriptFileMeta {
+                        path: config_path,
+                        modified,
+                    },
+                );
+                count += 1;
+            }
         }
 
         log::info!("ScriptLoader: loaded {} files from {:?}", count, dir);
@@ -161,7 +178,8 @@ impl ScriptLoader {
                     Ok(content) => {
                         let ext = path.extension().and_then(|e| e.to_str());
                         let map_id = path
-                            .file_stem()
+                            .parent()
+                            .and_then(|p| p.file_name())
                             .and_then(|s| s.to_str())
                             .unwrap_or("")
                             .to_string();
@@ -201,43 +219,46 @@ impl ScriptLoader {
         let embedded_scripts: &[(&str, &str)] = &[
             (
                 "PalletTown",
-                include_str!("../../../scripts/maps/PalletTown.js"),
+                include_str!("../../pokered-data/maps/PalletTown/script.js"),
             ),
             (
                 "RedsHouse1F",
-                include_str!("../../../scripts/maps/RedsHouse1F.js"),
+                include_str!("../../pokered-data/maps/RedsHouse1F/script.js"),
             ),
             (
                 "RedsHouse2F",
-                include_str!("../../../scripts/maps/RedsHouse2F.js"),
+                include_str!("../../pokered-data/maps/RedsHouse2F/script.js"),
             ),
             (
                 "BluesHouse",
-                include_str!("../../../scripts/maps/BluesHouse.js"),
+                include_str!("../../pokered-data/maps/BluesHouse/script.js"),
             ),
-            ("OaksLab", include_str!("../../../scripts/maps/OaksLab.js")),
+            (
+                "OaksLab",
+                include_str!("../../pokered-data/maps/OaksLab/script.js"),
+            ),
         ];
 
         let embedded_configs: &[(&str, &str)] = &[
             (
                 "PalletTown",
-                include_str!("../../../scripts/maps/PalletTown.json"),
+                include_str!("../../pokered-data/maps/PalletTown/script_config.json"),
             ),
             (
                 "RedsHouse1F",
-                include_str!("../../../scripts/maps/RedsHouse1F.json"),
+                include_str!("../../pokered-data/maps/RedsHouse1F/script_config.json"),
             ),
             (
                 "RedsHouse2F",
-                include_str!("../../../scripts/maps/RedsHouse2F.json"),
+                include_str!("../../pokered-data/maps/RedsHouse2F/script_config.json"),
             ),
             (
                 "BluesHouse",
-                include_str!("../../../scripts/maps/BluesHouse.json"),
+                include_str!("../../pokered-data/maps/BluesHouse/script_config.json"),
             ),
             (
                 "OaksLab",
-                include_str!("../../../scripts/maps/OaksLab.json"),
+                include_str!("../../pokered-data/maps/OaksLab/script_config.json"),
             ),
         ];
 
@@ -364,8 +385,7 @@ mod tests {
         let mut loader = ScriptLoader::new();
         let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("..")
-            .join("..")
-            .join("scripts")
+            .join("pokered-data")
             .join("maps");
         if dir.exists() {
             let count = loader.load_from_directory(&dir).unwrap();
@@ -380,8 +400,7 @@ mod tests {
         let mut loader = ScriptLoader::new();
         let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("..")
-            .join("..")
-            .join("scripts")
+            .join("pokered-data")
             .join("maps");
         if dir.exists() {
             loader.load_from_directory(&dir).unwrap();

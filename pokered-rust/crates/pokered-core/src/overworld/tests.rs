@@ -10,105 +10,99 @@ use pokered_data::tilesets::TilesetId;
 
 #[test]
 fn test_pallet_town_header() {
-    let h = get_map_header(MapId::PalletTown);
-    assert_eq!(h.tileset, TilesetId::Overworld);
-    assert_eq!(h.music, MusicId::PalletTown);
-    assert!(h.has_north());
-    assert!(h.has_south());
-    assert!(!h.has_west());
-    assert!(!h.has_east());
-    assert_eq!(h.connection_count(), 2);
+    assert_eq!(get_map_tileset(MapId::PalletTown), TilesetId::Overworld);
+    assert_eq!(get_map_music(MapId::PalletTown), MusicId::PalletTown);
+    assert!(has_connection(MapId::PalletTown, Direction::Up));
+    assert!(has_connection(MapId::PalletTown, Direction::Down));
+    assert!(!has_connection(MapId::PalletTown, Direction::Left));
+    assert!(!has_connection(MapId::PalletTown, Direction::Right));
+    assert_eq!(connection_count(MapId::PalletTown), 2);
 }
 
 #[test]
 fn test_viridian_city_header() {
-    let h = get_map_header(MapId::ViridianCity);
-    assert_eq!(h.tileset, TilesetId::Overworld);
-    assert_eq!(h.music, MusicId::Cities1);
-    assert!(h.has_north());
-    assert!(h.has_south());
-    assert!(h.has_west());
-    assert!(!h.has_east());
-    assert_eq!(h.connection_count(), 3);
+    assert_eq!(get_map_tileset(MapId::ViridianCity), TilesetId::Overworld);
+    assert_eq!(get_map_music(MapId::ViridianCity), MusicId::Cities1);
+    assert!(has_connection(MapId::ViridianCity, Direction::Up));
+    assert!(has_connection(MapId::ViridianCity, Direction::Down));
+    assert!(has_connection(MapId::ViridianCity, Direction::Left));
+    assert!(!has_connection(MapId::ViridianCity, Direction::Right));
+    assert_eq!(connection_count(MapId::ViridianCity), 3);
 }
 
 #[test]
 fn test_cerulean_city_all_connections() {
-    let h = get_map_header(MapId::CeruleanCity);
-    assert_eq!(h.connection_flags, 0x0F); // all four directions
-    assert_eq!(h.connection_count(), 4);
+    // All four directions
+    assert!(has_connection(MapId::CeruleanCity, Direction::Up));
+    assert!(has_connection(MapId::CeruleanCity, Direction::Down));
+    assert!(has_connection(MapId::CeruleanCity, Direction::Left));
+    assert!(has_connection(MapId::CeruleanCity, Direction::Right));
+    assert_eq!(connection_count(MapId::CeruleanCity), 4);
 }
 
 #[test]
 fn test_saffron_city_all_connections() {
-    let h = get_map_header(MapId::SaffronCity);
-    assert_eq!(h.connection_flags, 0x0F);
-    assert_eq!(h.connection_count(), 4);
+    assert!(has_connection(MapId::SaffronCity, Direction::Up));
+    assert!(has_connection(MapId::SaffronCity, Direction::Down));
+    assert!(has_connection(MapId::SaffronCity, Direction::Left));
+    assert!(has_connection(MapId::SaffronCity, Direction::Right));
+    assert_eq!(connection_count(MapId::SaffronCity), 4);
 }
 
 #[test]
 fn test_indigo_plateau_south_only() {
-    let h = get_map_header(MapId::IndigoPlateau);
-    assert_eq!(h.tileset, TilesetId::Plateau);
-    assert_eq!(h.music, MusicId::IndigoPlateau);
-    assert!(!h.has_north());
-    assert!(h.has_south());
-    assert!(!h.has_west());
-    assert!(!h.has_east());
-    assert_eq!(h.connection_count(), 1);
+    assert_eq!(get_map_tileset(MapId::IndigoPlateau), TilesetId::Plateau);
+    assert_eq!(get_map_music(MapId::IndigoPlateau), MusicId::IndigoPlateau);
+    assert!(!has_connection(MapId::IndigoPlateau, Direction::Up));
+    assert!(has_connection(MapId::IndigoPlateau, Direction::Down));
+    assert!(!has_connection(MapId::IndigoPlateau, Direction::Left));
+    assert!(!has_connection(MapId::IndigoPlateau, Direction::Right));
+    assert_eq!(connection_count(MapId::IndigoPlateau), 1);
 }
 
 #[test]
 fn test_indoor_map_no_connections() {
-    let h = get_map_header(MapId::RedsHouse1F);
-    assert_eq!(h.tileset, TilesetId::RedsHouse1);
-    assert_eq!(h.music, MusicId::PalletTown);
-    assert_eq!(h.connection_flags, 0);
-    assert_eq!(h.connection_count(), 0);
+    assert_eq!(get_map_tileset(MapId::RedsHouse1F), TilesetId::RedsHouse1);
+    assert_eq!(get_map_music(MapId::RedsHouse1F), MusicId::PalletTown);
+    assert_eq!(connection_count(MapId::RedsHouse1F), 0);
 }
 
 #[test]
 fn test_oaks_lab_header() {
-    let h = get_map_header(MapId::OaksLab);
-    assert_eq!(h.tileset, TilesetId::Dojo);
-    assert_eq!(h.music, MusicId::OaksLab);
-    assert_eq!(h.connection_flags, 0);
+    assert_eq!(get_map_tileset(MapId::OaksLab), TilesetId::Dojo);
+    assert_eq!(get_map_music(MapId::OaksLab), MusicId::OaksLab);
+    assert_eq!(connection_count(MapId::OaksLab), 0);
 }
 
 #[test]
 fn test_viridian_forest_header() {
-    let h = get_map_header(MapId::ViridianForest);
-    assert_eq!(h.tileset, TilesetId::Forest);
-    assert_eq!(h.music, MusicId::Dungeon2);
-    assert_eq!(h.connection_flags, 0);
+    assert_eq!(get_map_tileset(MapId::ViridianForest), TilesetId::Forest);
+    assert_eq!(get_map_music(MapId::ViridianForest), MusicId::Dungeon2);
+    assert_eq!(connection_count(MapId::ViridianForest), 0);
 }
 
 #[test]
 fn test_mt_moon_cavern() {
-    let h = get_map_header(MapId::MtMoon1F);
-    assert_eq!(h.tileset, TilesetId::Cavern);
-    assert_eq!(h.music, MusicId::Dungeon3);
+    assert_eq!(get_map_tileset(MapId::MtMoon1F), TilesetId::Cavern);
+    assert_eq!(get_map_music(MapId::MtMoon1F), MusicId::Dungeon3);
 }
 
 #[test]
 fn test_game_corner_header() {
-    let h = get_map_header(MapId::GameCorner);
-    assert_eq!(h.tileset, TilesetId::Lobby);
-    assert_eq!(h.music, MusicId::GameCorner);
+    assert_eq!(get_map_tileset(MapId::GameCorner), TilesetId::Lobby);
+    assert_eq!(get_map_music(MapId::GameCorner), MusicId::GameCorner);
 }
 
 #[test]
 fn test_pokemon_tower_header() {
-    let h = get_map_header(MapId::PokemonTower1F);
-    assert_eq!(h.tileset, TilesetId::Cemetery);
-    assert_eq!(h.music, MusicId::PokemonTower);
+    assert_eq!(get_map_tileset(MapId::PokemonTower1F), TilesetId::Cemetery);
+    assert_eq!(get_map_music(MapId::PokemonTower1F), MusicId::PokemonTower);
 }
 
 #[test]
 fn test_agathas_room_header() {
-    let h = get_map_header(MapId::AgathasRoom);
-    assert_eq!(h.tileset, TilesetId::Cemetery);
-    assert_eq!(h.music, MusicId::PokemonTower);
+    assert_eq!(get_map_tileset(MapId::AgathasRoom), TilesetId::Cemetery);
+    assert_eq!(get_map_music(MapId::AgathasRoom), MusicId::PokemonTower);
 }
 
 // ── Dimension Tests ────────────────────────────────────────────────
@@ -292,12 +286,11 @@ fn test_map_connections_partial() {
 #[test]
 fn test_route23_plateau_tileset() {
     // Route 23 uniquely uses Plateau tileset instead of Overworld
-    let h = get_map_header(MapId::Route23);
-    assert_eq!(h.tileset, TilesetId::Plateau);
-    assert_eq!(h.music, MusicId::IndigoPlateau);
-    assert!(h.has_north());
-    assert!(h.has_south());
-    assert_eq!(h.connection_count(), 2);
+    assert_eq!(get_map_tileset(MapId::Route23), TilesetId::Plateau);
+    assert_eq!(get_map_music(MapId::Route23), MusicId::IndigoPlateau);
+    assert!(has_connection(MapId::Route23, Direction::Up));
+    assert!(has_connection(MapId::Route23, Direction::Down));
+    assert_eq!(connection_count(MapId::Route23), 2);
 }
 
 #[test]
@@ -390,12 +383,11 @@ fn test_all_248_maps_have_valid_header() {
     // Verify all 248 maps can be looked up without panicking
     for i in 0..248u8 {
         let map = MapId::from_u8(i).expect("valid map id");
-        let h = get_map_header(map);
         let (w, _h) = get_map_dimensions(map);
-        // Unused maps have 0x0 dimensions but still have valid headers
-        let _ = h.tileset;
-        let _ = h.music;
-        let _ = h.connection_count();
+        // Verify JSON data loads without panic
+        let _tileset = get_map_tileset(map);
+        let _music = get_map_music(map);
+        let _conns = connection_count(map);
         let _ = w;
     }
 }

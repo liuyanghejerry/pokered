@@ -1,0 +1,48 @@
+{
+  "id": 101,
+  "name": "SSAnneCaptainsRoom",
+  "header": {
+    "tileset": "Ship",
+    "music": "SSAnne",
+    "connectionFlags": 0,
+    "width": 3,
+    "height": 4,
+    "borderBlock": 0
+  },
+  "connections": {},
+  "warps": [
+    {
+      "x": 0,
+      "y": 7,
+      "destMap": "SSAnne2F",
+      "destWarpId": 8
+    }
+  ],
+  "npcs": [
+    {
+      "spriteId": 46,
+      "spriteName": "Captain",
+      "x": 4,
+      "y": 2,
+      "movement": "Stationary",
+      "facing": "Up",
+      "range": 0,
+      "textId": 1,
+      "isTrainer": false
+    }
+  ],
+  "signs": [
+    {
+      "x": 4,
+      "y": 1,
+      "textId": 1
+    },
+    {
+      "x": 1,
+      "y": 2,
+      "textId": 2
+    }
+  ],
+  "text": {},
+  "wild": null
+}

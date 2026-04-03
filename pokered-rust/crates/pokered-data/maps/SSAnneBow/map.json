@@ -1,0 +1,91 @@
+{
+  "id": 99,
+  "name": "SSAnneBow",
+  "header": {
+    "tileset": "Ship",
+    "music": "SSAnne",
+    "connectionFlags": 0,
+    "width": 10,
+    "height": 7,
+    "borderBlock": 0
+  },
+  "connections": {},
+  "warps": [
+    {
+      "x": 13,
+      "y": 6,
+      "destMap": "SSAnne3F",
+      "destWarpId": 0
+    },
+    {
+      "x": 13,
+      "y": 7,
+      "destMap": "SSAnne3F",
+      "destWarpId": 0
+    }
+  ],
+  "npcs": [
+    {
+      "spriteId": 12,
+      "spriteName": "SuperNerd",
+      "x": 5,
+      "y": 2,
+      "movement": "Stationary",
+      "facing": "Up",
+      "range": 0,
+      "textId": 1,
+      "isTrainer": false
+    },
+    {
+      "spriteId": 19,
+      "spriteName": "Sailor",
+      "x": 4,
+      "y": 9,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 2,
+      "isTrainer": false
+    },
+    {
+      "spriteId": 7,
+      "spriteName": "CooltrainerM",
+      "x": 7,
+      "y": 11,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 3,
+      "isTrainer": false
+    },
+    {
+      "spriteId": 19,
+      "spriteName": "Sailor",
+      "x": 4,
+      "y": 4,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 4,
+      "isTrainer": true,
+      "trainerClass": "Sailor",
+      "trainerSet": 1
+    },
+    {
+      "spriteId": 19,
+      "spriteName": "Sailor",
+      "x": 10,
+      "y": 8,
+      "movement": "Stationary",
+      "facing": "Up",
+      "range": 0,
+      "textId": 5,
+      "isTrainer": true,
+      "trainerClass": "Sailor",
+      "trainerSet": 2
+    }
+  ],
+  "signs": [],
+  "text": {},
+  "wild": null
+}

@@ -1,14 +1,13 @@
-#[path = "npc_data_part1.rs"]
-mod npc_data_part1;
-#[path = "npc_data_part2.rs"]
-mod npc_data_part2;
-#[path = "npc_data_part3.rs"]
-mod npc_data_part3;
-#[path = "npc_data_part4.rs"]
-mod npc_data_part4;
-#[path = "npc_data_part5.rs"]
-mod npc_data_part5;
+//! NPC data — JSON-backed NPC definitions for all 248 maps.
+//!
+//! Type definitions (`NpcEntry`, `NpcFacing`, `NpcMovement`) are preserved
+//! for compatibility with existing consumers. Data is loaded at runtime from
+//! `map.json` files via `map_data_loader::get_map_json()`.
 
+use std::sync::OnceLock;
+
+use crate::map_data_loader::get_map_json;
+use crate::map_json::NpcJson;
 use crate::maps::MapId;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -46,216 +45,134 @@ pub struct NpcEntry {
     pub item_id: u8,
 }
 
+// ── String → type converters ───────────────────────────────────────
+
+fn parse_movement(s: &str) -> NpcMovement {
+    match s {
+        "Stationary" => NpcMovement::STATIONARY,
+        "Wander" => NpcMovement::WANDER,
+        "FixedPath" => NpcMovement::FIXED_PATH,
+        "FacePlayer" => NpcMovement::FACE_PLAYER,
+        _ => NpcMovement::STATIONARY,
+    }
+}
+
+fn parse_facing(s: &str) -> NpcFacing {
+    match s {
+        "Down" => NpcFacing::DOWN,
+        "Up" => NpcFacing::UP,
+        "Left" => NpcFacing::LEFT,
+        "Right" => NpcFacing::RIGHT,
+        _ => NpcFacing::DOWN,
+    }
+}
+
+fn parse_trainer_class(name: &str) -> u8 {
+    match name {
+        "Nobody" => 0,
+        "Youngster" => 1,
+        "BugCatcher" => 2,
+        "Lass" => 3,
+        "Sailor" => 4,
+        "JrTrainerM" => 5,
+        "JrTrainerF" => 6,
+        "Pokemaniac" => 7,
+        "SuperNerd" => 8,
+        "Hiker" => 9,
+        "Biker" => 10,
+        "Burglar" => 11,
+        "Engineer" => 12,
+        "UnusedJuggler" => 13,
+        "Fisher" => 14,
+        "Swimmer" => 15,
+        "CueBall" => 16,
+        "Gambler" => 17,
+        "Beauty" => 18,
+        "Psychic" | "PsychicTr" => 19,
+        "Rocker" => 20,
+        "Juggler" => 21,
+        "Tamer" => 22,
+        "BirdKeeper" => 23,
+        "Blackbelt" => 24,
+        "Rival1" => 25,
+        "ProfOak" => 26,
+        "Chief" => 27,
+        "Scientist" => 28,
+        "Giovanni" => 29,
+        "Rocket" => 30,
+        "CooltrainerM" => 31,
+        "CooltrainerF" => 32,
+        "Bruno" => 33,
+        "Brock" => 34,
+        "Misty" => 35,
+        "LtSurge" => 36,
+        "Erika" => 37,
+        "Koga" => 38,
+        "Blaine" => 39,
+        "Sabrina" => 40,
+        "Gentleman" => 41,
+        "Rival2" => 42,
+        "Rival3" => 43,
+        "Lorelei" => 44,
+        "Channeler" => 45,
+        "Agatha" => 46,
+        "Lance" => 47,
+        _ => 0,
+    }
+}
+
+fn convert_npc(npc: &NpcJson) -> NpcEntry {
+    NpcEntry {
+        sprite_id: npc.sprite_id,
+        x: npc.x,
+        y: npc.y,
+        movement: parse_movement(&npc.movement),
+        facing: parse_facing(&npc.facing),
+        range: npc.range,
+        text_id: npc.text_id,
+        is_trainer: npc.is_trainer,
+        trainer_class: npc
+            .trainer_class
+            .as_ref()
+            .map(|name| parse_trainer_class(name))
+            .unwrap_or(0),
+        trainer_set: npc.trainer_set.unwrap_or(0),
+        item_id: npc.item_id.unwrap_or(0),
+    }
+}
+
+// ── Cached NPC data per map ────────────────────────────────────────
+
+struct NpcDataCache {
+    /// One Vec<NpcEntry> per map, indexed by MapId as usize.
+    entries: Vec<Vec<NpcEntry>>,
+}
+
+static NPC_CACHE: OnceLock<NpcDataCache> = OnceLock::new();
+
+fn get_cache() -> &'static NpcDataCache {
+    NPC_CACHE.get_or_init(|| {
+        let mut entries = Vec::with_capacity(248);
+        for i in 0..248u8 {
+            if let Some(map_id) = MapId::from_u8(i) {
+                let npcs = get_map_json(map_id)
+                    .map(|json| json.npcs.iter().map(convert_npc).collect::<Vec<_>>())
+                    .unwrap_or_default();
+                entries.push(npcs);
+            } else {
+                entries.push(Vec::new());
+            }
+        }
+        NpcDataCache { entries }
+    })
+}
+
 pub fn get_map_npcs(map: MapId) -> &'static [NpcEntry] {
-    match map {
-        MapId::AgathasRoom => &npc_data_part1::NPCS_AGATHASROOM,
-        MapId::BikeShop => &npc_data_part1::NPCS_BIKESHOP,
-        MapId::BillsHouse => &npc_data_part1::NPCS_BILLSHOUSE,
-        MapId::BluesHouse => &npc_data_part1::NPCS_BLUESHOUSE,
-        MapId::BrunosRoom => &npc_data_part1::NPCS_BRUNOSROOM,
-        MapId::CeladonChiefHouse => &npc_data_part1::NPCS_CELADONCHIEFHOUSE,
-        MapId::CeladonCity => &npc_data_part1::NPCS_CELADONCITY,
-        MapId::CeladonDiner => &npc_data_part1::NPCS_CELADONDINER,
-        MapId::CeladonGym => &npc_data_part1::NPCS_CELADONGYM,
-        MapId::CeladonHotel => &npc_data_part1::NPCS_CELADONHOTEL,
-        MapId::CeladonMansion1F => &npc_data_part1::NPCS_CELADONMANSION1F,
-        MapId::CeladonMansion3F => &npc_data_part1::NPCS_CELADONMANSION3F,
-        MapId::CeladonMansionRoofHouse => &npc_data_part1::NPCS_CELADONMANSIONROOFHOUSE,
-        MapId::CeladonMart1F => &npc_data_part1::NPCS_CELADONMART1F,
-        MapId::CeladonMart2F => &npc_data_part1::NPCS_CELADONMART2F,
-        MapId::CeladonMart3F => &npc_data_part1::NPCS_CELADONMART3F,
-        MapId::CeladonMart4F => &npc_data_part1::NPCS_CELADONMART4F,
-        MapId::CeladonMart5F => &npc_data_part1::NPCS_CELADONMART5F,
-        MapId::CeladonMartRoof => &npc_data_part1::NPCS_CELADONMARTROOF,
-        MapId::CeladonPokecenter => &npc_data_part1::NPCS_CELADONPOKECENTER,
-        MapId::CeruleanBadgeHouse => &npc_data_part1::NPCS_CERULEANBADGEHOUSE,
-        MapId::CeruleanCave1F => &npc_data_part1::NPCS_CERULEANCAVE1F,
-        MapId::CeruleanCave2F => &npc_data_part1::NPCS_CERULEANCAVE2F,
-        MapId::CeruleanCaveB1F => &npc_data_part1::NPCS_CERULEANCAVEB1F,
-        MapId::CeruleanCity => &npc_data_part1::NPCS_CERULEANCITY,
-        MapId::CeruleanGym => &npc_data_part1::NPCS_CERULEANGYM,
-        MapId::CeruleanMart => &npc_data_part1::NPCS_CERULEANMART,
-        MapId::CeruleanPokecenter => &npc_data_part1::NPCS_CERULEANPOKECENTER,
-        MapId::CeruleanTradeHouse => &npc_data_part1::NPCS_CERULEANTRADEHOUSE,
-        MapId::CeruleanTrashedHouse => &npc_data_part1::NPCS_CERULEANTRASHEDHOUSE,
-        MapId::ChampionsRoom => &npc_data_part1::NPCS_CHAMPIONSROOM,
-        MapId::CinnabarGym => &npc_data_part1::NPCS_CINNABARGYM,
-        MapId::CinnabarIsland => &npc_data_part1::NPCS_CINNABARISLAND,
-        MapId::CinnabarLab => &npc_data_part1::NPCS_CINNABARLAB,
-        MapId::CinnabarLabFossilRoom => &npc_data_part1::NPCS_CINNABARLABFOSSILROOM,
-        MapId::CinnabarLabMetronomeRoom => &npc_data_part1::NPCS_CINNABARLABMETRONOMEROOM,
-        MapId::CinnabarLabTradeRoom => &npc_data_part1::NPCS_CINNABARLABTRADEROOM,
-        MapId::CinnabarMart => &npc_data_part1::NPCS_CINNABARMART,
-        MapId::CinnabarPokecenter => &npc_data_part1::NPCS_CINNABARPOKECENTER,
-        MapId::Colosseum => &npc_data_part1::NPCS_COLOSSEUM,
-        MapId::CopycatsHouse1F => &npc_data_part1::NPCS_COPYCATSHOUSE1F,
-        MapId::CopycatsHouse2F => &npc_data_part1::NPCS_COPYCATSHOUSE2F,
-        MapId::Daycare => &npc_data_part1::NPCS_DAYCARE,
-        MapId::DiglettsCaveRoute11 => &npc_data_part1::NPCS_DIGLETTSCAVEROUTE11,
-        MapId::DiglettsCaveRoute2 => &npc_data_part1::NPCS_DIGLETTSCAVEROUTE2,
-        MapId::FightingDojo => &npc_data_part1::NPCS_FIGHTINGDOJO,
-        MapId::FuchsiaBillsGrandpasHouse => &npc_data_part2::NPCS_FUCHSIABILLSGRANDPASHOUSE,
-        MapId::FuchsiaCity => &npc_data_part2::NPCS_FUCHSIACITY,
-        MapId::FuchsiaGoodRodHouse => &npc_data_part2::NPCS_FUCHSIAGOODRODHOUSE,
-        MapId::FuchsiaGym => &npc_data_part2::NPCS_FUCHSIAGYM,
-        MapId::FuchsiaMart => &npc_data_part2::NPCS_FUCHSIAMART,
-        MapId::FuchsiaMeetingRoom => &npc_data_part2::NPCS_FUCHSIAMEETINGROOM,
-        MapId::FuchsiaPokecenter => &npc_data_part2::NPCS_FUCHSIAPOKECENTER,
-        MapId::GameCorner => &npc_data_part2::NPCS_GAMECORNER,
-        MapId::GameCornerPrizeRoom => &npc_data_part2::NPCS_GAMECORNERPRIZEROOM,
-        MapId::HallOfFame => &npc_data_part2::NPCS_HALLOFFAME,
-        MapId::IndigoPlateauLobby => &npc_data_part2::NPCS_INDIGOPLATEAULOBBY,
-        MapId::LancesRoom => &npc_data_part2::NPCS_LANCESROOM,
-        MapId::LavenderCuboneHouse => &npc_data_part2::NPCS_LAVENDERCUBONEHOUSE,
-        MapId::LavenderMart => &npc_data_part2::NPCS_LAVENDERMART,
-        MapId::LavenderPokecenter => &npc_data_part2::NPCS_LAVENDERPOKECENTER,
-        MapId::LavenderTown => &npc_data_part2::NPCS_LAVENDERTOWN,
-        MapId::LoreleisRoom => &npc_data_part2::NPCS_LORELEISROOM,
-        MapId::MrFujisHouse => &npc_data_part2::NPCS_MRFUJISHOUSE,
-        MapId::MrPsychicsHouse => &npc_data_part2::NPCS_MRPSYCHICSHOUSE,
-        MapId::MtMoon1F => &npc_data_part2::NPCS_MTMOON1F,
-        MapId::MtMoonB2F => &npc_data_part2::NPCS_MTMOONB2F,
-        MapId::MtMoonPokecenter => &npc_data_part2::NPCS_MTMOONPOKECENTER,
-        MapId::Museum1F => &npc_data_part2::NPCS_MUSEUM1F,
-        MapId::Museum2F => &npc_data_part2::NPCS_MUSEUM2F,
-        MapId::NameRatersHouse => &npc_data_part2::NPCS_NAMERATERSHOUSE,
-        MapId::OaksLab => &npc_data_part2::NPCS_OAKSLAB,
-        MapId::PalletTown => &npc_data_part2::NPCS_PALLETTOWN,
-        MapId::PewterCity => &npc_data_part2::NPCS_PEWTERCITY,
-        MapId::PewterGym => &npc_data_part2::NPCS_PEWTERGYM,
-        MapId::PewterMart => &npc_data_part2::NPCS_PEWTERMART,
-        MapId::PewterNidoranHouse => &npc_data_part2::NPCS_PEWTERNIDORANHOUSE,
-        MapId::PewterPokecenter => &npc_data_part2::NPCS_PEWTERPOKECENTER,
-        MapId::PewterSpeechHouse => &npc_data_part2::NPCS_PEWTERSPEECHHOUSE,
-        MapId::PokemonFanClub => &npc_data_part2::NPCS_POKEMONFANCLUB,
-        MapId::PokemonMansion1F => &npc_data_part2::NPCS_POKEMONMANSION1F,
-        MapId::PokemonMansion2F => &npc_data_part2::NPCS_POKEMONMANSION2F,
-        MapId::PokemonMansion3F => &npc_data_part2::NPCS_POKEMONMANSION3F,
-        MapId::PokemonMansionB1F => &npc_data_part2::NPCS_POKEMONMANSIONB1F,
-        MapId::PokemonTower1F => &npc_data_part2::NPCS_POKEMONTOWER1F,
-        MapId::PokemonTower2F => &npc_data_part2::NPCS_POKEMONTOWER2F,
-        MapId::PokemonTower3F => &npc_data_part2::NPCS_POKEMONTOWER3F,
-        MapId::PokemonTower4F => &npc_data_part2::NPCS_POKEMONTOWER4F,
-        MapId::PokemonTower5F => &npc_data_part2::NPCS_POKEMONTOWER5F,
-        MapId::PokemonTower6F => &npc_data_part2::NPCS_POKEMONTOWER6F,
-        MapId::PokemonTower7F => &npc_data_part2::NPCS_POKEMONTOWER7F,
-        MapId::PowerPlant => &npc_data_part2::NPCS_POWERPLANT,
-        MapId::RedsHouse1F => &npc_data_part2::NPCS_REDSHOUSE1F,
-        MapId::RockTunnel1F => &npc_data_part3::NPCS_ROCKTUNNEL1F,
-        MapId::RockTunnelB1F => &npc_data_part3::NPCS_ROCKTUNNELB1F,
-        MapId::RockTunnelPokecenter => &npc_data_part3::NPCS_ROCKTUNNELPOKECENTER,
-        MapId::RocketHideoutB1F => &npc_data_part3::NPCS_ROCKETHIDEOUTB1F,
-        MapId::RocketHideoutB2F => &npc_data_part3::NPCS_ROCKETHIDEOUTB2F,
-        MapId::RocketHideoutB3F => &npc_data_part3::NPCS_ROCKETHIDEOUTB3F,
-        MapId::RocketHideoutB4F => &npc_data_part3::NPCS_ROCKETHIDEOUTB4F,
-        MapId::Route1 => &npc_data_part3::NPCS_ROUTE1,
-        MapId::Route10 => &npc_data_part3::NPCS_ROUTE10,
-        MapId::Route11 => &npc_data_part3::NPCS_ROUTE11,
-        MapId::Route11Gate1F => &npc_data_part3::NPCS_ROUTE11GATE1F,
-        MapId::Route11Gate2F => &npc_data_part3::NPCS_ROUTE11GATE2F,
-        MapId::Route12 => &npc_data_part3::NPCS_ROUTE12,
-        MapId::Route12Gate1F => &npc_data_part3::NPCS_ROUTE12GATE1F,
-        MapId::Route12Gate2F => &npc_data_part3::NPCS_ROUTE12GATE2F,
-        MapId::Route12SuperRodHouse => &npc_data_part3::NPCS_ROUTE12SUPERRODHOUSE,
-        MapId::Route13 => &npc_data_part3::NPCS_ROUTE13,
-        MapId::Route14 => &npc_data_part3::NPCS_ROUTE14,
-        MapId::Route15 => &npc_data_part3::NPCS_ROUTE15,
-        MapId::Route15Gate1F => &npc_data_part3::NPCS_ROUTE15GATE1F,
-        MapId::Route15Gate2F => &npc_data_part3::NPCS_ROUTE15GATE2F,
-        MapId::Route16 => &npc_data_part3::NPCS_ROUTE16,
-        MapId::Route16FlyHouse => &npc_data_part3::NPCS_ROUTE16FLYHOUSE,
-        MapId::Route16Gate1F => &npc_data_part3::NPCS_ROUTE16GATE1F,
-        MapId::Route16Gate2F => &npc_data_part3::NPCS_ROUTE16GATE2F,
-        MapId::Route17 => &npc_data_part3::NPCS_ROUTE17,
-        MapId::Route18 => &npc_data_part3::NPCS_ROUTE18,
-        MapId::Route18Gate1F => &npc_data_part3::NPCS_ROUTE18GATE1F,
-        MapId::Route18Gate2F => &npc_data_part3::NPCS_ROUTE18GATE2F,
-        MapId::Route19 => &npc_data_part3::NPCS_ROUTE19,
-        MapId::Route2 => &npc_data_part3::NPCS_ROUTE2,
-        MapId::Route20 => &npc_data_part3::NPCS_ROUTE20,
-        MapId::Route21 => &npc_data_part3::NPCS_ROUTE21,
-        MapId::Route22 => &npc_data_part3::NPCS_ROUTE22,
-        MapId::Route22Gate => &npc_data_part3::NPCS_ROUTE22GATE,
-        MapId::Route23 => &npc_data_part3::NPCS_ROUTE23,
-        MapId::Route24 => &npc_data_part3::NPCS_ROUTE24,
-        MapId::Route25 => &npc_data_part3::NPCS_ROUTE25,
-        MapId::Route2Gate => &npc_data_part3::NPCS_ROUTE2GATE,
-        MapId::Route2TradeHouse => &npc_data_part3::NPCS_ROUTE2TRADEHOUSE,
-        MapId::Route3 => &npc_data_part3::NPCS_ROUTE3,
-        MapId::Route4 => &npc_data_part3::NPCS_ROUTE4,
-        MapId::Route5Gate => &npc_data_part3::NPCS_ROUTE5GATE,
-        MapId::Route6 => &npc_data_part3::NPCS_ROUTE6,
-        MapId::Route6Gate => &npc_data_part3::NPCS_ROUTE6GATE,
-        MapId::Route7Gate => &npc_data_part3::NPCS_ROUTE7GATE,
-        MapId::Route8 => &npc_data_part3::NPCS_ROUTE8,
-        MapId::Route8Gate => &npc_data_part4::NPCS_ROUTE8GATE,
-        MapId::Route9 => &npc_data_part4::NPCS_ROUTE9,
-        MapId::SSAnne1F => &npc_data_part4::NPCS_SSANNE1F,
-        MapId::SSAnne1FRooms => &npc_data_part4::NPCS_SSANNE1FROOMS,
-        MapId::SSAnne2F => &npc_data_part4::NPCS_SSANNE2F,
-        MapId::SSAnne2FRooms => &npc_data_part4::NPCS_SSANNE2FROOMS,
-        MapId::SSAnne3F => &npc_data_part4::NPCS_SSANNE3F,
-        MapId::SSAnneB1FRooms => &npc_data_part4::NPCS_SSANNEB1FROOMS,
-        MapId::SSAnneBow => &npc_data_part4::NPCS_SSANNEBOW,
-        MapId::SSAnneCaptainsRoom => &npc_data_part4::NPCS_SSANNECAPTAINSROOM,
-        MapId::SSAnneKitchen => &npc_data_part4::NPCS_SSANNEKITCHEN,
-        MapId::SafariZoneCenter => &npc_data_part4::NPCS_SAFARIZONECENTER,
-        MapId::SafariZoneCenterRestHouse => &npc_data_part4::NPCS_SAFARIZONECENTERRESTHOUSE,
-        MapId::SafariZoneEast => &npc_data_part4::NPCS_SAFARIZONEEAST,
-        MapId::SafariZoneEastRestHouse => &npc_data_part4::NPCS_SAFARIZONEEASTRESTHOUSE,
-        MapId::SafariZoneGate => &npc_data_part4::NPCS_SAFARIZONEGATE,
-        MapId::SafariZoneNorth => &npc_data_part4::NPCS_SAFARIZONENORTH,
-        MapId::SafariZoneNorthRestHouse => &npc_data_part4::NPCS_SAFARIZONENORTHRESTHOUSE,
-        MapId::SafariZoneSecretHouse => &npc_data_part4::NPCS_SAFARIZONESECRETHOUSE,
-        MapId::SafariZoneWest => &npc_data_part4::NPCS_SAFARIZONEWEST,
-        MapId::SafariZoneWestRestHouse => &npc_data_part4::NPCS_SAFARIZONEWESTRESTHOUSE,
-        MapId::SaffronCity => &npc_data_part4::NPCS_SAFFRONCITY,
-        MapId::SaffronGym => &npc_data_part4::NPCS_SAFFRONGYM,
-        MapId::SaffronMart => &npc_data_part4::NPCS_SAFFRONMART,
-        MapId::SaffronPidgeyHouse => &npc_data_part4::NPCS_SAFFRONPIDGEYHOUSE,
-        MapId::SaffronPokecenter => &npc_data_part4::NPCS_SAFFRONPOKECENTER,
-        MapId::SeafoamIslands1F => &npc_data_part4::NPCS_SEAFOAMISLANDS1F,
-        MapId::SeafoamIslandsB1F => &npc_data_part4::NPCS_SEAFOAMISLANDSB1F,
-        MapId::SeafoamIslandsB2F => &npc_data_part4::NPCS_SEAFOAMISLANDSB2F,
-        MapId::SeafoamIslandsB3F => &npc_data_part4::NPCS_SEAFOAMISLANDSB3F,
-        MapId::SeafoamIslandsB4F => &npc_data_part4::NPCS_SEAFOAMISLANDSB4F,
-        MapId::SilphCo10F => &npc_data_part4::NPCS_SILPHCO10F,
-        MapId::SilphCo11F => &npc_data_part4::NPCS_SILPHCO11F,
-        MapId::SilphCo1F => &npc_data_part4::NPCS_SILPHCO1F,
-        MapId::SilphCo2F => &npc_data_part4::NPCS_SILPHCO2F,
-        MapId::SilphCo3F => &npc_data_part4::NPCS_SILPHCO3F,
-        MapId::SilphCo4F => &npc_data_part4::NPCS_SILPHCO4F,
-        MapId::SilphCo5F => &npc_data_part4::NPCS_SILPHCO5F,
-        MapId::SilphCo6F => &npc_data_part4::NPCS_SILPHCO6F,
-        MapId::SilphCo7F => &npc_data_part4::NPCS_SILPHCO7F,
-        MapId::SilphCo8F => &npc_data_part4::NPCS_SILPHCO8F,
-        MapId::SilphCo9F => &npc_data_part4::NPCS_SILPHCO9F,
-        MapId::TradeCenter => &npc_data_part4::NPCS_TRADECENTER,
-        MapId::UndergroundPathRoute5 => &npc_data_part4::NPCS_UNDERGROUNDPATHROUTE5,
-        MapId::UndergroundPathRoute6 => &npc_data_part4::NPCS_UNDERGROUNDPATHROUTE6,
-        MapId::UndergroundPathRoute7 => &npc_data_part4::NPCS_UNDERGROUNDPATHROUTE7,
-        MapId::UndergroundPathRoute7Copy => &npc_data_part4::NPCS_UNDERGROUNDPATHROUTE7COPY,
-        MapId::UndergroundPathRoute8 => &npc_data_part5::NPCS_UNDERGROUNDPATHROUTE8,
-        MapId::VermilionCity => &npc_data_part5::NPCS_VERMILIONCITY,
-        MapId::VermilionGym => &npc_data_part5::NPCS_VERMILIONGYM,
-        MapId::VermilionMart => &npc_data_part5::NPCS_VERMILIONMART,
-        MapId::VermilionOldRodHouse => &npc_data_part5::NPCS_VERMILIONOLDRODHOUSE,
-        MapId::VermilionPidgeyHouse => &npc_data_part5::NPCS_VERMILIONPIDGEYHOUSE,
-        MapId::VermilionPokecenter => &npc_data_part5::NPCS_VERMILIONPOKECENTER,
-        MapId::VermilionTradeHouse => &npc_data_part5::NPCS_VERMILIONTRADEHOUSE,
-        MapId::VictoryRoad1F => &npc_data_part5::NPCS_VICTORYROAD1F,
-        MapId::VictoryRoad2F => &npc_data_part5::NPCS_VICTORYROAD2F,
-        MapId::VictoryRoad3F => &npc_data_part5::NPCS_VICTORYROAD3F,
-        MapId::ViridianCity => &npc_data_part5::NPCS_VIRIDIANCITY,
-        MapId::ViridianForest => &npc_data_part5::NPCS_VIRIDIANFOREST,
-        MapId::ViridianForestNorthGate => &npc_data_part5::NPCS_VIRIDIANFORESTNORTHGATE,
-        MapId::ViridianForestSouthGate => &npc_data_part5::NPCS_VIRIDIANFORESTSOUTHGATE,
-        MapId::ViridianGym => &npc_data_part5::NPCS_VIRIDIANGYM,
-        MapId::ViridianMart => &npc_data_part5::NPCS_VIRIDIANMART,
-        MapId::ViridianNicknameHouse => &npc_data_part5::NPCS_VIRIDIANNICKNAMEHOUSE,
-        MapId::ViridianPokecenter => &npc_data_part5::NPCS_VIRIDIANPOKECENTER,
-        MapId::ViridianSchoolHouse => &npc_data_part5::NPCS_VIRIDIANSCHOOLHOUSE,
-        MapId::WardensHouse => &npc_data_part5::NPCS_WARDENSHOUSE,
-        _ => &[],
+    let idx = map as usize;
+    let cache = get_cache();
+    if idx < cache.entries.len() {
+        &cache.entries[idx]
+    } else {
+        &[]
     }
 }

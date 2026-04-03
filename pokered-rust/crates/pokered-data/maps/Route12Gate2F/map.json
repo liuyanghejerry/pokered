@@ -1,0 +1,48 @@
+{
+  "id": 195,
+  "name": "Route12Gate2F",
+  "header": {
+    "tileset": "Gate",
+    "music": "Cities1",
+    "connectionFlags": 0,
+    "width": 4,
+    "height": 4,
+    "borderBlock": 0
+  },
+  "connections": {},
+  "warps": [
+    {
+      "x": 7,
+      "y": 7,
+      "destMap": "Route12Gate1F",
+      "destWarpId": 4
+    }
+  ],
+  "npcs": [
+    {
+      "spriteId": 29,
+      "spriteName": "BrunetteGirl",
+      "x": 3,
+      "y": 4,
+      "movement": "Wander",
+      "facing": "Down",
+      "range": 1,
+      "textId": 1,
+      "isTrainer": false
+    }
+  ],
+  "signs": [
+    {
+      "x": 1,
+      "y": 2,
+      "textId": 1
+    },
+    {
+      "x": 6,
+      "y": 2,
+      "textId": 2
+    }
+  ],
+  "text": {},
+  "wild": null
+}

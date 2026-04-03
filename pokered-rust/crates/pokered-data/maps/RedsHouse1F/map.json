@@ -1,0 +1,74 @@
+{
+  "id": 37,
+  "name": "RedsHouse1F",
+  "header": {
+    "tileset": "RedsHouse1",
+    "music": "PalletTown",
+    "connectionFlags": 0,
+    "width": 4,
+    "height": 4,
+    "borderBlock": 0
+  },
+  "connections": {},
+  "warps": [
+    {
+      "x": 2,
+      "y": 7,
+      "destWarpId": 0
+    },
+    {
+      "x": 3,
+      "y": 7,
+      "destWarpId": 0
+    },
+    {
+      "x": 7,
+      "y": 1,
+      "destMap": "RedsHouse2F",
+      "destWarpId": 0
+    }
+  ],
+  "npcs": [
+    {
+      "spriteId": 51,
+      "spriteName": "Mom",
+      "x": 5,
+      "y": 4,
+      "movement": "Stationary",
+      "facing": "Left",
+      "range": 0,
+      "textId": 1,
+      "isTrainer": false
+    }
+  ],
+  "signs": [
+    {
+      "x": 3,
+      "y": 1,
+      "textId": 1
+    }
+  ],
+  "text": {
+    "npc": {
+      "1": [
+        {
+          "line1": "MOM: Right.",
+          "line2": "All boys leave"
+        },
+        {
+          "line1": "home some day.",
+          "line2": "It said so on TV."
+        },
+        {
+          "line1": "PROF.OAK, next",
+          "line2": "door, is looking"
+        },
+        {
+          "line1": "for you.",
+          "line2": ""
+        }
+      ]
+    }
+  },
+  "wild": null
+}

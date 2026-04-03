@@ -1,0 +1,25 @@
+{
+  "id": 38,
+  "name": "RedsHouse2F",
+  "header": {
+    "tileset": "RedsHouse2",
+    "music": "PalletTown",
+    "connectionFlags": 0,
+    "width": 4,
+    "height": 4,
+    "borderBlock": 0
+  },
+  "connections": {},
+  "warps": [
+    {
+      "x": 7,
+      "y": 1,
+      "destMap": "RedsHouse1F",
+      "destWarpId": 2
+    }
+  ],
+  "npcs": [],
+  "signs": [],
+  "text": {},
+  "wild": null
+}

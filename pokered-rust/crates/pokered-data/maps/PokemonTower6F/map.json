@@ -1,0 +1,198 @@
+{
+  "id": 147,
+  "name": "PokemonTower6F",
+  "header": {
+    "tileset": "Cemetery",
+    "music": "PokemonTower",
+    "connectionFlags": 0,
+    "width": 10,
+    "height": 9,
+    "borderBlock": 0
+  },
+  "connections": {},
+  "warps": [
+    {
+      "x": 18,
+      "y": 9,
+      "destMap": "PokemonTower5F",
+      "destWarpId": 1
+    },
+    {
+      "x": 9,
+      "y": 16,
+      "destMap": "PokemonTower7F",
+      "destWarpId": 0
+    }
+  ],
+  "npcs": [
+    {
+      "spriteId": 25,
+      "spriteName": "Channeler",
+      "x": 12,
+      "y": 10,
+      "movement": "Stationary",
+      "facing": "Right",
+      "range": 0,
+      "textId": 1,
+      "isTrainer": true,
+      "trainerClass": "Channeler",
+      "trainerSet": 19
+    },
+    {
+      "spriteId": 25,
+      "spriteName": "Channeler",
+      "x": 9,
+      "y": 5,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 2,
+      "isTrainer": true,
+      "trainerClass": "Channeler",
+      "trainerSet": 20
+    },
+    {
+      "spriteId": 25,
+      "spriteName": "Channeler",
+      "x": 16,
+      "y": 5,
+      "movement": "Stationary",
+      "facing": "Left",
+      "range": 0,
+      "textId": 3,
+      "isTrainer": true,
+      "trainerClass": "Channeler",
+      "trainerSet": 21
+    },
+    {
+      "spriteId": 61,
+      "spriteName": "PokeBall",
+      "x": 6,
+      "y": 8,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 4,
+      "isTrainer": false,
+      "itemId": 40
+    },
+    {
+      "spriteId": 61,
+      "spriteName": "PokeBall",
+      "x": 14,
+      "y": 14,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 5,
+      "isTrainer": false,
+      "itemId": 46
+    }
+  ],
+  "signs": [],
+  "text": {},
+  "wild": {
+    "red": {
+      "grass": {
+        "encounterRate": 15,
+        "mons": [
+          {
+            "level": 21,
+            "species": "Gastly"
+          },
+          {
+            "level": 22,
+            "species": "Gastly"
+          },
+          {
+            "level": 23,
+            "species": "Gastly"
+          },
+          {
+            "level": 24,
+            "species": "Gastly"
+          },
+          {
+            "level": 20,
+            "species": "Gastly"
+          },
+          {
+            "level": 19,
+            "species": "Gastly"
+          },
+          {
+            "level": 26,
+            "species": "Haunter"
+          },
+          {
+            "level": 22,
+            "species": "Cubone"
+          },
+          {
+            "level": 24,
+            "species": "Cubone"
+          },
+          {
+            "level": 28,
+            "species": "Haunter"
+          }
+        ]
+      },
+      "water": {
+        "encounterRate": 0,
+        "mons": []
+      }
+    },
+    "blue": {
+      "grass": {
+        "encounterRate": 15,
+        "mons": [
+          {
+            "level": 21,
+            "species": "Gastly"
+          },
+          {
+            "level": 22,
+            "species": "Gastly"
+          },
+          {
+            "level": 23,
+            "species": "Gastly"
+          },
+          {
+            "level": 24,
+            "species": "Gastly"
+          },
+          {
+            "level": 20,
+            "species": "Gastly"
+          },
+          {
+            "level": 19,
+            "species": "Gastly"
+          },
+          {
+            "level": 26,
+            "species": "Haunter"
+          },
+          {
+            "level": 22,
+            "species": "Cubone"
+          },
+          {
+            "level": 24,
+            "species": "Cubone"
+          },
+          {
+            "level": 28,
+            "species": "Haunter"
+          }
+        ]
+      },
+      "water": {
+        "encounterRate": 0,
+        "mons": []
+      }
+    }
+  }
+}

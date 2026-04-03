@@ -5,6 +5,7 @@ edition.workspace = true
 
 [features]
 embedded-scripts = ["pokered-script/embedded-scripts"]
+embedded-map-data = ["pokered-data/embedded-map-data"]
 
 [dependencies]
 pokered-data = { path = "../pokered-data" }

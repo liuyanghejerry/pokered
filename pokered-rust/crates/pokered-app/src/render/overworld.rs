@@ -1,6 +1,8 @@
+use pokered_core::data::blockset_data;
+use pokered_core::data::map_data_loader::{get_block_data, get_map_json};
 use pokered_core::data::maps::MapId;
 use pokered_core::data::sprites::SpriteId;
-use pokered_core::data::{blockset_data, map_blocks, map_data::MAP_HEADER_DATA};
+use pokered_core::data::tilesets::TilesetId;
 use pokered_core::overworld::{Direction, MovementState, OverworldScreen};
 use pokered_renderer::embedded_font::draw_text;
 use pokered_renderer::palette::{Palette, GRAYSCALE_PALETTE};
@@ -37,16 +39,18 @@ pub fn draw_overworld(
 
     if let Some(ref mut rm) = res {
         let current_map: MapId = screen.state.current_map;
-        let map_header = &MAP_HEADER_DATA[current_map as usize];
-        let tileset_id = map_header.tileset;
-        let border_block = map_header.border_block;
+        let map_json = get_map_json(current_map);
+        let tileset_id = map_json
+            .and_then(|j| TilesetId::from_name(&j.header.tileset))
+            .unwrap_or(TilesetId::Overworld);
+        let border_block = map_json.map(|j| j.header.border_block).unwrap_or(0);
         let tileset_name = tileset_id.tileset_name();
 
         if let Ok(cached) = rm.load_tileset(tileset_name) {
             let ts = cached.tileset.clone();
 
             let (map_w, map_h) = current_map.dimensions();
-            let blk = map_blocks::block_data_for_map(current_map);
+            let blk = get_block_data(current_map);
 
             for sy in 0..18_i32 {
                 for sx in 0..20_i32 {

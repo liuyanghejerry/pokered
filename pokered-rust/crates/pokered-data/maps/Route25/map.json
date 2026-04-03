@@ -1,0 +1,269 @@
+{
+  "id": 36,
+  "name": "Route25",
+  "header": {
+    "tileset": "Overworld",
+    "music": "Routes2",
+    "connectionFlags": 2,
+    "width": 30,
+    "height": 9,
+    "borderBlock": 44
+  },
+  "connections": {
+    "west": {
+      "targetMap": "Route24",
+      "offset": 0
+    }
+  },
+  "warps": [
+    {
+      "x": 45,
+      "y": 3,
+      "destMap": "BillsHouse",
+      "destWarpId": 0
+    }
+  ],
+  "npcs": [
+    {
+      "spriteId": 4,
+      "spriteName": "Youngster",
+      "x": 14,
+      "y": 2,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 1,
+      "isTrainer": true,
+      "trainerClass": "Youngster",
+      "trainerSet": 5
+    },
+    {
+      "spriteId": 4,
+      "spriteName": "Youngster",
+      "x": 18,
+      "y": 5,
+      "movement": "Stationary",
+      "facing": "Up",
+      "range": 0,
+      "textId": 2,
+      "isTrainer": true,
+      "trainerClass": "Youngster",
+      "trainerSet": 6
+    },
+    {
+      "spriteId": 7,
+      "spriteName": "CooltrainerM",
+      "x": 24,
+      "y": 4,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 3,
+      "isTrainer": true,
+      "trainerClass": "JrTrainerM",
+      "trainerSet": 2
+    },
+    {
+      "spriteId": 6,
+      "spriteName": "CooltrainerF",
+      "x": 18,
+      "y": 8,
+      "movement": "Stationary",
+      "facing": "Right",
+      "range": 0,
+      "textId": 4,
+      "isTrainer": true,
+      "trainerClass": "Lass",
+      "trainerSet": 9
+    },
+    {
+      "spriteId": 4,
+      "spriteName": "Youngster",
+      "x": 32,
+      "y": 3,
+      "movement": "Stationary",
+      "facing": "Left",
+      "range": 0,
+      "textId": 5,
+      "isTrainer": true,
+      "trainerClass": "Youngster",
+      "trainerSet": 7
+    },
+    {
+      "spriteId": 6,
+      "spriteName": "CooltrainerF",
+      "x": 37,
+      "y": 4,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 6,
+      "isTrainer": true,
+      "trainerClass": "Lass",
+      "trainerSet": 10
+    },
+    {
+      "spriteId": 14,
+      "spriteName": "Hiker",
+      "x": 8,
+      "y": 4,
+      "movement": "Stationary",
+      "facing": "Right",
+      "range": 0,
+      "textId": 7,
+      "isTrainer": true,
+      "trainerClass": "Hiker",
+      "trainerSet": 2
+    },
+    {
+      "spriteId": 14,
+      "spriteName": "Hiker",
+      "x": 23,
+      "y": 9,
+      "movement": "Stationary",
+      "facing": "Up",
+      "range": 0,
+      "textId": 8,
+      "isTrainer": true,
+      "trainerClass": "Hiker",
+      "trainerSet": 3
+    },
+    {
+      "spriteId": 14,
+      "spriteName": "Hiker",
+      "x": 13,
+      "y": 7,
+      "movement": "Stationary",
+      "facing": "Right",
+      "range": 0,
+      "textId": 9,
+      "isTrainer": true,
+      "trainerClass": "Hiker",
+      "trainerSet": 4
+    },
+    {
+      "spriteId": 61,
+      "spriteName": "PokeBall",
+      "x": 22,
+      "y": 2,
+      "movement": "Stationary",
+      "facing": "Down",
+      "range": 0,
+      "textId": 10,
+      "isTrainer": false,
+      "itemId": 219
+    }
+  ],
+  "signs": [
+    {
+      "x": 43,
+      "y": 3,
+      "textId": 1
+    }
+  ],
+  "text": {},
+  "wild": {
+    "red": {
+      "grass": {
+        "encounterRate": 15,
+        "mons": [
+          {
+            "level": 8,
+            "species": "Weedle"
+          },
+          {
+            "level": 9,
+            "species": "Kakuna"
+          },
+          {
+            "level": 13,
+            "species": "Pidgey"
+          },
+          {
+            "level": 12,
+            "species": "Oddish"
+          },
+          {
+            "level": 13,
+            "species": "Oddish"
+          },
+          {
+            "level": 12,
+            "species": "Abra"
+          },
+          {
+            "level": 14,
+            "species": "Oddish"
+          },
+          {
+            "level": 10,
+            "species": "Abra"
+          },
+          {
+            "level": 7,
+            "species": "Metapod"
+          },
+          {
+            "level": 8,
+            "species": "Caterpie"
+          }
+        ]
+      },
+      "water": {
+        "encounterRate": 0,
+        "mons": []
+      }
+    },
+    "blue": {
+      "grass": {
+        "encounterRate": 15,
+        "mons": [
+          {
+            "level": 8,
+            "species": "Caterpie"
+          },
+          {
+            "level": 9,
+            "species": "Metapod"
+          },
+          {
+            "level": 13,
+            "species": "Pidgey"
+          },
+          {
+            "level": 12,
+            "species": "Bellsprout"
+          },
+          {
+            "level": 13,
+            "species": "Bellsprout"
+          },
+          {
+            "level": 12,
+            "species": "Abra"
+          },
+          {
+            "level": 14,
+            "species": "Bellsprout"
+          },
+          {
+            "level": 10,
+            "species": "Abra"
+          },
+          {
+            "level": 7,
+            "species": "Kakuna"
+          },
+          {
+            "level": 8,
+            "species": "Weedle"
+          }
+        ]
+      },
+      "water": {
+        "encounterRate": 0,
+        "mons": []
+      }
+    }
+  }
+}

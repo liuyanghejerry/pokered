@@ -14,8 +14,9 @@ pub struct Cli {
     #[arg(long, global = true)]
     pub debug_modules: Option<String>,
 
-    /// Path to the scripts directory (JS/JSON map scripts).
+    /// Path to the maps directory containing per-map folders with script.js/script_config.json.
     /// Only used when compiled without the `embedded-scripts` feature.
+    /// Defaults to crates/pokered-data/maps/ when not specified.
     #[arg(long, global = true)]
     pub scripts_dir: Option<PathBuf>,
 }

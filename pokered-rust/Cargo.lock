@@ -2415,6 +2415,7 @@ dependencies = [
 name = "pokered-data"
 version = "0.1.0"
 dependencies = [
+ "log",
  "num-derive",
  "num-traits",
  "ron",

@@ -1,10 +1,13 @@
-//! Map data loading utilities - creates complete MapData objects with all game data combined
+//! Map data loading utilities - creates complete MapData objects from JSON map data.
+//!
+//! This module bridges the JSON-based map data (from pokered-data's map_data_loader)
+//! to the runtime types used by pokered-core's overworld system.
 
-use pokered_data::map_data::MAP_HEADER_DATA;
-use pokered_data::map_objects::get_map_warps;
+use pokered_data::map_data_loader::{get_block_data, get_map_json, resolve_map_id};
+use pokered_data::map_json::{ConnectionEntryJson, ConnectionsJson, NpcJson, SignJson, WarpJson};
 use pokered_data::maps::MapId;
-use pokered_data::npc_data::{self, NpcEntry, NpcFacing, NpcMovement};
-use pokered_data::sign_data::{self, SignEntry};
+use pokered_data::music::MusicId;
+use pokered_data::tilesets::TilesetId;
 use pokered_data::toggleable_objects;
 
 use super::{
@@ -12,51 +15,64 @@ use super::{
     WarpPoint,
 };
 
-/// Load complete map data for the given MapId by combining:
-/// - Block data (terrain layout)
-/// - Warp data (stairs, doors, etc.)
-/// - NPC definitions
-/// - Sign data
-/// - Connection information
+/// Load complete map data for the given MapId by combining JSON data and block data.
+///
+/// Returns fully converted runtime MapData with all fields populated from the
+/// per-map `map.json` file and `map.blk` binary block data.
 pub fn load_full_map_data(map_id: MapId) -> MapData {
-    let header = &MAP_HEADER_DATA[map_id as usize];
+    let map_json = get_map_json(map_id).unwrap_or_else(|| {
+        panic!(
+            "No map.json found for {:?} — ensure map data is generated",
+            map_id
+        )
+    });
+
     let (width, height) = map_id.dimensions();
 
-    // Load block data (terrain)
-    let blocks = pokered_data::map_blocks::block_data_for_map(map_id).to_vec();
+    // Load block data (terrain) from .blk file
+    let blocks = get_block_data(map_id).to_vec();
 
-    // Load warp data
-    let warp_data = get_map_warps(map_id);
-    let warps: Vec<WarpPoint> = warp_data
+    // Convert warps
+    let warps: Vec<WarpPoint> = map_json
+        .warps
         .iter()
-        .map(|warp| WarpPoint {
-            x: warp.x,
-            y: warp.y,
-            target_map: warp.dest_map.unwrap_or(map_id),
-            target_warp_id: warp.dest_warp_id,
-        })
+        .map(|w| convert_warp(w, map_id))
         .collect();
 
-    // Load NPCs from static data tables
-    let toggle_entries = toggleable_objects::toggleable_objects_for_map(map_id);
-    let mut npcs = Vec::new();
-    let per_map_npcs = load_per_map_npcs(map_id);
-    npcs.extend(per_map_npcs);
+    // Convert NPCs
+    let _toggle_entries = toggleable_objects::toggleable_objects_for_map(map_id);
+    let npcs: Vec<NpcDefinition> = map_json.npcs.iter().map(convert_npc).collect();
 
-    // Load signs from static data tables
-    let mut signs = Vec::new();
-    let per_map_signs = load_per_map_signs(map_id);
-    signs.extend(per_map_signs);
+    // Convert signs
+    let signs: Vec<Sign> = map_json.signs.iter().map(convert_sign).collect();
 
-    // Build connections based on header flags
-    let connections = build_connections(map_id);
+    // Convert connections
+    let connections = convert_connections(&map_json.connections);
+
+    // Resolve tileset and music from header strings
+    let tileset = TilesetId::from_name(&map_json.header.tileset).unwrap_or_else(|| {
+        log::warn!(
+            "Unknown tileset '{}' for map {:?}, defaulting to Overworld",
+            map_json.header.tileset,
+            map_id
+        );
+        TilesetId::Overworld
+    });
+    let music = MusicId::from_name(&map_json.header.music).unwrap_or_else(|| {
+        log::warn!(
+            "Unknown music '{}' for map {:?}, defaulting to PalletTown",
+            map_json.header.music,
+            map_id
+        );
+        MusicId::PalletTown
+    });
 
     MapData {
         id: map_id,
         width,
         height,
-        tileset: header.tileset,
-        music: header.music,
+        tileset,
+        music,
         blocks,
         warps,
         npcs,
@@ -65,113 +81,170 @@ pub fn load_full_map_data(map_id: MapId) -> MapData {
     }
 }
 
-fn convert_npc_movement(m: NpcMovement) -> NpcMovementType {
-    match m.0 {
-        0 => NpcMovementType::Stationary,
-        1 => NpcMovementType::Wander,
-        2 => NpcMovementType::FixedPath,
-        3 => NpcMovementType::FacePlayer,
-        _ => NpcMovementType::Stationary,
-    }
-}
+// ── JSON → Runtime conversion helpers ──────────────────────────────
 
-fn convert_npc_facing(f: NpcFacing) -> Direction {
-    match f.0 {
-        0 => Direction::Down,
-        1 => Direction::Up,
-        2 => Direction::Left,
-        3 => Direction::Right,
-        _ => Direction::Down,
-    }
-}
-
-fn convert_npc_entry(entry: &NpcEntry) -> NpcDefinition {
+fn convert_npc(npc: &NpcJson) -> NpcDefinition {
     NpcDefinition {
-        sprite_id: entry.sprite_id,
-        x: entry.x,
-        y: entry.y,
-        movement: convert_npc_movement(entry.movement),
-        facing: convert_npc_facing(entry.facing),
-        range: entry.range,
-        text_id: entry.text_id,
-        is_trainer: entry.is_trainer,
-        trainer_class: entry.trainer_class,
-        trainer_set: entry.trainer_set,
-        item_id: entry.item_id,
+        sprite_id: npc.sprite_id,
+        x: npc.x,
+        y: npc.y,
+        movement: parse_movement_type(&npc.movement),
+        facing: parse_direction(&npc.facing),
+        range: npc.range,
+        text_id: npc.text_id,
+        is_trainer: npc.is_trainer,
+        trainer_class: npc
+            .trainer_class
+            .as_ref()
+            .map(|name| parse_trainer_class(name))
+            .unwrap_or(0),
+        trainer_set: npc.trainer_set.unwrap_or(0),
+        item_id: npc.item_id.unwrap_or(0),
     }
 }
 
-fn convert_sign_entry(entry: &SignEntry) -> Sign {
+fn convert_warp(warp: &WarpJson, current_map: MapId) -> WarpPoint {
+    let target_map = warp
+        .dest_map
+        .as_ref()
+        .and_then(|name| resolve_map_id(name))
+        .unwrap_or(current_map);
+    WarpPoint {
+        x: warp.x,
+        y: warp.y,
+        target_map,
+        target_warp_id: warp.dest_warp_id,
+    }
+}
+
+fn convert_sign(sign: &SignJson) -> Sign {
     Sign {
-        x: entry.x,
-        y: entry.y,
-        text_id: entry.text_id,
+        x: sign.x,
+        y: sign.y,
+        text_id: sign.text_id,
     }
 }
 
-fn load_per_map_npcs(map_id: MapId) -> Vec<NpcDefinition> {
-    npc_data::get_map_npcs(map_id)
-        .iter()
-        .map(convert_npc_entry)
-        .collect()
+fn convert_connections(conns: &ConnectionsJson) -> MapConnections {
+    MapConnections {
+        north: conns
+            .north
+            .as_ref()
+            .and_then(|c| convert_connection_entry(c, Direction::Up)),
+        south: conns
+            .south
+            .as_ref()
+            .and_then(|c| convert_connection_entry(c, Direction::Down)),
+        west: conns
+            .west
+            .as_ref()
+            .and_then(|c| convert_connection_entry(c, Direction::Left)),
+        east: conns
+            .east
+            .as_ref()
+            .and_then(|c| convert_connection_entry(c, Direction::Right)),
+    }
 }
 
-fn load_per_map_signs(map_id: MapId) -> Vec<Sign> {
-    sign_data::get_map_signs(map_id)
-        .iter()
-        .map(convert_sign_entry)
-        .collect()
+fn convert_connection_entry(
+    entry: &ConnectionEntryJson,
+    direction: Direction,
+) -> Option<MapConnection> {
+    let target_map = resolve_map_id(&entry.target_map)?;
+    Some(MapConnection {
+        direction,
+        target_map,
+        offset: entry.offset,
+    })
 }
 
-fn build_connections(map_id: MapId) -> MapConnections {
-    let header = &MAP_HEADER_DATA[map_id as usize];
+// ── String → Enum parsers ──────────────────────────────────────────
 
-    let mut connections = MapConnections::default();
-
-    use pokered_data::map_data::{CONN_EAST, CONN_NORTH, CONN_SOUTH, CONN_WEST};
-
-    if header.connection_flags & CONN_NORTH != 0 {
-        connections.north = get_connection_for_direction(map_id, Direction::Up);
+fn parse_movement_type(s: &str) -> NpcMovementType {
+    match s {
+        "Stationary" => NpcMovementType::Stationary,
+        "Wander" => NpcMovementType::Wander,
+        "FixedPath" => NpcMovementType::FixedPath,
+        "FacePlayer" => NpcMovementType::FacePlayer,
+        _ => {
+            log::warn!(
+                "Unknown NPC movement type '{}', defaulting to Stationary",
+                s
+            );
+            NpcMovementType::Stationary
+        }
     }
-
-    if header.connection_flags & CONN_SOUTH != 0 {
-        connections.south = get_connection_for_direction(map_id, Direction::Down);
-    }
-
-    if header.connection_flags & CONN_WEST != 0 {
-        connections.west = get_connection_for_direction(map_id, Direction::Left);
-    }
-
-    if header.connection_flags & CONN_EAST != 0 {
-        connections.east = get_connection_for_direction(map_id, Direction::Right);
-    }
-
-    connections
 }
 
-fn get_connection_for_direction(map_id: MapId, dir: Direction) -> Option<MapConnection> {
-    let map_conns = pokered_data::map_connections::get_map_connections(map_id);
+fn parse_direction(s: &str) -> Direction {
+    match s {
+        "Down" => Direction::Down,
+        "Up" => Direction::Up,
+        "Left" => Direction::Left,
+        "Right" => Direction::Right,
+        _ => {
+            log::warn!("Unknown direction '{}', defaulting to Down", s);
+            Direction::Down
+        }
+    }
+}
 
-    match dir {
-        Direction::Up => map_conns.north.map(|conn| MapConnection {
-            direction: Direction::Up,
-            target_map: conn.target_map,
-            offset: conn.offset,
-        }),
-        Direction::Down => map_conns.south.map(|conn| MapConnection {
-            direction: Direction::Down,
-            target_map: conn.target_map,
-            offset: conn.offset,
-        }),
-        Direction::Left => map_conns.west.map(|conn| MapConnection {
-            direction: Direction::Left,
-            target_map: conn.target_map,
-            offset: conn.offset,
-        }),
-        Direction::Right => map_conns.east.map(|conn| MapConnection {
-            direction: Direction::Right,
-            target_map: conn.target_map,
-            offset: conn.offset,
-        }),
+/// Parse trainer class name string to numeric ID.
+///
+/// Matches the names generated by `generate_map_json.rs::trainer_class_name()`.
+fn parse_trainer_class(name: &str) -> u8 {
+    match name {
+        "Nobody" => 0,
+        "Youngster" => 1,
+        "BugCatcher" => 2,
+        "Lass" => 3,
+        "Sailor" => 4,
+        "JrTrainerM" => 5,
+        "JrTrainerF" => 6,
+        "Pokemaniac" => 7,
+        "SuperNerd" => 8,
+        "Hiker" => 9,
+        "Biker" => 10,
+        "Burglar" => 11,
+        "Engineer" => 12,
+        "UnusedJuggler" => 13,
+        "Fisher" => 14,
+        "Swimmer" => 15,
+        "CueBall" => 16,
+        "Gambler" => 17,
+        "Beauty" => 18,
+        "Psychic" | "PsychicTr" => 19,
+        "Rocker" => 20,
+        "Juggler" => 21,
+        "Tamer" => 22,
+        "BirdKeeper" => 23,
+        "Blackbelt" => 24,
+        "Rival1" => 25,
+        "ProfOak" => 26,
+        "Chief" => 27,
+        "Scientist" => 28,
+        "Giovanni" => 29,
+        "Rocket" => 30,
+        "CooltrainerM" => 31,
+        "CooltrainerF" => 32,
+        "Bruno" => 33,
+        "Brock" => 34,
+        "Misty" => 35,
+        "LtSurge" => 36,
+        "Erika" => 37,
+        "Koga" => 38,
+        "Blaine" => 39,
+        "Sabrina" => 40,
+        "Gentleman" => 41,
+        "Rival2" => 42,
+        "Rival3" => 43,
+        "Lorelei" => 44,
+        "Channeler" => 45,
+        "Agatha" => 46,
+        "Lance" => 47,
+        _ => {
+            log::warn!("Unknown trainer class '{}', defaulting to 0", name);
+            0
+        }
     }
 }

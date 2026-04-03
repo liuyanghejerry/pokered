@@ -6,7 +6,8 @@ edition.workspace = true
 [features]
 optimize = ["log/release_max_level_warn"]
 embedded-scripts = ["pokered-core/embedded-scripts"]
-default = ["optimize", "embedded-scripts"]
+embedded-map-data = ["pokered-core/embedded-map-data"]
+default = ["optimize", "embedded-scripts", "embedded-map-data"]
 
 [dependencies]
 pokered-core = { path = "../pokered-core" }
