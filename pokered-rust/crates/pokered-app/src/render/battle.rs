@@ -232,8 +232,9 @@ fn build_battle_tileset(rm: &mut ResourceManager) -> TileSet {
 ///
 /// Original layout (from DisplayBattleMenu in engine/battle/core.asm):
 ///   The battle menu is in the right half of the bottom text box.
-///   Row 14: "FIGHT" at (10,14), "PkMn" at (15,14) — but we use charmap tiles
-///   Row 16: "ITEM" at (10,16), "RUN" at (15,16)
+///   In this Rust port, action mapping is:
+///   Row 14: "FIGHT" at left, "ITEM" at right
+///   Row 16: "PKMN" at left, "RUN" at right
 fn draw_battle_menu(buf: &mut ScreenTileBuffer, selected_row: usize, selected_col: usize) {
     // Battle menu inner box border (right half of dialog area)
     // From DrawPlayerBattleMenu: a 2-column wide inner box at (8,12) 12×6
@@ -247,8 +248,8 @@ fn draw_battle_menu(buf: &mut ScreenTileBuffer, selected_row: usize, selected_co
     let run_tiles = ascii_to_tiles("RUN");
 
     write_tiles_at(buf, 10, 14, &fight_tiles);
-    write_tiles_at(buf, 16, 14, &pkmn_tiles);
-    write_tiles_at(buf, 10, 16, &item_tiles);
+    write_tiles_at(buf, 16, 14, &item_tiles);
+    write_tiles_at(buf, 10, 16, &pkmn_tiles);
     write_tiles_at(buf, 16, 16, &run_tiles);
 
     // Selection cursor (▶ = $ED in charmap)
