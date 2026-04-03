@@ -7,11 +7,12 @@ use pokered_renderer::resource::{AssetRoot, ResourceManager};
 use pokered_renderer::window::GameLoop;
 use pokered_renderer::{FrameBuffer, Rgba};
 
-use crate::render::draw_battle;
+use crate::render::{draw_battle, BattleVisualEffects};
 
 pub struct DirectBattleGame {
     pub battle: BattleScreen,
     pub resources: Option<ResourceManager>,
+    pub battle_vfx: BattleVisualEffects,
     pub exit_requested: bool,
 }
 
@@ -41,6 +42,7 @@ impl DirectBattleGame {
         Self {
             battle,
             resources,
+            battle_vfx: BattleVisualEffects::default(),
             exit_requested: false,
         }
     }
@@ -57,6 +59,7 @@ impl GameLoop for DirectBattleGame {
             b: input.is_just_pressed(GbButton::B),
         };
         let action = self.battle.update_frame(battle_input);
+        self.battle_vfx.update(&self.battle);
         if let ScreenAction::Transition(GameScreen::Overworld) = action {
             self.exit_requested = true;
         }
@@ -64,7 +67,12 @@ impl GameLoop for DirectBattleGame {
 
     fn draw(&mut self, frame_buffer: &mut FrameBuffer) {
         frame_buffer.clear(Rgba::WHITE);
-        draw_battle(&self.battle, &mut self.resources, frame_buffer);
+        draw_battle(
+            &self.battle,
+            &mut self.resources,
+            frame_buffer,
+            &mut self.battle_vfx,
+        );
     }
 
     fn should_exit(&self) -> bool {

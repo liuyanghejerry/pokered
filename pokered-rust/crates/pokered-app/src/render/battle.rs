@@ -12,6 +12,272 @@ use pokered_renderer::{FrameBuffer, Rgba, TILE_SIZE};
 
 use super::{blit_tileset, species_to_sprite_name};
 
+#[derive(Debug, Clone, Copy)]
+struct AttackLunge {
+    attacker_is_player: bool,
+    frame: u8,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct HitFlash {
+    target_is_player: bool,
+    frame: u8,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct SlideAnim {
+    frame: u8,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BattlePhaseKind {
+    Intro,
+    PlayerMenu,
+    MoveSelect,
+    ShowingText,
+    PartySelect,
+    EnemySendingNext,
+    PlayerFaintSwitch,
+    BattleOver,
+}
+
+#[derive(Debug, Clone)]
+pub struct BattleVisualEffects {
+    last_phase_kind: Option<BattlePhaseKind>,
+    last_message: Option<String>,
+    player_visible: bool,
+    enemy_visible: bool,
+    player_entry: Option<SlideAnim>,
+    enemy_entry: Option<SlideAnim>,
+    player_exit: Option<SlideAnim>,
+    enemy_exit: Option<SlideAnim>,
+    attack_lunge: Option<AttackLunge>,
+    hit_flash: Option<HitFlash>,
+}
+
+impl Default for BattleVisualEffects {
+    fn default() -> Self {
+        Self {
+            last_phase_kind: None,
+            last_message: None,
+            player_visible: true,
+            enemy_visible: true,
+            player_entry: None,
+            enemy_entry: None,
+            player_exit: None,
+            enemy_exit: None,
+            attack_lunge: None,
+            hit_flash: None,
+        }
+    }
+}
+
+impl BattleVisualEffects {
+    fn phase_kind(phase: &BattlePhase) -> BattlePhaseKind {
+        match phase {
+            BattlePhase::Intro { .. } => BattlePhaseKind::Intro,
+            BattlePhase::PlayerMenu => BattlePhaseKind::PlayerMenu,
+            BattlePhase::MoveSelect => BattlePhaseKind::MoveSelect,
+            BattlePhase::ShowingText { .. } => BattlePhaseKind::ShowingText,
+            BattlePhase::PartySelect => BattlePhaseKind::PartySelect,
+            BattlePhase::EnemySendingNext { .. } => BattlePhaseKind::EnemySendingNext,
+            BattlePhase::PlayerFaintSwitch => BattlePhaseKind::PlayerFaintSwitch,
+            BattlePhase::BattleOver { .. } => BattlePhaseKind::BattleOver,
+        }
+    }
+
+    fn on_phase_change(&mut self, phase: &BattlePhase) {
+        match phase {
+            BattlePhase::Intro { .. } => {
+                self.player_visible = true;
+                self.enemy_visible = true;
+                self.player_entry = Some(SlideAnim { frame: 0 });
+                self.enemy_entry = Some(SlideAnim { frame: 0 });
+                self.player_exit = None;
+                self.enemy_exit = None;
+            }
+            BattlePhase::EnemySendingNext { .. } => {
+                self.enemy_visible = true;
+                self.enemy_entry = Some(SlideAnim { frame: 0 });
+                self.enemy_exit = None;
+            }
+            BattlePhase::PlayerFaintSwitch => {
+                self.player_visible = true;
+                self.player_entry = Some(SlideAnim { frame: 0 });
+                self.player_exit = None;
+            }
+            _ => {}
+        }
+    }
+
+    fn trigger_from_message(&mut self, message: &str) {
+        let normalized = message.replace('\n', " ");
+
+        if normalized.contains(" used ") && normalized.ends_with('!') {
+            let enemy_attacker = normalized.starts_with("Enemy ");
+            self.attack_lunge = Some(AttackLunge {
+                attacker_is_player: !enemy_attacker,
+                frame: 0,
+            });
+            self.hit_flash = Some(HitFlash {
+                target_is_player: enemy_attacker,
+                frame: 0,
+            });
+        }
+
+        if normalized.starts_with("Go! ") {
+            self.player_visible = true;
+            self.player_entry = Some(SlideAnim { frame: 0 });
+            self.player_exit = None;
+        }
+
+        if normalized.contains("come back!") {
+            self.player_exit = Some(SlideAnim { frame: 0 });
+            self.player_entry = None;
+        }
+
+        if normalized.ends_with("fainted!") {
+            if normalized.starts_with("Enemy ") {
+                self.enemy_exit = Some(SlideAnim { frame: 0 });
+                self.enemy_entry = None;
+            } else {
+                self.player_exit = Some(SlideAnim { frame: 0 });
+                self.player_entry = None;
+            }
+        }
+    }
+
+    pub fn update(&mut self, screen: &BattleScreen) {
+        let kind = Self::phase_kind(&screen.phase);
+        if self.last_phase_kind != Some(kind) {
+            self.on_phase_change(&screen.phase);
+            self.last_phase_kind = Some(kind);
+        }
+
+        if self.last_message.as_ref() != screen.current_message.as_ref() {
+            if let Some(ref msg) = screen.current_message {
+                self.trigger_from_message(msg);
+            }
+            self.last_message = screen.current_message.clone();
+        }
+
+        if let Some(anim) = self.player_entry.as_mut() {
+            anim.frame = anim.frame.saturating_add(1);
+            if anim.frame >= 12 {
+                self.player_entry = None;
+            }
+        }
+        if let Some(anim) = self.enemy_entry.as_mut() {
+            anim.frame = anim.frame.saturating_add(1);
+            if anim.frame >= 12 {
+                self.enemy_entry = None;
+            }
+        }
+        if let Some(anim) = self.player_exit.as_mut() {
+            anim.frame = anim.frame.saturating_add(1);
+            if anim.frame >= 10 {
+                self.player_exit = None;
+                self.player_visible = false;
+            }
+        }
+        if let Some(anim) = self.enemy_exit.as_mut() {
+            anim.frame = anim.frame.saturating_add(1);
+            if anim.frame >= 10 {
+                self.enemy_exit = None;
+                self.enemy_visible = false;
+            }
+        }
+        if let Some(anim) = self.attack_lunge.as_mut() {
+            anim.frame = anim.frame.saturating_add(1);
+            if anim.frame >= 8 {
+                self.attack_lunge = None;
+            }
+        }
+        if let Some(anim) = self.hit_flash.as_mut() {
+            anim.frame = anim.frame.saturating_add(1);
+            if anim.frame >= 10 {
+                self.hit_flash = None;
+            }
+        }
+    }
+
+    fn player_offset(&self) -> (i32, i32) {
+        let mut dx = 0;
+        let mut dy = 0;
+
+        if let Some(entry) = self.player_entry {
+            dy += (12i32 - entry.frame as i32).max(0) * 4;
+        }
+        if let Some(exit) = self.player_exit {
+            dy += exit.frame as i32 * 5;
+        }
+        if let Some(lunge) = self.attack_lunge {
+            if lunge.attacker_is_player {
+                let f = lunge.frame as i32;
+                let peak = if f < 4 { f } else { 8 - f };
+                dx += peak * 2;
+                dy -= peak;
+            }
+        }
+
+        (dx, dy)
+    }
+
+    fn enemy_offset(&self) -> (i32, i32) {
+        let mut dx = 0;
+        let mut dy = 0;
+
+        if let Some(entry) = self.enemy_entry {
+            dx += (12i32 - entry.frame as i32).max(0) * 6;
+        }
+        if let Some(exit) = self.enemy_exit {
+            dx += exit.frame as i32 * 6;
+        }
+        if let Some(lunge) = self.attack_lunge {
+            if !lunge.attacker_is_player {
+                let f = lunge.frame as i32;
+                let peak = if f < 4 { f } else { 8 - f };
+                dx -= peak * 2;
+                dy += peak / 2;
+            }
+        }
+
+        (dx, dy)
+    }
+
+    fn player_visible_now(&self) -> bool {
+        if !self.player_visible {
+            return false;
+        }
+        if let Some(flash) = self.hit_flash {
+            if flash.target_is_player {
+                return flash.frame % 2 == 0;
+            }
+        }
+        true
+    }
+
+    fn enemy_visible_now(&self) -> bool {
+        if !self.enemy_visible {
+            return false;
+        }
+        if let Some(flash) = self.hit_flash {
+            if !flash.target_is_player {
+                return flash.frame % 2 == 0;
+            }
+        }
+        true
+    }
+}
+
+fn apply_offset(base: u32, delta: i32) -> u32 {
+    if delta >= 0 {
+        base.saturating_add(delta as u32)
+    } else {
+        base.saturating_sub((-delta) as u32)
+    }
+}
+
 // ---------------------------------------------------------------------------
 // ScaleSpriteByTwo — faithful port of engine/battle/scale_sprites.asm
 // ---------------------------------------------------------------------------
@@ -406,7 +672,12 @@ fn draw_party_menu(buf: &mut ScreenTileBuffer, screen: &BattleScreen) {
 // Main battle rendering
 // ---------------------------------------------------------------------------
 
-pub fn draw_battle(screen: &BattleScreen, res: &mut Option<ResourceManager>, fb: &mut FrameBuffer) {
+pub fn draw_battle(
+    screen: &BattleScreen,
+    res: &mut Option<ResourceManager>,
+    fb: &mut FrameBuffer,
+    effects: &mut BattleVisualEffects,
+) {
     fb.clear(Rgba::WHITE);
     let pal = &GRAYSCALE_PALETTE;
 
@@ -515,23 +786,33 @@ pub fn draw_battle(screen: &BattleScreen, res: &mut Option<ResourceManager>, fb:
         // Enemy front sprite: centered within 7×7 tile area at tile (12, 0)
         // Centering matches LoadUncompressedSpriteData in home/pics.asm:
         //   x_offset = ((8 - w_tiles) / 2) * 8px,  y_offset = (7 - h_tiles) * 8px
-        if let Ok(cached) = rm.load_pokemon_front(&enemy_sprite) {
+        let (enemy_dx, enemy_dy) = effects.enemy_offset();
+        if effects.enemy_visible_now() {
+            if let Ok(cached) = rm.load_pokemon_front(&enemy_sprite) {
             let ts = cached.tileset.clone();
             let w_tiles = cached.source_size.0 / TILE_SIZE;
             let h_tiles = cached.source_size.1 / TILE_SIZE;
             let x_off = ((8 - w_tiles) / 2) * TILE_SIZE;
             let y_off = (7 - h_tiles) * TILE_SIZE;
-            blit_tileset(fb, &ts, 12 * TILE_SIZE + x_off, y_off, w_tiles, pal);
+                let ex = apply_offset(12 * TILE_SIZE + x_off, enemy_dx);
+                let ey = apply_offset(y_off, enemy_dy);
+                blit_tileset(fb, &ts, ex, ey, w_tiles, pal);
+            }
         }
 
         // Player back sprite: loaded as 4×4 tiles (32×32), scaled to 7×7 (56×56)
         // via ScaleSpriteByTwo, then blitted at tile (1, 5) = pixel (8, 40)
         let back_sprite_name = format!("{}b", player_sprite);
-        if let Ok(cached) = rm.load_pokemon_back(&back_sprite_name) {
+        let (player_dx, player_dy) = effects.player_offset();
+        if effects.player_visible_now() {
+            if let Ok(cached) = rm.load_pokemon_back(&back_sprite_name) {
             let ts = cached.tileset.clone();
             let src_tpr = (cached.source_size.0 / TILE_SIZE) as usize;
             let scaled = scale_sprite_by_two(&ts, src_tpr);
-            blit_tileset(fb, &scaled, 1 * TILE_SIZE, 5 * TILE_SIZE, 7, pal);
+                let px = apply_offset(1 * TILE_SIZE, player_dx);
+                let py = apply_offset(5 * TILE_SIZE, player_dy);
+                blit_tileset(fb, &scaled, px, py, 7, pal);
+            }
         }
 
         // In Gen1 move-select, the TYPE/PP panel overlays the player sprite.
