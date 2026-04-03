@@ -25,6 +25,7 @@ mod menu_tests;
 use crate::game_state::{GameScreen, ScreenAction};
 use menu::{BattleMenuAction, BattleMenuInput, BattleMenuState};
 use pokered_data::species::Species;
+use state::StatusCondition;
 
 /// High-level battle phase (frame-loop granularity).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -77,10 +78,14 @@ pub struct BattleScreen {
     pub enemy_level: u8,
     pub enemy_hp: u16,
     pub enemy_max_hp: u16,
+    pub enemy_status: StatusCondition,
     pub player_species: Species,
     pub player_level: u8,
     pub player_hp: u16,
     pub player_max_hp: u16,
+    pub player_status: StatusCondition,
+    pub player_party_size: usize,
+    pub enemy_party_size: usize,
 }
 
 impl BattleScreen {
@@ -93,10 +98,14 @@ impl BattleScreen {
             enemy_level: 25,
             enemy_hp: 55,
             enemy_max_hp: 55,
+            enemy_status: StatusCondition::None,
             player_species: Species::Charmander,
             player_level: 5,
             player_hp: 19,
             player_max_hp: 20,
+            player_status: StatusCondition::None,
+            player_party_size: 1,
+            enemy_party_size: 1,
         }
     }
 
@@ -115,10 +124,14 @@ impl BattleScreen {
             enemy_level: enemy.level,
             enemy_hp: enemy.hp,
             enemy_max_hp: enemy.max_hp,
+            enemy_status: enemy.status,
             player_species: player.species,
             player_level: player.level,
             player_hp: player.hp,
             player_max_hp: player.max_hp,
+            player_status: player.status,
+            player_party_size: player_party.len(),
+            enemy_party_size: enemy_party.len(),
         }
     }
 

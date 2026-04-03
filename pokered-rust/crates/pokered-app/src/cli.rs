@@ -70,6 +70,12 @@ pub enum Commands {
         /// Path to the battle configuration JSON file
         #[arg(short, long)]
         config: PathBuf,
+        /// Capture a screenshot to a PNG file instead of opening a window
+        #[arg(short, long)]
+        screenshot: Option<PathBuf>,
+        /// Number of frames to advance before capturing the screenshot (default: 5)
+        #[arg(long, default_value_t = 5)]
+        frames: u32,
     },
 }
 

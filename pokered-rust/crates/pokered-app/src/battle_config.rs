@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use pokered_core::battle::state::{BattleType, Pokemon};
+use pokered_core::battle::state::{BattleType, Pokemon, StatusCondition};
 use pokered_core::pokemon::stats::create_pokemon_with_moves;
 use pokered_data::moves::MoveId;
 use pokered_data::species::Species;
@@ -26,6 +26,11 @@ pub struct PokemonConfig {
     pub moves: [MoveId; 4],
     #[serde(default = "default_dvs")]
     pub dv_bytes: [u8; 2],
+    /// Override current HP (defaults to max HP if omitted)
+    pub hp: Option<u16>,
+    /// Override status condition (defaults to None if omitted)
+    #[serde(default)]
+    pub status: StatusCondition,
 }
 
 fn default_moves() -> [MoveId; 4] {
@@ -66,7 +71,7 @@ fn build_party(configs: &[PokemonConfig], label: &str) -> Result<Vec<Pokemon>, S
             } else {
                 Some(cfg.moves)
             };
-            match moves {
+            let mut pkmn = match moves {
                 Some(m) => create_pokemon_with_moves(cfg.species, cfg.level, cfg.dv_bytes, m),
                 None => pokered_core::pokemon::stats::create_pokemon(
                     cfg.species,
@@ -79,7 +84,12 @@ fn build_party(configs: &[PokemonConfig], label: &str) -> Result<Vec<Pokemon>, S
                     "{} party slot {}: unknown species {:?}",
                     label, i, cfg.species
                 )
-            })
+            })?;
+            if let Some(hp) = cfg.hp {
+                pkmn.hp = hp.min(pkmn.max_hp);
+            }
+            pkmn.status = cfg.status;
+            Ok(pkmn)
         })
         .collect()
 }

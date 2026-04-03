@@ -78,6 +78,33 @@ pub const POCKET_PALETTE: Palette = Palette {
     ],
 };
 
+pub const HP_BAR_GREEN_PALETTE: Palette = Palette {
+    colors: [
+        Rgba::rgb(0xFF, 0xFF, 0xFF),
+        Rgba::rgb(0xAA, 0xAA, 0xAA),
+        Rgba::rgb(0x00, 0xC8, 0x00),
+        Rgba::rgb(0x00, 0x00, 0x00),
+    ],
+};
+
+pub const HP_BAR_YELLOW_PALETTE: Palette = Palette {
+    colors: [
+        Rgba::rgb(0xFF, 0xFF, 0xFF),
+        Rgba::rgb(0xAA, 0xAA, 0xAA),
+        Rgba::rgb(0xE8, 0xA8, 0x00),
+        Rgba::rgb(0x00, 0x00, 0x00),
+    ],
+};
+
+pub const HP_BAR_RED_PALETTE: Palette = Palette {
+    colors: [
+        Rgba::rgb(0xFF, 0xFF, 0xFF),
+        Rgba::rgb(0xAA, 0xAA, 0xAA),
+        Rgba::rgb(0xD8, 0x20, 0x00),
+        Rgba::rgb(0x00, 0x00, 0x00),
+    ],
+};
+
 pub const DEFAULT_BGP: u8 = 0b11100100; // shade 3,2,1,0 (normal)
 pub const DEFAULT_OBP0: u8 = 0b11010000; // shade 3,1,0,0 (sprite palette 0, color 0 = transparent)
 pub const DEFAULT_OBP1: u8 = 0b11100100; // shade 3,2,1,0

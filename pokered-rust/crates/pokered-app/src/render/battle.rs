@@ -1,13 +1,75 @@
+use pokered_core::battle::state::StatusCondition as CoreStatus;
 use pokered_core::battle::{BattlePhase, BattleScreen};
-use pokered_renderer::battle_scene::{EnemyHud, PlayerHud};
+use pokered_renderer::battle_scene::{
+    EnemyHud, PlayerHud, PokeballIndicators, PokeballStatus, StatusCondition,
+};
 use pokered_renderer::palette::GRAYSCALE_PALETTE;
 use pokered_renderer::resource::{AssetCategory, LoadedPng, ResourceManager};
 use pokered_renderer::text_renderer::{write_tiles_at, ScreenTileBuffer};
 use pokered_renderer::textbox::TextBoxFrame;
-use pokered_renderer::tile::TileSet;
+use pokered_renderer::tile::{Tile, TileSet, TILE_PIXELS};
 use pokered_renderer::{FrameBuffer, Rgba, TILE_SIZE};
 
 use super::{blit_tileset, species_to_sprite_name};
+
+// ---------------------------------------------------------------------------
+// ScaleSpriteByTwo — faithful port of engine/battle/scale_sprites.asm
+// ---------------------------------------------------------------------------
+
+/// Scale a 4×4-tile (32×32 px) sprite to 7×7 tiles (56×56 px).
+///
+/// Matches the original `ScaleSpriteByTwo` algorithm:
+///   1. Take only the top-left 28×28 pixels (ignore last 4 rows & cols).
+///   2. Double every pixel in both X and Y → 56×56 pixels.
+///   3. Pack the result into 7×7 = 49 tiles.
+fn scale_sprite_by_two(src: &TileSet, src_tpr: usize) -> TileSet {
+    const SRC_USED: usize = 28; // 32 - 4 = 28 pixels used per axis
+    const DST_SIZE: usize = 56; // 28 * 2 = 56 pixels output per axis
+    const DST_TILES: usize = 7; // 56 / 8 = 7 tiles per axis
+
+    // 1. Extract 28×28 pixel grid from the source tileset
+    let mut src_px = [[0u8; SRC_USED]; SRC_USED];
+    for py in 0..SRC_USED {
+        for px in 0..SRC_USED {
+            let tile_col = px / TILE_PIXELS;
+            let tile_row = py / TILE_PIXELS;
+            let tile_idx = tile_row * src_tpr + tile_col;
+            let local_col = px % TILE_PIXELS;
+            let local_row = py % TILE_PIXELS;
+            src_px[py][px] = src.get(tile_idx).pixels[local_row][local_col];
+        }
+    }
+
+    // 2. Double each pixel in both X and Y → 56×56
+    let mut dst_px = [[0u8; DST_SIZE]; DST_SIZE];
+    for sy in 0..SRC_USED {
+        for sx in 0..SRC_USED {
+            let c = src_px[sy][sx];
+            let dx = sx * 2;
+            let dy = sy * 2;
+            dst_px[dy][dx] = c;
+            dst_px[dy][dx + 1] = c;
+            dst_px[dy + 1][dx] = c;
+            dst_px[dy + 1][dx + 1] = c;
+        }
+    }
+
+    // 3. Pack 56×56 pixel grid into 7×7 tiles
+    let mut out = TileSet::blank(DST_TILES * DST_TILES);
+    for ty in 0..DST_TILES {
+        for tx in 0..DST_TILES {
+            let mut pixels = [[0u8; TILE_PIXELS]; TILE_PIXELS];
+            for row in 0..TILE_PIXELS {
+                for col in 0..TILE_PIXELS {
+                    pixels[row][col] = dst_px[ty * TILE_PIXELS + row][tx * TILE_PIXELS + col];
+                }
+            }
+            out.set(ty * DST_TILES + tx, Tile { pixels });
+        }
+    }
+
+    out
+}
 
 // ---------------------------------------------------------------------------
 // ASCII → Pokémon charmap conversion
@@ -40,6 +102,25 @@ fn ascii_to_tiles(s: &str) -> Vec<u8> {
         .collect()
 }
 
+fn build_party_pokeballs(party_size: usize) -> [PokeballStatus; 6] {
+    let mut balls = [PokeballStatus::Empty; 6];
+    for i in 0..party_size.min(6) {
+        balls[i] = PokeballStatus::Normal;
+    }
+    balls
+}
+
+fn core_status_to_tiles(status: &CoreStatus) -> Option<StatusCondition> {
+    match status {
+        CoreStatus::None => None,
+        CoreStatus::Sleep(_) => Some(StatusCondition::Sleep),
+        CoreStatus::Poison => Some(StatusCondition::Poison),
+        CoreStatus::Burn => Some(StatusCondition::Burn),
+        CoreStatus::Freeze => Some(StatusCondition::Freeze),
+        CoreStatus::Paralysis => Some(StatusCondition::Paralysis),
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Combined VRAM tileset construction
 // ---------------------------------------------------------------------------
@@ -51,8 +132,8 @@ fn ascii_to_tiles(s: &str) -> Vec<u8> {
 ///   $80-$FF: font.png (1bpp, 128 tiles) — A-Z, a-z, digits, punctuation
 ///   $60-$7F: font_extra.png (2bpp, 32 tiles) — textbox borders, then
 ///   $62-$7F: font_battle_extra.png (2bpp, 30 tiles) — HP bar tiles (OVERWRITES $62+)
-///   $6D+: battle_hud_1.png (2bpp, 3 tiles) — end cap, Lv, triangle
-///   $73+: battle_hud_2.png + battle_hud_3.png (2bpp, 3+3=6 tiles) — HUD borders
+///   $6D+: battle_hud_1.png (1bpp, 3 tiles) — end cap, Lv, triangle
+///   $73+: battle_hud_2.png + battle_hud_3.png (1bpp, 3+3=6 tiles) — HUD borders
 fn build_battle_tileset(rm: &mut ResourceManager) -> TileSet {
     let mut ts = TileSet::blank(256);
 
@@ -95,27 +176,47 @@ fn build_battle_tileset(rm: &mut ResourceManager) -> TileSet {
         }
     }
 
-    // 4. Battle HUD tiles
-    //    battle_hud_1.png (2bpp, 3 tiles) → $6D
-    if let Ok(cached) = rm.load_battle("battle_hud_1") {
-        let hud1 = cached.tileset.clone();
-        for i in 0..hud1.len() {
-            ts.set(0x6D + i, hud1.get(i).clone());
+    // 4. Battle HUD tiles — loaded as **1bpp** (matching ASM's FarCopyDataDouble)
+    //    The PNGs are 2-bit grayscale but the original game INCBINs them as .1bpp
+    //    and loads via CopyVideoDataDouble which doubles each byte (1bpp→2bpp).
+    //    battle_hud_1.png (1bpp, 3 tiles) → $6D
+    if let Ok(path) = rm
+        .root()
+        .resolve_checked(AssetCategory::Battle, "battle_hud_1.png")
+    {
+        if let Ok(loaded) = LoadedPng::load(&path) {
+            if let Ok(hud1) = loaded.to_tileset(true) {
+                for i in 0..hud1.len() {
+                    ts.set(0x6D + i, hud1.get(i).clone());
+                }
+            }
         }
     }
 
-    //    battle_hud_2.png (2bpp, 3 tiles) → $73
-    //    battle_hud_3.png (2bpp, 3 tiles) → concatenated after hud_2 at $73+3
-    if let Ok(cached) = rm.load_battle("battle_hud_2") {
-        let hud2 = cached.tileset.clone();
-        let hud2_len = hud2.len();
-        for i in 0..hud2_len {
-            ts.set(0x73 + i, hud2.get(i).clone());
-        }
-        if let Ok(cached3) = rm.load_battle("battle_hud_3") {
-            let hud3 = cached3.tileset.clone();
-            for i in 0..hud3.len() {
-                ts.set(0x73 + hud2_len + i, hud3.get(i).clone());
+    //    battle_hud_2.png (1bpp, 3 tiles) → $73
+    //    battle_hud_3.png (1bpp, 3 tiles) → concatenated after hud_2 at $73+3
+    if let Ok(path) = rm
+        .root()
+        .resolve_checked(AssetCategory::Battle, "battle_hud_2.png")
+    {
+        if let Ok(loaded) = LoadedPng::load(&path) {
+            if let Ok(hud2) = loaded.to_tileset(true) {
+                let hud2_len = hud2.len();
+                for i in 0..hud2_len {
+                    ts.set(0x73 + i, hud2.get(i).clone());
+                }
+                if let Ok(path3) = rm
+                    .root()
+                    .resolve_checked(AssetCategory::Battle, "battle_hud_3.png")
+                {
+                    if let Ok(loaded3) = LoadedPng::load(&path3) {
+                        if let Ok(hud3) = loaded3.to_tileset(true) {
+                            for i in 0..hud3.len() {
+                                ts.set(0x73 + hud2_len + i, hud3.get(i).clone());
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -141,22 +242,20 @@ fn draw_battle_menu(buf: &mut ScreenTileBuffer, selected_row: usize, selected_co
     menu_box.draw_frame(buf);
 
     let fight_tiles = ascii_to_tiles("FIGHT");
-    let pkmn_tiles = ascii_to_tiles("PKMN");
+    let pkmn_tiles: Vec<u8> = vec![0xE1, 0xE2]; // <PK><MN> charmap tiles
     let item_tiles = ascii_to_tiles("ITEM");
     let run_tiles = ascii_to_tiles("RUN");
 
     write_tiles_at(buf, 10, 14, &fight_tiles);
-    write_tiles_at(buf, 15, 14, &pkmn_tiles);
+    write_tiles_at(buf, 16, 14, &pkmn_tiles);
     write_tiles_at(buf, 10, 16, &item_tiles);
-    write_tiles_at(buf, 15, 16, &run_tiles);
+    write_tiles_at(buf, 16, 16, &run_tiles);
 
     // Selection cursor (▶ = $ED in charmap)
-    let cursor_positions: [(u32, u32); 4] = [(9, 14), (14, 14), (9, 16), (14, 16)];
-    let sel = selected_row * 2 + selected_col;
-    if sel < cursor_positions.len() {
-        let (cx, cy) = cursor_positions[sel];
-        buf.set(cx, cy, 0xED); // ▶ tile
-    }
+    // row=0/1 (top/bottom), col=0/1 (left/right)
+    let cursor_x = if selected_col == 0 { 9 } else { 15 };
+    let cursor_y = if selected_row == 0 { 14 } else { 16 };
+    buf.set(cursor_x, cursor_y, 0xED);
 }
 
 /// Draw battle dialog text into the text box area.
@@ -188,25 +287,32 @@ pub fn draw_battle(screen: &BattleScreen, res: &mut Option<ResourceManager>, fb:
 
         // ── Enemy HUD (top-left) ─────────────────────────────────────
         let enemy_name_tiles = ascii_to_tiles(&enemy_name);
-        EnemyHud::draw(
+        let enemy_status_tiles = core_status_to_tiles(&screen.enemy_status).map(|s| s.tiles());
+        let enemy_hp_color = EnemyHud::draw(
             &mut tile_buf,
             &enemy_name_tiles,
             screen.enemy_level,
-            None, // no status ailment display for now
+            enemy_status_tiles.as_ref().map(|t| t.as_slice()),
             screen.enemy_hp,
             screen.enemy_max_hp,
         );
 
         // ── Player HUD (right side) ─────────────────────────────────
         let player_name_tiles = ascii_to_tiles(&player_name);
-        PlayerHud::draw(
+        let player_status_tiles = core_status_to_tiles(&screen.player_status).map(|s| s.tiles());
+        let player_hp_color = PlayerHud::draw(
             &mut tile_buf,
             &player_name_tiles,
             screen.player_level,
-            None, // no status ailment display for now
+            player_status_tiles.as_ref().map(|t| t.as_slice()),
             screen.player_hp,
             screen.player_max_hp,
         );
+        // Pokeball party indicators
+        let player_balls = build_party_pokeballs(screen.player_party_size);
+        let enemy_balls = build_party_pokeballs(screen.enemy_party_size);
+        PokeballIndicators::draw_player(&mut tile_buf, &player_balls);
+        PokeballIndicators::draw_enemy(&mut tile_buf, &enemy_balls);
 
         // ── Bottom area (text box + menu or message) ─────────────────
         // Standard dialog box: full width, bottom 6 rows
@@ -249,19 +355,38 @@ pub fn draw_battle(screen: &BattleScreen, res: &mut Option<ResourceManager>, fb:
         // ── Render tile buffer to framebuffer ────────────────────────
         tile_buf.render(fb, &battle_ts, pal);
 
+        // ── Apply HP bar color palettes ──────────────────────────────
+        // SGB BlkPacket_Battle defines palette regions:
+        //   Enemy:  pal 1, rect (1,0)-(10,3)  — name/level + HP bar
+        //   Player: pal 0, rect (10,7)-(19,10) — name/level + HP bar + HP numbers
+        // We apply colored HP palettes only to the HP bar rows (+ HP numbers for player),
+        // since coloring name/level text with green/yellow/red would look wrong.
+        // Enemy HP bar: tiles (2,2) through (10,2) — 9 tiles wide, 1 row
+        tile_buf.render_region(fb, &battle_ts, enemy_hp_color.palette(), 2, 2, 9, 1);
+        // Player HP bar + HP numbers: tiles (10,9) through (18,10) — 9 tiles wide, 2 rows
+        tile_buf.render_region(fb, &battle_ts, player_hp_color.palette(), 10, 9, 9, 2);
+
         // ── Overlay Pokémon sprites on top ───────────────────────────
-        // Enemy front sprite: 7×7 tiles at tile (12, 0) = pixel (96, 0)
+        // Enemy front sprite: centered within 7×7 tile area at tile (12, 0)
+        // Centering matches LoadUncompressedSpriteData in home/pics.asm:
+        //   x_offset = ((8 - w_tiles) / 2) * 8px,  y_offset = (7 - h_tiles) * 8px
         if let Ok(cached) = rm.load_pokemon_front(&enemy_sprite) {
             let ts = cached.tileset.clone();
-            let tpr = cached.source_size.0 / TILE_SIZE;
-            blit_tileset(fb, &ts, 12 * TILE_SIZE, 0, tpr, pal);
+            let w_tiles = cached.source_size.0 / TILE_SIZE;
+            let h_tiles = cached.source_size.1 / TILE_SIZE;
+            let x_off = ((8 - w_tiles) / 2) * TILE_SIZE;
+            let y_off = (7 - h_tiles) * TILE_SIZE;
+            blit_tileset(fb, &ts, 12 * TILE_SIZE + x_off, y_off, w_tiles, pal);
         }
 
-        // Player back sprite: at tile (1, 5) = pixel (8, 40)
-        if let Ok(cached) = rm.load_pokemon_back(&player_sprite) {
+        // Player back sprite: loaded as 4×4 tiles (32×32), scaled to 7×7 (56×56)
+        // via ScaleSpriteByTwo, then blitted at tile (1, 5) = pixel (8, 40)
+        let back_sprite_name = format!("{}b", player_sprite);
+        if let Ok(cached) = rm.load_pokemon_back(&back_sprite_name) {
             let ts = cached.tileset.clone();
-            let tpr = cached.source_size.0 / TILE_SIZE;
-            blit_tileset(fb, &ts, 1 * TILE_SIZE, 5 * TILE_SIZE, tpr, pal);
+            let src_tpr = (cached.source_size.0 / TILE_SIZE) as usize;
+            let scaled = scale_sprite_by_two(&ts, src_tpr);
+            blit_tileset(fb, &scaled, 1 * TILE_SIZE, 5 * TILE_SIZE, 7, pal);
         }
     } else {
         // No resources — fallback: render tile buffer with blank tileset

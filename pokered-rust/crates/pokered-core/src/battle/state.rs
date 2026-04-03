@@ -28,8 +28,9 @@ impl Side {
 
 /// Non-volatile status. Only one active at a time.
 /// Sleep counter: 1-7, decremented each turn mon tries to act.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum StatusCondition {
+    #[default]
     None,
     Sleep(u8),
     Poison,
