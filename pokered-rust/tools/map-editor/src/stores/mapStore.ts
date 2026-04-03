@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { ExportData, MapData, Blockset, EditorTool, DisplayOptions, SelectedEntity } from '../types'
+import type { ExportData, MapData, Blockset, EditorTool, DisplayOptions, SelectedEntity, MapScriptConfig } from '../types'
 import { TILESET_FILES } from '../types/constants'
 
 export const useMapStore = defineStore('map', () => {
@@ -17,13 +17,16 @@ export const useMapStore = defineStore('map', () => {
   const selectedEntity = ref<SelectedEntity | null>(null)
   const mapHistory = ref<number[]>([])
 
-  const displayOptions = ref<DisplayOptions>({
+  const scriptConfigs = ref<Record<string, MapScriptConfig>>({})
+
+const displayOptions = ref<DisplayOptions>({
     showTiles: true,
     showCollision: true,
     showWarps: true,
     showSigns: true,
     showNpcs: true,
     showGrid: false,
+    showCoordEvents: true,
   })
 
   const currentMap = computed<MapData | null>(() => {
@@ -164,6 +167,99 @@ export const useMapStore = defineStore('map', () => {
     updateStatus('Exported to map_data_edited.json')
   }
 
+    function loadScriptConfig(mapName: string, config: MapScriptConfig) {
+    scriptConfigs.value[mapName] = config
+    const map = maps.value.find((m) => m.name === mapName)
+    if (!map) return
+
+    config.npcs.forEach(({ id, talk }) => {
+      const npc = map.npcs?.find((n) => n.text_id === id)
+      if (npc) npc.talk = talk
+    })
+
+    config.signs.forEach(({ id, talk }) => {
+      const sign = map.signs?.find((s) => s.text_id === id)
+      if (sign) sign.talk = talk
+    })
+  }
+
+  async function loadScriptConfigFile(file: File) {
+    const text = await file.text()
+    const config: MapScriptConfig = JSON.parse(text)
+    if (currentMap.value) {
+      loadScriptConfig(currentMap.value.name, config)
+      updateStatus(`Loaded script config for ${currentMap.value.name}`)
+    }
+  }
+
+  const currentScriptConfig = computed(() => {
+    return currentMap.value ? scriptConfigs.value[currentMap.value.name] : undefined
+  })
+
+  function updateNpcTalk(npcIndex: number, talk: string) {
+    const map = currentMap.value
+    if (!map || !map.npcs) return
+    const npc = map.npcs[npcIndex]
+    if (npc) {
+      npc.talk = talk
+      const config = scriptConfigs.value[map.name]
+      const configNpc = config?.npcs.find((n) => n.id === npc.text_id)
+      if (configNpc) configNpc.talk = talk
+      hasUnsavedChanges.value = true
+    }
+  }
+
+  function updateSignTalk(signIndex: number, talk: string) {
+    const map = currentMap.value
+    if (!map || !map.signs) return
+    const sign = map.signs[signIndex]
+    if (sign) {
+      sign.talk = talk
+      const config = scriptConfigs.value[map.name]
+      const configSign = config?.signs.find((s) => s.id === sign.text_id)
+      if (configSign) configSign.talk = talk
+      hasUnsavedChanges.value = true
+    }
+  }
+
+  function addCoordEvent(x: number, y: number, trigger: string) {
+    const config = currentScriptConfig.value
+    if (config) {
+      config.coordEvents.push({ position: [x, y], trigger })
+      hasUnsavedChanges.value = true
+    }
+  }
+
+  function removeCoordEvent(index: number) {
+    const config = currentScriptConfig.value
+    if (config) {
+      config.coordEvents.splice(index, 1)
+      hasUnsavedChanges.value = true
+    }
+  }
+
+  function updateMapScripts(scripts: string[]) {
+    const config = currentScriptConfig.value
+    if (config) {
+      config.mapScripts = scripts
+      hasUnsavedChanges.value = true
+    }
+  }
+
+  function exportScriptConfig() {
+    const config = currentScriptConfig.value
+    if (!config || !currentMap.value) return
+    const json = JSON.stringify(config, null, 2)
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${currentMap.value.name}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    updateStatus(`Exported script config for ${currentMap.value.name}`)
+  }
+
   function updateStatus(msg: string) {
     statusMessage.value = msg
   }
@@ -198,6 +294,16 @@ export const useMapStore = defineStore('map', () => {
     zoomOut,
     togglePassableTile,
     exportJson,
+    scriptConfigs,
+    loadScriptConfig,
+    loadScriptConfigFile,
+    currentScriptConfig,
+    updateNpcTalk,
+    updateSignTalk,
+    addCoordEvent,
+    removeCoordEvent,
+    updateMapScripts,
+    exportScriptConfig,
     updateStatus,
   }
 })

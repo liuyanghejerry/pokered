@@ -24,6 +24,17 @@ function selectNpc(index: number) {
   if (npc) store.selectEntity({ type: 'npc', data: npc, index })
 }
 
+function selectCoordEvent(index: number) {
+  const ce = store.currentScriptConfig?.coordEvents?.[index]
+  if (ce) {
+    store.selectEntity({
+      type: 'coordEvent',
+      data: { x: ce.position[0], y: ce.position[1], trigger: ce.trigger },
+      index,
+    })
+  }
+}
+
 function isSelected(type: string, index: number): boolean {
   return store.selectedEntity?.type === type && store.selectedEntity?.index === index
 }
@@ -63,6 +74,24 @@ function isSelected(type: string, index: number): boolean {
           @click="selectSign(i)"
         >
           Sign {{ i }}: ({{ sign.x * 2 }}, {{ sign.y * 2 }}) text#{{ sign.text_id }}
+          <template v-if="sign.talk"> → <span class="text-accent">{{ sign.talk }}</span></template>
+        </p>
+      </template>
+
+      <template v-if="store.currentScriptConfig?.mapScripts?.length">
+        <p class="my-0.5"><b>Map Scripts ({{ store.currentScriptConfig.mapScripts.length }}):</b></p>
+        <p v-for="(fn, i) in store.currentScriptConfig.mapScripts" :key="'ms-' + i" class="my-0.5 ml-2.5 font-mono text-accent">
+          [{{ i }}] {{ fn }}
+        </p>
+      </template>
+
+      <template v-if="store.currentScriptConfig?.coordEvents?.length">
+        <p class="my-0.5"><b>Coord Events ({{ store.currentScriptConfig.coordEvents.length }}):</b></p>
+        <p v-for="(ce, i) in store.currentScriptConfig.coordEvents" :key="'ce-' + i" 
+           class="my-0.5 ml-2.5 cursor-pointer hover:text-[#e67e22] transition-colors"
+           :class="isSelected('coordEvent', i) ? 'text-[#e67e22] font-bold' : ''"
+           @click="selectCoordEvent(i)">
+          ({{ ce.position[0] }}, {{ ce.position[1] }}) → {{ ce.trigger }}
         </p>
       </template>
 
@@ -81,6 +110,7 @@ function isSelected(type: string, index: number): boolean {
           ({{ npc.x * 2 }}, {{ npc.y * 2 }})
           <template v-if="npc.is_trainer"> 🗡{{ npc.trainer_class }}#{{ npc.trainer_set }}</template>
           <template v-if="npc.item_id != null"> item={{ toHex(npc.item_id) }}</template>
+          <template v-if="npc.talk"> → <span class="text-accent">{{ npc.talk }}</span></template>
         </p>
       </template>
 

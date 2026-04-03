@@ -14,7 +14,7 @@ function toHex(n: number, pad = 2): string {
   <div v-if="selectedEntity" class="bg-bg-inset p-2.5 rounded-md">
     <div class="flex items-center justify-between mb-2">
       <h3 class="text-accent text-[13px] font-bold">
-        {{ selectedEntity.type === 'sign' ? 'Sign Detail' : selectedEntity.type === 'npc' ? 'NPC Detail' : 'Warp Detail' }}
+        {{ selectedEntity.type === 'sign' ? 'Sign Detail' : selectedEntity.type === 'npc' ? 'NPC Detail' : selectedEntity.type === 'coordEvent' ? 'Coord Event Detail' : 'Warp Detail' }}
       </h3>
       <button
         class="text-[10px] text-text-muted hover:text-text cursor-pointer bg-transparent border-none"
@@ -25,6 +25,18 @@ function toHex(n: number, pad = 2): string {
     </div>
 
     <template v-if="selectedEntity.type === 'sign'">
+  <div v-if="selectedEntity.data.talk" class="mt-1">
+    <span class="text-text-muted">Script: </span>
+    <span class="text-accent">{{ selectedEntity.data.talk }}</span>
+  </div>
+  <label class="block text-[10px] text-text-muted mt-2">Script Function:</label>
+  <input
+    type="text"
+    :value="selectedEntity.data.talk || ''"
+    class="w-full p-1 rounded border border-accent bg-bg text-text text-[11px] font-mono mt-0.5"
+    placeholder="e.g. signOakLab"
+    @change="store.updateSignTalk(selectedEntity!.index, ($event.target as HTMLInputElement).value)"
+  />
       <div class="font-mono text-[11px] space-y-1">
         <p>Position: ({{ selectedEntity.data.x * 2 }}, {{ selectedEntity.data.y * 2 }})</p>
         <p>Text ID: {{ selectedEntity.data.text_id }}</p>
@@ -46,6 +58,18 @@ function toHex(n: number, pad = 2): string {
     </template>
 
     <template v-if="selectedEntity.type === 'npc'">
+  <div v-if="selectedEntity.data.talk" class="mt-1">
+    <span class="text-text-muted">Script: </span>
+    <span class="text-accent">{{ selectedEntity.data.talk }}</span>
+  </div>
+  <label class="block text-[10px] text-text-muted mt-2">Script Function:</label>
+  <input
+    type="text"
+    :value="selectedEntity.data.talk || ''"
+    class="w-full p-1 rounded border border-accent bg-bg text-text text-[11px] font-mono mt-0.5"
+    placeholder="e.g. talkOak"
+    @change="store.updateNpcTalk(selectedEntity!.index, ($event.target as HTMLInputElement).value)"
+  />
       <div class="font-mono text-[11px] space-y-1">
         <p>
           <span
@@ -84,7 +108,14 @@ function toHex(n: number, pad = 2): string {
       <p v-else class="text-[10px] text-text-muted mt-1 italic">No text data</p>
     </template>
 
-    <template v-if="selectedEntity.type === 'warp'">
+    <template v-if="selectedEntity.type === 'coordEvent'">
+  <div class="font-mono text-[11px] space-y-1">
+    <p>Position: ({{ selectedEntity.data.x }}, {{ selectedEntity.data.y }})</p>
+    <p>Trigger: <span class="text-accent">{{ selectedEntity.data.trigger }}</span></p>
+  </div>
+</template>
+
+<template v-if="selectedEntity.type === 'warp'">
       <div class="font-mono text-[11px] space-y-1">
         <p>Position: ({{ selectedEntity.data.x * 2 }}, {{ selectedEntity.data.y * 2 }})</p>
         <p v-if="selectedEntity.data.dest_map_name">

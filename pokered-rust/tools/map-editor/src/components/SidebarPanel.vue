@@ -30,6 +30,17 @@ function handleMapChange(e: Event) {
   const select = e.target as HTMLSelectElement
   store.selectMap(parseInt(select.value))
 }
+
+async function handleScriptConfigChange(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  try {
+    await store.loadScriptConfigFile(file)
+  } catch (err) {
+    store.updateStatus(`Error: ${(err as Error).message}`)
+  }
+}
 </script>
 
 <template>
@@ -100,12 +111,30 @@ function handleMapChange(e: Event) {
         Show NPCs
       </label>
       <label class="flex items-center gap-1.5 cursor-pointer text-xs">
+        <input v-model="displayOptions.showCoordEvents" type="checkbox" class="w-auto" />
+        Show Coord Events
+      </label>
+      <label class="flex items-center gap-1.5 cursor-pointer text-xs">
         <input v-model="displayOptions.showGrid" type="checkbox" class="w-auto" />
         Show Grid
       </label>
     </div>
 
+    <label class="block text-xs mb-1 mt-3">Script Config:</label>
+    <input
+      type="file"
+      accept=".json"
+      class="text-[11px] w-full"
+      @change="handleScriptConfigChange"
+    />
+
     <div class="flex gap-1.5 flex-wrap mt-3">
+      <button
+        class="px-3 py-1.5 bg-[#27ae60] text-white border-none rounded cursor-pointer text-[11px] font-bold hover:bg-[#229954]"
+        @click="store.exportScriptConfig()"
+      >
+        Export Script Config
+      </button>
       <button
         class="px-3 py-1.5 bg-accent text-bg-panel border-none rounded cursor-pointer text-[11px] font-bold hover:bg-accent-hover"
         @click="store.exportJson()"
@@ -181,6 +210,10 @@ function handleMapChange(e: Event) {
       <div class="flex items-center gap-2 text-[11px] my-1">
         <div class="w-3.5 h-3.5 rounded-sm" style="background: rgba(46, 204, 113, 0.8)"></div>
         NPC (Item)
+      </div>
+      <div class="flex items-center gap-2 text-[11px] my-1">
+        <div class="w-3.5 h-3.5 rounded-sm" style="background: rgba(230, 126, 34, 0.8)"></div>
+        Coord Event
       </div>
       <div class="flex items-center gap-2 text-[11px] my-1">
         <div class="w-3.5 h-3.5 rounded-sm" style="background: rgba(155, 89, 182, 0.8)"></div>

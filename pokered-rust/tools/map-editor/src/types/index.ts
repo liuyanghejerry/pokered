@@ -12,6 +12,7 @@ export interface Warp {
 }
 
 export interface Sign {
+  talk?: string  // JS function name binding (from script config)
   x: number
   y: number
   text_id: number
@@ -19,6 +20,7 @@ export interface Sign {
 }
 
 export interface NpcData {
+  talk?: string  // JS function name binding (from script config)
   sprite_id: number
   sprite_name: string
   x: number
@@ -60,6 +62,7 @@ export interface ExportData {
 export type EditorTool = 'view' | 'edit'
 
 export interface DisplayOptions {
+  showCoordEvents: boolean
   showTiles: boolean
   showCollision: boolean
   showWarps: boolean
@@ -68,7 +71,21 @@ export interface DisplayOptions {
   showGrid: boolean
 }
 
+export interface CoordEvent {
+  x: number
+  y: number
+  trigger: string  // JS function name
+}
+
+export interface MapScriptConfig {
+  mapScripts: string[]
+  npcs: { id: number; talk: string }[]
+  signs: { id: number; talk: string }[]
+  coordEvents: { position: [number, number]; trigger: string }[]
+}
+
 export interface TileInfo {
+  coordEvent?: CoordEvent
   tileX: number
   tileY: number
   blockX: number
@@ -83,6 +100,7 @@ export interface TileInfo {
 }
 
 export type SelectedEntity =
+  | { type: 'coordEvent'; data: CoordEvent; index: number }
   | { type: 'sign'; data: Sign; index: number }
   | { type: 'npc'; data: NpcData; index: number }
   | { type: 'warp'; data: Warp; index: number }
