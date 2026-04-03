@@ -485,6 +485,13 @@ pub fn draw_battle(screen: &BattleScreen, res: &mut Option<ResourceManager>, fb:
             let scaled = scale_sprite_by_two(&ts, src_tpr);
             blit_tileset(fb, &scaled, 1 * TILE_SIZE, 5 * TILE_SIZE, 7, pal);
         }
+
+        // In Gen1 move-select, the TYPE/PP panel overlays the player sprite.
+        // Our sprite blit happens after tilemap rendering, so redraw this panel
+        // region last to keep it in the foreground.
+        if matches!(screen.phase, BattlePhase::MoveSelect) {
+            tile_buf.render_region(fb, &battle_ts, pal, 0, 8, 11, 5);
+        }
     } else {
         // No resources — fallback: render tile buffer with blank tileset
         let blank_ts = TileSet::blank(256);
