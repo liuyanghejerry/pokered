@@ -33,8 +33,12 @@ use move_execution::MoveRandoms;
 use pokered_data::move_data::MoveData;
 use pokered_data::moves::MoveId;
 use pokered_data::species::Species;
+use pokered_data::trainer_data::TrainerClass;
 use state::{BattleState, BattleType, Side, StatusCondition};
+use trainer_ai::move_choice::{choose_moves, MoveChoiceResult};
+use trainer_ai::move_choice_layers;
 use turn::{execute_turn, TurnRandoms};
+use types::TypeMultiplier;
 
 /// High-level battle phase (frame-loop granularity).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -91,6 +95,25 @@ impl BattleInput {
 
 use status_checks::CannotMoveReason;
 
+/// Convert a PascalCase MoveId Debug name to game-style uppercase with spaces.
+/// e.g. "QuickAttack" → "QUICK ATTACK", "Thunderbolt" → "THUNDERBOLT",
+///      "HiJumpKick" → "HI JUMP KICK", "ThunderWave" → "THUNDER WAVE"
+fn move_display_name(move_id: MoveId) -> String {
+    let raw = format!("{:?}", move_id);
+    let mut result = String::with_capacity(raw.len() + 4);
+    for (i, c) in raw.chars().enumerate() {
+        if c.is_uppercase() && i > 0 {
+            // Insert space before uppercase letter unless previous char was also uppercase
+            let prev = raw.as_bytes()[i - 1] as char;
+            if prev.is_lowercase() {
+                result.push(' ');
+            }
+        }
+        result.push(c);
+    }
+    result.to_uppercase()
+}
+
 fn format_cannot_move(reason: &CannotMoveReason) -> &'static str {
     match reason {
         CannotMoveReason::Asleep => "is fast asleep!",
@@ -109,6 +132,8 @@ pub struct BattleScreen {
     pub phase: BattlePhase,
     pub battle_menu: BattleMenuState,
     pub is_wild: bool,
+    /// Trainer class for AI move selection (None for wild battles).
+    pub trainer_class: Option<TrainerClass>,
 
     // Display fields (synced from battle_state after every action)
     pub enemy_species: Species,
@@ -137,6 +162,7 @@ impl BattleScreen {
             phase: BattlePhase::Intro { wait_frames: 90 },
             battle_menu: BattleMenuState::new(),
             is_wild,
+            trainer_class: None,
             enemy_species: Species::Pikachu,
             enemy_level: 25,
             enemy_hp: 55,
@@ -160,6 +186,7 @@ impl BattleScreen {
         is_wild: bool,
         player_party: &[state::Pokemon],
         enemy_party: &[state::Pokemon],
+        trainer_class: Option<TrainerClass>,
     ) -> Self {
         let player = &player_party[0];
         let enemy = &enemy_party[0];
@@ -173,6 +200,7 @@ impl BattleScreen {
             phase: BattlePhase::Intro { wait_frames: 90 },
             battle_menu: BattleMenuState::new(),
             is_wild,
+            trainer_class,
             enemy_species: enemy.species,
             enemy_level: enemy.level,
             enemy_hp: enemy.hp,
@@ -235,21 +263,34 @@ impl BattleScreen {
         }
     }
 
-    fn pick_enemy_move(bs: &BattleState) -> MoveId {
+    fn pick_enemy_move(bs: &BattleState, trainer_class: Option<TrainerClass>) -> (MoveId, u8) {
         let mon = bs.enemy.active_mon();
-        let available: Vec<MoveId> = mon
+        let available: Vec<(MoveId, u8)> = mon
             .moves
             .iter()
             .enumerate()
             .filter(|(i, m)| **m != MoveId::None && mon.pp[*i] > 0)
-            .map(|(_, m)| *m)
+            .map(|(i, m)| (*m, i as u8))
             .collect();
         if available.is_empty() {
-            MoveId::Struggle
-        } else {
-            let idx: usize = rand::random::<usize>() % available.len();
-            available[idx]
+            return (MoveId::Struggle, 0);
         }
+
+        if let Some(tc) = trainer_class {
+            let layers = move_choice_layers(tc);
+            if !layers.is_empty() {
+                let result = choose_moves(layers, &bs.enemy, &bs.player, 0);
+                if let Some(slot) = result.pick_move(rand::random::<u8>()) {
+                    let move_id = mon.moves[slot];
+                    if move_id != MoveId::None && mon.pp[slot] > 0 {
+                        return (move_id, slot as u8);
+                    }
+                }
+            }
+        }
+
+        let idx: usize = rand::random::<usize>() % available.len();
+        available[idx]
     }
 
     fn build_move_menu_from_state(bs: &BattleState) -> MoveMenuState {
@@ -281,7 +322,22 @@ impl BattleScreen {
     ) -> Vec<String> {
         let mut msgs = vec![format!("{} used {}!", side_name, move_name)];
         match outcome {
-            move_execution::MoveOutcome::Success { .. } => {}
+            move_execution::MoveOutcome::Success {
+                is_critical,
+                type_effectiveness,
+                ..
+            } => {
+                if *is_critical {
+                    msgs.push("Critical hit!".to_string());
+                }
+                if type_effectiveness.is_super_effective() {
+                    msgs.push("It's super effective!".to_string());
+                } else if type_effectiveness.is_not_very_effective() {
+                    msgs.push("It's not very effective...".to_string());
+                } else if type_effectiveness.is_no_effect() {
+                    msgs.push("It doesn't affect the enemy!".to_string());
+                }
+            }
 
             move_execution::MoveOutcome::Missed => {
                 msgs.push(format!("{}'s attack missed!", side_name));
@@ -447,7 +503,7 @@ impl BattleScreen {
                 }
                 ScreenAction::Continue
             }
-            BattlePhase::EnemySendingNext { mut wait_frames } => {
+            BattlePhase::EnemySendingNext { wait_frames } => {
                 if wait_frames > 0 {
                     self.phase = BattlePhase::EnemySendingNext {
                         wait_frames: wait_frames - 1,
@@ -548,17 +604,19 @@ impl BattleScreen {
 
     fn execute_enemy_free_turn(&mut self) {
         if let Some(ref mut bs) = self.battle_state {
-            let enemy_move_id = Self::pick_enemy_move(bs);
+            let (enemy_move_id, enemy_move_idx) = Self::pick_enemy_move(bs, self.trainer_class);
             let enemy_move = match MoveData::get(enemy_move_id) {
                 Some(m) => m,
                 None => return,
             };
+            bs.enemy.selected_move = enemy_move_id;
+            bs.enemy.selected_move_index = enemy_move_idx;
             bs.whose_turn = Side::Enemy;
             let randoms = Self::generate_move_randoms();
             let outcome = move_execution::execute_move(bs, enemy_move, &randoms);
 
             let enemy_name = format!("{}", bs.enemy.active_mon().species).to_uppercase();
-            let move_name = format!("{:?}", enemy_move_id);
+            let move_name = move_display_name(enemy_move_id);
 
             let mut msgs = vec!["Can't escape!".to_string()];
             msgs.extend(Self::format_move_outcome(
@@ -575,12 +633,14 @@ impl BattleScreen {
     }
 
     fn execute_turn_with_move(&mut self, move_index: usize) {
-        let (player_move_id, enemy_move_id, player_name, enemy_name);
+        let (player_move_id, enemy_move_id, enemy_move_idx, player_name, enemy_name);
 
         if let Some(ref bs) = self.battle_state {
             let mon = bs.player.active_mon();
             player_move_id = mon.moves[move_index];
-            enemy_move_id = Self::pick_enemy_move(bs);
+            let (eid, eidx) = Self::pick_enemy_move(bs, self.trainer_class);
+            enemy_move_id = eid;
+            enemy_move_idx = eidx;
             player_name = format!("{}", mon.species).to_uppercase();
             enemy_name = format!("{}", bs.enemy.active_mon().species).to_uppercase();
         } else {
@@ -602,6 +662,7 @@ impl BattleScreen {
             bs.player.selected_move = player_move_id;
             bs.player.selected_move_index = move_index as u8;
             bs.enemy.selected_move = enemy_move_id;
+            bs.enemy.selected_move_index = enemy_move_idx;
 
             let result = execute_turn(bs, player_move, enemy_move, &randoms);
 
@@ -611,16 +672,16 @@ impl BattleScreen {
                 if result.first == Side::Player {
                     (
                         player_name.clone(),
-                        format!("{:?}", player_move_id),
+                        move_display_name(player_move_id),
                         format!("Enemy {}", enemy_name),
-                        format!("{:?}", enemy_move_id),
+                        move_display_name(enemy_move_id),
                     )
                 } else {
                     (
                         format!("Enemy {}", enemy_name),
-                        format!("{:?}", enemy_move_id),
+                        move_display_name(enemy_move_id),
                         player_name.clone(),
-                        format!("{:?}", player_move_id),
+                        move_display_name(player_move_id),
                     )
                 };
 
@@ -731,6 +792,7 @@ impl BattleScreen {
             if let Some(idx) = next_idx {
                 bs.enemy.active_pokemon_index = idx;
                 bs.enemy.reset_volatile_status();
+                bs.enemy.refresh_unmodified_stats();
                 self.sync_display_from_state();
             }
         }
@@ -741,6 +803,7 @@ impl BattleScreen {
             let old_name = format!("{}", bs.player.active_mon().species).to_uppercase();
             bs.player.active_pokemon_index = new_index;
             bs.player.reset_volatile_status();
+            bs.player.refresh_unmodified_stats();
             let new_name = format!("{}", bs.player.active_mon().species).to_uppercase();
 
             self.sync_display_from_state();
@@ -756,14 +819,16 @@ impl BattleScreen {
 
     fn execute_enemy_free_turn_after_switch(&mut self, mut msgs: Vec<String>) {
         if let Some(ref mut bs) = self.battle_state {
-            let enemy_move_id = Self::pick_enemy_move(bs);
+            let (enemy_move_id, enemy_move_idx) = Self::pick_enemy_move(bs, self.trainer_class);
             if let Some(enemy_move) = MoveData::get(enemy_move_id) {
+                bs.enemy.selected_move = enemy_move_id;
+                bs.enemy.selected_move_index = enemy_move_idx;
                 bs.whose_turn = Side::Enemy;
                 let randoms = Self::generate_move_randoms();
                 let outcome = move_execution::execute_move(bs, enemy_move, &randoms);
 
                 let enemy_name = format!("{}", bs.enemy.active_mon().species).to_uppercase();
-                let move_name = format!("{:?}", enemy_move_id);
+                let move_name = move_display_name(enemy_move_id);
                 let player_name = format!("{}", bs.player.active_mon().species).to_uppercase();
 
                 msgs.extend(Self::format_move_outcome(
@@ -784,6 +849,7 @@ impl BattleScreen {
         if let Some(ref mut bs) = self.battle_state {
             bs.player.active_pokemon_index = new_index;
             bs.player.reset_volatile_status();
+            bs.player.refresh_unmodified_stats();
             let new_name = format!("{}", bs.player.active_mon().species).to_uppercase();
 
             self.sync_display_from_state();

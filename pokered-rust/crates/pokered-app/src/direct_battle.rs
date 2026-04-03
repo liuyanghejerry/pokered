@@ -1,6 +1,7 @@
 use pokered_core::battle::state::{BattleType, Pokemon};
 use pokered_core::battle::{BattleInput, BattleScreen};
 use pokered_core::game_state::{GameScreen, ScreenAction};
+use pokered_data::trainer_data::TrainerClass;
 use pokered_renderer::input::{GbButton, InputState};
 use pokered_renderer::resource::{AssetRoot, ResourceManager};
 use pokered_renderer::window::GameLoop;
@@ -19,9 +20,11 @@ impl DirectBattleGame {
         battle_type: BattleType,
         player_party: Vec<Pokemon>,
         enemy_party: Vec<Pokemon>,
+        trainer_class: Option<TrainerClass>,
     ) -> Self {
         let is_wild = battle_type == BattleType::Wild;
-        let battle = BattleScreen::from_parties(is_wild, &player_party, &enemy_party);
+        let battle =
+            BattleScreen::from_parties(is_wild, &player_party, &enemy_party, trainer_class);
 
         let resources = match AssetRoot::auto_detect() {
             Ok(root) => {

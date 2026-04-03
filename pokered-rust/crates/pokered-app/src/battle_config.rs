@@ -4,12 +4,17 @@ use pokered_core::battle::state::{BattleType, Pokemon, StatusCondition};
 use pokered_core::pokemon::stats::create_pokemon_with_moves;
 use pokered_data::moves::MoveId;
 use pokered_data::species::Species;
+use pokered_data::trainer_data::TrainerClass;
 use serde::Deserialize;
 
 #[derive(Deserialize)]
 pub struct BattleConfig {
     #[serde(default = "default_battle_type")]
     pub battle_type: BattleType,
+    /// Trainer class for enemy AI move selection (e.g. "Rival3").
+    /// If omitted, the enemy picks moves randomly.
+    #[serde(default)]
+    pub trainer_class: Option<TrainerClass>,
     pub player_party: Vec<PokemonConfig>,
     pub enemy_party: Vec<PokemonConfig>,
 }

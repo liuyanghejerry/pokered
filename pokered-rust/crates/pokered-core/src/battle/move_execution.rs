@@ -7,11 +7,16 @@ use super::damage::{calculate_damage, crit_chance, is_high_crit_move, is_physica
 use super::effects::{apply_move_effect, EffectRandoms, EffectResult};
 use super::state::{status2, status3, BattleState, Side};
 use super::status_checks::{check_status_conditions, CannotMoveReason, StatusCheckResult};
+use super::types::TypeMultiplier;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MoveOutcome {
-    /// Damaging move hit successfully, with optional side-effect result.
-    Success { damage: u16, effect: EffectResult },
+    Success {
+        damage: u16,
+        effect: EffectResult,
+        is_critical: bool,
+        type_effectiveness: TypeMultiplier,
+    },
     /// Move missed the accuracy check.
     Missed,
     /// Attacker could not move due to status (sleep, freeze, paralysis, etc.)
@@ -115,14 +120,20 @@ pub fn execute_move(
         return MoveOutcome::Missed;
     }
 
-    let damage = calc_and_apply_damage(state, move_data, is_crit, randoms.damage_roll);
+    let (damage, type_effectiveness) =
+        calc_and_apply_damage(state, move_data, is_crit, randoms.damage_roll);
     state.move_missed = false;
     state.attacker_mut().player_used_move = true;
     state.attacker_mut().last_move_used = move_data.id;
 
     let effect = apply_move_effect(state, move_data, &randoms.effect_randoms, damage);
 
-    MoveOutcome::Success { damage, effect }
+    MoveOutcome::Success {
+        damage,
+        effect,
+        is_critical: is_crit,
+        type_effectiveness,
+    }
 }
 
 fn split_battlers(
@@ -193,7 +204,7 @@ fn calc_and_apply_damage(
     move_data: &MoveData,
     is_crit: bool,
     damage_roll: u8,
-) -> u16 {
+) -> (u16, TypeMultiplier) {
     let (
         attack_stat,
         defense_stat,
@@ -269,7 +280,7 @@ fn calc_and_apply_damage(
 
     if result.is_miss {
         state.move_missed = true;
-        return 0;
+        return (0, result.type_effectiveness);
     }
 
     let defender = state.defender_mut();
@@ -287,7 +298,7 @@ fn calc_and_apply_damage(
         d_mon.hp = d_mon.hp.saturating_sub(result.damage);
     }
 
-    result.damage
+    (result.damage, result.type_effectiveness)
 }
 
 #[cfg(test)]

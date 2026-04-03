@@ -264,28 +264,64 @@ fn draw_battle_text(buf: &mut ScreenTileBuffer, text: &str) {
     write_tiles_at(buf, 1, 14, &tiles);
 }
 
+fn move_display_name(move_id: pokered_data::moves::MoveId) -> String {
+    let raw = format!("{:?}", move_id);
+    let mut result = String::with_capacity(raw.len() + 4);
+    for (i, c) in raw.chars().enumerate() {
+        if c.is_uppercase() && i > 0 {
+            let prev = raw.as_bytes()[i - 1] as char;
+            if prev.is_lowercase() {
+                result.push(' ');
+            }
+        }
+        result.push(c);
+    }
+    result.to_uppercase()
+}
+
 fn draw_move_menu(buf: &mut ScreenTileBuffer, screen: &BattleScreen) {
     if let Some(ref mm) = screen.move_menu {
+        // Original: TextBoxBorder(4, 12, 14, 4), moves at hlcoord(6, 13), cursor at col 5
+        let move_box = TextBoxFrame::new(4, 12, 16, 6);
+        move_box.draw_frame(buf);
+
         let moves = mm.moves();
         for (i, slot) in moves.iter().enumerate() {
-            let name = format!("{:?}", slot.move_id);
-            let name_upper = name.to_uppercase();
-            let name_tiles = ascii_to_tiles(&name_upper);
-            let y = 14 + i as u32;
-            write_tiles_at(buf, 2, y, &name_tiles);
-
-            let pp_text = format!("{}/{}", slot.current_pp, slot.max_pp);
-            let pp_tiles = ascii_to_tiles(&pp_text);
-            write_tiles_at(buf, 15, y, &pp_tiles);
+            let name = move_display_name(slot.move_id);
+            let truncated: String = name.chars().take(12).collect();
+            let name_tiles = ascii_to_tiles(&truncated);
+            let y = 13 + i as u32;
+            write_tiles_at(buf, 6, y, &name_tiles);
         }
 
-        let cursor_y = 14 + mm.cursor() as u32;
-        buf.set(1, cursor_y, 0xED);
+        let cursor_y = 13 + mm.cursor() as u32;
+        buf.set(5, cursor_y, 0xED);
+
+        // Original: TextBoxBorder(0, 8, 3, 9) — TYPE/PP info for highlighted move
+        let pp_box = TextBoxFrame::new(0, 8, 11, 5);
+        pp_box.draw_frame(buf);
+
+        let cursor_idx = mm.cursor();
+        if cursor_idx < moves.len() {
+            let slot = &moves[cursor_idx];
+            let type_label = ascii_to_tiles("TYPE/");
+            write_tiles_at(buf, 1, 9, &type_label);
+
+            if let Some(move_data) = pokered_data::move_data::MoveData::get(slot.move_id) {
+                let type_name = format!("{:?}", move_data.move_type).to_uppercase();
+                let type_tiles = ascii_to_tiles(&type_name);
+                write_tiles_at(buf, 1, 10, &type_tiles);
+            }
+
+            let pp_text = format!("{:>2}/{:>2}", slot.current_pp, slot.max_pp);
+            let pp_tiles = ascii_to_tiles(&pp_text);
+            write_tiles_at(buf, 5, 11, &pp_tiles);
+        }
     }
 
     if let Some(ref msg) = screen.current_message {
         let tiles = ascii_to_tiles(msg);
-        write_tiles_at(buf, 1, 16, &tiles);
+        write_tiles_at(buf, 1, 14, &tiles);
     }
 }
 

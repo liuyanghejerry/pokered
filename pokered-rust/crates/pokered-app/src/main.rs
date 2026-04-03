@@ -108,8 +108,12 @@ fn main() {
                     std::process::exit(1);
                 }
             };
-            let mut game =
-                DirectBattleGame::new(battle_config.battle_type, player_party, enemy_party);
+            let mut game = DirectBattleGame::new(
+                battle_config.battle_type,
+                player_party,
+                enemy_party,
+                battle_config.trainer_class,
+            );
 
             if let Some(ref output_path) = screenshot {
                 let input = InputState::new();

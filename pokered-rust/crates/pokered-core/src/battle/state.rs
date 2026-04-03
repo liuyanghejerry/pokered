@@ -198,6 +198,14 @@ impl BattlerState {
         self.player_used_move = false;
         self.last_move_used = MoveId::None;
     }
+
+    pub fn refresh_unmodified_stats(&mut self) {
+        let mon = &self.party[self.active_pokemon_index];
+        self.unmodified_attack = mon.attack;
+        self.unmodified_defense = mon.defense;
+        self.unmodified_speed = mon.speed;
+        self.unmodified_special = mon.special;
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
