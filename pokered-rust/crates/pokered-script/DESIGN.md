@@ -49,7 +49,7 @@ ScriptEngine::signal_done(result) → resolves Promise → JS continues
 - `WarpTo { map: String, x: u8, y: u8 }`
 - `Heal`
 - `FadeScreen { fade_type: String }`
-- `SetMapScript { script_index: u8 }`
+- `SetMapScript { state_name: String }`
 - `SetJoyIgnore { mask: u8 }, ClearJoyIgnore`
 
 ### 3.2 CommandResult
@@ -65,7 +65,13 @@ ScriptEngine::signal_done(result) → resolves Promise → JS continues
 
 ### 3.3 ScriptEngine (engine.rs)
 
-`ScriptEngine` 封装了 `boa_engine::Context` 和 `SharedBridge`（`Rc<RefCell>`）。
+`ScriptEngine` 封装了 `boa_engine::Context`、`SharedBridge`（`Rc<RefCell>`）、`SimpleModuleLoader` 和当前加载的 `Module`。
+
+引擎使用 Boa 的 ES6 Module API：
+- `Context::builder().module_loader(loader).build()` 创建支持模块的上下文
+- `Module::parse(Source::from_reader(...))` 解析 JS 源码为模块
+- `module.load_link_evaluate()` + `context.run_jobs()` 完成模块加载
+- `module.get_value(fn_name)` 从模块命名空间获取导出的函数
 
 状态流转：`Idle → Running → WaitingForCommand → Running → ... → Idle/Finished`
 
@@ -75,9 +81,9 @@ ScriptEngine::signal_done(result) → resolves Promise → JS continues
 - `flags`（`HashMap<String, bool>`）
 
 关键方法：
-- `new()`：创建 `Context`，注册游戏 API
-- `load_script(source)`：将 JS 源码加载到上下文中
-- `call_function(name, args)`：调用全局 JS 函数，运行任务，检查是否有待处理命令
+- `new()`：创建 `Context`（使用 `SimpleModuleLoader`），注册游戏 API
+- `load_script(source)`：使用 `Module::parse()` 将 JS 源码加载为 ES6 模块
+- `call_function(name, args)`：通过 `module.get_value()` 从模块命名空间获取导出函数并调用
 - `tick()`：每帧调用，返回待处理命令（如果有）
 - `signal_done(result)`：用结果解析 Promise，运行任务，检查下一个待处理命令
 
@@ -97,15 +103,34 @@ ScriptEngine::signal_done(result) → resolves Promise → JS continues
 
 所有异步方法均使用宏 `register_async_command!` 注册。
 
-### 3.5 ScriptLoader (loader.rs)
+### 3.5 MapScriptConfig (config.rs)
 
-`ScriptLoader` 是一个 `HashMap<String, String>`，映射 `map_id` 到 JS 源码。
+`MapScriptConfig` 定义了地图的 JSON 绑定配置，包含以下字段：
+
+- `map_scripts: Vec<String>` — 地图脚本状态函数名的有序列表
+- `npcs: Vec<NpcBinding>` — NPC ID → JS 函数名绑定
+- `signs: Vec<SignBinding>` — 标志牌 ID → JS 函数名绑定
+- `coord_events: Vec<CoordEventBinding>` — 坐标触发 → JS 函数名绑定
 
 关键方法：
-- `register_script(map_id, source)`：手动注册脚本
-- `load_from_directory(path)`：扫描 `.js` 文件，文件名（不含扩展名）作为 `map_id`（仅限原生平台，使用 `cfg-gated`）
-- `load_embedded()`：加载编译时嵌入的脚本（通过 `include_str!` 实现，支持 wasm）
-- `check_reload()`：比较文件修改时间，重新加载已更改的脚本（开发时支持热重载）
+- `resolve_map_script_index(state_name)` — 将状态名字符串解析为 `map_scripts` 数组中的索引
+- `npc_talk_fn(text_id)` — 根据 NPC text_id 查找对应的 JS 函数名
+- `sign_talk_fn(text_id)` — 根据标志牌 text_id 查找对应的 JS 函数名
+- `coord_event_fn(x, y)` — 根据坐标查找对应的 JS 函数名
+
+### 3.6 ScriptLoader (loader.rs)
+
+`ScriptLoader` 是一个双重映射器，管理 `map_id` → JS 源码 和 `map_id` → `MapScriptConfig` 的映射。
+
+关键方法：
+- `register_script(map_id, source)`：手动注册 JS 脚本
+- `register_config(map_id, config)`：手动注册 JSON 配置
+- `register_config_json(map_id, json_str)`：从 JSON 字符串解析并注册配置
+- `get_config(map_id)`：获取已注册的 `MapScriptConfig`
+- `has_config(map_id)`：检查是否存在配置
+- `load_from_directory(path)`：扫描 `.js` 和 `.json` 文件，文件名（不含扩展名）作为 `map_id`（仅限原生平台，使用 `cfg-gated`）
+- `load_embedded()`：加载编译时嵌入的脚本和配置（通过 `include_str!` 实现，支持 wasm）
+- `check_reload()`：比较文件修改时间，重新加载已更改的 `.js` 和 `.json` 文件（开发时支持热重载）
 
 错误类型：`ScriptLoaderError`
 
@@ -116,6 +141,7 @@ ScriptEngine::signal_done(result) → resolves Promise → JS continues
 字段：
 - `script_engine: ScriptEngine`
 - `script_loader: ScriptLoader`
+- `map_script_config: MapScriptConfig`
 - `active_script_effect: Option<ScriptEffect>`
 - `joy_ignore_mask: u8`
 - `map_script_index: u8`
@@ -129,9 +155,12 @@ ScriptEngine::signal_done(result) → resolves Promise → JS continues
 3. 如果没有效果且引擎处于等待状态，则分发待处理命令
 
 交互：
-- NPC A 键：调用 `try_call_script_npc_talk(text_id)` → JS 中的 `onTalkNpc(textId)`，回退到数据表对话
-- 标志牌 A 键：调用 `try_call_script_sign_talk(text_id)` → JS 中的 `onTalkSign(textId)`，回退到数据表
-- 地图切换：`load_map_script(new_map_id)` → 创建新的 `ScriptEngine`，加载脚本，调用初始地图脚本
+- NPC A 键：调用 `try_call_script_npc_talk(text_id)` → 从 `MapScriptConfig` 查找函数名 → 直接调用 JS 函数
+- 标志牌 A 键：调用 `try_call_script_sign_talk(text_id)` → 从 `MapScriptConfig` 查找函数名 → 直接调用 JS 函数
+- 坐标触发：从 `MapScriptConfig` 查找坐标对应的函数名 → 直接调用 JS 函数
+- 地图脚本状态：`map_script_index` 索引 `MapScriptConfig.map_scripts` 数组 → 调用对应函数名
+- `SetMapScript { state_name }` 效果：通过 `resolve_map_script_index()` 将字符串名解析为索引
+- 地图切换：`load_map_script(new_map_id)` → 创建新的 `ScriptEngine`，加载脚本和 JSON 配置
 
 ## 5. script_bridge.rs 桥接层
 
@@ -143,24 +172,53 @@ ScriptEngine::signal_done(result) → resolves Promise → JS continues
 
 ## 6. JS 脚本编写指南
 
-脚本文件位置：`scripts/maps/{MapName}.js`
+脚本文件位置：`scripts/maps/{MapName}.js`（JS 脚本）和 `scripts/maps/{MapName}.json`（JSON 配置）
 
 `MapName` 必须与 `MapId` 的 `Debug` 表示形式（PascalCase）匹配。
 
-必需的回调函数：
-- `async function onMapScript_N()`：当 `map_script_index == N` 时调用
-- `async function onTalkNpc(textId)`：NPC A 键处理器
-- `async function onTalkSign(textId)`：标志牌 A 键处理器
-- `async function onCoordEvent(x, y)`：踩到触发器时调用
+### JSON 配置结构
+
+```json
+{
+  "mapScripts": ["scriptDefault", "scriptOakEntersLab", "scriptNoop"],
+  "npcs": [
+    { "id": 1, "talk": "talkRival" },
+    { "id": 2, "talk": "talkCharmanderBall" }
+  ],
+  "signs": [
+    { "id": 1, "talk": "signOakLab" }
+  ],
+  "coordEvents": [
+    { "position": [4, 1], "trigger": "coordNorthExit" }
+  ]
+}
+```
+
+### JS 函数声明
+
+JS 文件使用 ES6 模块语法，通过 `export` 关键字导出所有需要在 JSON 配置中绑定的函数。引擎使用 Boa 的 `Module` API（`Module::parse()` + `load_link_evaluate()`）解析模块，通过 `module.get_value()` 访问导出的函数。
+
+```js
+export async function scriptDefault() {
+  if (!game.getFlag(EVENT.OAK_APPEARED)) return;
+  await game.setMapScript("scriptOakEntersLab");
+}
+
+export async function talkRival() {
+  await game.showText("<RIVAL>: ...");
+}
+
+// 内部辅助函数不需要 export（不在 JSON 中引用）
+async function handlePokeBallInteraction(starter, ballId) {
+  // ...
+}
+```
+
+函数名可以自由命名，通过 JSON 配置与事件绑定。一个 NPC 只绑定一个 JS 函数，条件逻辑在 JS 内部处理。
+
+`setMapScript` 接受字符串状态名（而非数字索引），引擎通过 JSON 配置的 `mapScripts` 数组解析为索引。
 
 所有游戏交互通过全局对象 `game.*` 实现。
-
-示例：`PalletTown.js` 模式
-- 常量块（`SCRIPT` 枚举、NPC ID、事件标志名称、切换对象索引）
-- `onMapScript` 分发器（根据 `game.getFlag` / `setMapScript` 切换）
-- `onTalkNpc` 分发器（根据 `textId` 切换，调用每个 NPC 的异步处理器）
-
-TypeScript 定义文件：`scripts/types/game.d.ts`
 
 ## 7. 热重载
 

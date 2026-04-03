@@ -1,0 +1,25 @@
+{
+  "mapScripts": [
+    "palletTownDefault",
+    "palletTownOakHeyWait",
+    "palletTownOakWalksToPlayer",
+    "palletTownOakNotSafe",
+    "palletTownPlayerFollowsOak",
+    "palletTownDaisy",
+    "palletTownNoop"
+  ],
+  "npcs": [
+    { "id": 1, "talk": "talkOak" },
+    { "id": 2, "talk": "talkGirl" },
+    { "id": 3, "talk": "talkFisher" }
+  ],
+  "signs": [
+    { "id": 1, "talk": "signOakLab" },
+    { "id": 2, "talk": "signPalletTown" },
+    { "id": 3, "talk": "signPlayersHouse" },
+    { "id": 4, "talk": "signRivalsHouse" }
+  ],
+  "coordEvents": [
+    { "position": [0, 1], "trigger": "coordNorthExit" }
+  ]
+}

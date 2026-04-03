@@ -25,6 +25,7 @@
 //! 3. If no script is active, returns `None`.
 
 pub mod command;
+pub mod config;
 pub mod engine;
 pub mod game_api;
 pub mod loader;
@@ -33,5 +34,6 @@ pub mod loader;
 mod tests;
 
 pub use command::{CommandResult, ScriptCommand};
+pub use config::MapScriptConfig;
 pub use engine::{ScriptEngine, ScriptEngineError};
 pub use loader::{ScriptLoader, ScriptLoaderError};

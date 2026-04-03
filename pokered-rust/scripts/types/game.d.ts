@@ -226,12 +226,12 @@ interface GameAPI {
   // -----------------------------------------------------------------------
 
   /**
-   * Set the current map's active script index.  This controls which
-   * `onMapScript_N` function is called each frame.
+   * Set the current map's active script state by name.  The name must
+   * match one of the entries in the map's JSON config `mapScripts` array.
    *
-   * @param scriptIndex - 0-based index of the script state to activate.
+   * @param stateName - Name of the script state function to activate.
    */
-  setMapScript(scriptIndex: number): Promise<void>;
+  setMapScript(stateName: string): Promise<void>;
 
   // -----------------------------------------------------------------------
   // Input Control
@@ -250,39 +250,26 @@ interface GameAPI {
 }
 
 // ---------------------------------------------------------------------------
-// Map script callback signatures
+// JSON-binding architecture
 //
-// Each map JS file exports these top-level async functions.  They are
-// called by the engine at the appropriate time.
+// Map scripts no longer use fixed callback names.  Instead, each map has a
+// companion .json config file that binds NPC IDs, signs, coord events, and
+// map script states to arbitrarily-named JS functions.  The engine calls
+// functions by name as declared in the JSON config.
+//
+// Example JSON (PalletTown.json):
+//   {
+//     "mapScripts": ["palletTownDefault", "palletTownOakHeyWait", ...],
+//     "npcs": [{ "id": 1, "talk": "talkOak" }, ...],
+//     "signs": [{ "id": 1, "talk": "signOakLab" }, ...],
+//     "coordEvents": [{ "position": [4, 1], "trigger": "coordNorthExit" }]
+//   }
+//
+// JS files declare exported async functions using ES6 module syntax:
+//   export async function palletTownDefault() { ... }
+//   export async function talkOak() { ... }
+//
+// Internal helper functions that are NOT referenced in JSON configs do
+// not need the `export` keyword:
+//   async function handlePokeBallInteraction(...) { ... }  // internal
 // ---------------------------------------------------------------------------
-
-/**
- * Called each frame while the map script state equals N.
- * Advance the state with `await game.setMapScript(N+1)`.
- */
-declare function onMapScript_0(): Promise<void>;
-declare function onMapScript_1(): Promise<void>;
-declare function onMapScript_2(): Promise<void>;
-// ... additional onMapScript_N as needed
-
-/**
- * Called when the player presses A on an NPC with the given text ID.
- *
- * @param textId - 0-based text ID assigned to the NPC in map data.
- */
-declare function onTalkNpc(textId: number): Promise<void>;
-
-/**
- * Called when the player presses A on a sign tile with the given text ID.
- *
- * @param textId - 0-based text ID assigned to the sign in map data.
- */
-declare function onTalkSign(textId: number): Promise<void>;
-
-/**
- * Called when the player steps on a coord-event tile.
- *
- * @param x - Tile X coordinate.
- * @param y - Tile Y coordinate.
- */
-declare function onCoordEvent(x: number, y: number): Promise<void>;

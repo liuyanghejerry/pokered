@@ -1,0 +1,10 @@
+{
+  "mapScripts": [],
+  "npcs": [
+    { "id": 1, "talk": "talkDaisySitting" },
+    { "id": 2, "talk": "talkDaisyWalking" },
+    { "id": 3, "talk": "talkTownMap" }
+  ],
+  "signs": [],
+  "coordEvents": []
+}

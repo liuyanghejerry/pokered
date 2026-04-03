@@ -1,8 +1,10 @@
 use pokered_data::maps::MapId;
-use pokered_script::{CommandResult, ScriptCommand};
+use pokered_script::{CommandResult, MapScriptConfig, ScriptCommand};
 
 use super::npc_movement::NpcRuntimeState;
 use super::{BedroomDialogue, DialoguePage, Direction};
+
+pub use pokered_script::config::{CoordEventBinding, NpcBinding, SignBinding};
 
 #[derive(Debug, Clone)]
 pub enum ScriptEffect {
@@ -66,7 +68,7 @@ pub enum ScriptEffect {
         fade_type: String,
     },
     SetMapScript {
-        script_index: u8,
+        state_name: String,
     },
     SetJoyIgnore {
         mask: u8,
@@ -146,8 +148,8 @@ pub fn dispatch_command(cmd: &ScriptCommand) -> ScriptEffect {
         ScriptCommand::FadeScreen { fade_type } => ScriptEffect::FadeScreen {
             fade_type: fade_type.clone(),
         },
-        ScriptCommand::SetMapScript { script_index } => ScriptEffect::SetMapScript {
-            script_index: *script_index,
+        ScriptCommand::SetMapScript { state_name } => ScriptEffect::SetMapScript {
+            state_name: state_name.clone(),
         },
         ScriptCommand::SetJoyIgnore { mask } => ScriptEffect::SetJoyIgnore { mask: *mask },
         ScriptCommand::ClearJoyIgnore => ScriptEffect::ClearJoyIgnore,

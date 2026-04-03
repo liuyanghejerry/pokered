@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 
+use crate::MapScriptConfig;
+
 #[derive(Debug, Clone)]
 pub struct ScriptSource {
     pub map_id: String,
     pub source: String,
 }
 
-/// Metadata for tracking script file modifications (hot-reload support).
 #[cfg(not(target_arch = "wasm32"))]
 #[derive(Debug, Clone)]
 struct ScriptFileMeta {
@@ -16,7 +17,7 @@ struct ScriptFileMeta {
 
 pub struct ScriptLoader {
     scripts: HashMap<String, String>,
-    /// Track file paths and modification times for hot-reload (native only).
+    configs: HashMap<String, MapScriptConfig>,
     #[cfg(not(target_arch = "wasm32"))]
     file_meta: HashMap<String, ScriptFileMeta>,
 }
@@ -25,34 +26,47 @@ impl ScriptLoader {
     pub fn new() -> Self {
         Self {
             scripts: HashMap::new(),
+            configs: HashMap::new(),
             #[cfg(not(target_arch = "wasm32"))]
             file_meta: HashMap::new(),
         }
     }
 
-    /// Register a script from a source string (used by tests and embedded scripts).
     pub fn register_script(&mut self, map_id: &str, source: &str) {
         self.scripts.insert(map_id.to_string(), source.to_string());
+    }
+
+    pub fn register_config(&mut self, map_id: &str, config: MapScriptConfig) {
+        self.configs.insert(map_id.to_string(), config);
+    }
+
+    pub fn register_config_json(&mut self, map_id: &str, json: &str) -> Result<(), String> {
+        let config: MapScriptConfig = serde_json::from_str(json)
+            .map_err(|e| format!("JSON parse error for {}: {}", map_id, e))?;
+        self.configs.insert(map_id.to_string(), config);
+        Ok(())
     }
 
     pub fn get_script(&self, map_id: &str) -> Option<&str> {
         self.scripts.get(map_id).map(|s| s.as_str())
     }
 
+    pub fn get_config(&self, map_id: &str) -> Option<&MapScriptConfig> {
+        self.configs.get(map_id)
+    }
+
     pub fn has_script(&self, map_id: &str) -> bool {
         self.scripts.contains_key(map_id)
+    }
+
+    pub fn has_config(&self, map_id: &str) -> bool {
+        self.configs.contains_key(map_id)
     }
 
     pub fn loaded_maps(&self) -> Vec<&str> {
         self.scripts.keys().map(|s| s.as_str()).collect()
     }
 
-    /// Load all `.js` scripts from a directory.
-    ///
-    /// File names are converted to map IDs by stripping the `.js` extension.
-    /// For example, `PalletTown.js` becomes map ID `"PalletTown"`.
-    ///
-    /// Returns the number of scripts loaded, or an error.
     #[cfg(not(target_arch = "wasm32"))]
     pub fn load_from_directory(
         &mut self,
@@ -74,7 +88,8 @@ impl ScriptLoader {
                 .map_err(|e| ScriptLoaderError::IoError(dir.to_string_lossy().to_string(), e))?;
             let path = entry.path();
 
-            if path.extension().and_then(|e| e.to_str()) != Some("js") {
+            let ext = path.extension().and_then(|e| e.to_str());
+            if ext != Some("js") && ext != Some("json") {
                 continue;
             }
 
@@ -86,16 +101,31 @@ impl ScriptLoader {
                 })?
                 .to_string();
 
-            let source = fs::read_to_string(&path)
+            let content = fs::read_to_string(&path)
                 .map_err(|e| ScriptLoaderError::IoError(path.to_string_lossy().to_string(), e))?;
 
             let modified = fs::metadata(&path)
                 .and_then(|m| m.modified())
                 .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
 
-            self.scripts.insert(map_id.clone(), source);
+            match ext {
+                Some("js") => {
+                    self.scripts.insert(map_id.clone(), content);
+                }
+                Some("json") => {
+                    let config: MapScriptConfig = serde_json::from_str(&content).map_err(|e| {
+                        ScriptLoaderError::IoError(
+                            path.to_string_lossy().to_string(),
+                            std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()),
+                        )
+                    })?;
+                    self.configs.insert(map_id.clone(), config);
+                }
+                _ => continue,
+            }
+
             self.file_meta.insert(
-                map_id,
+                format!("{}:{}", map_id, ext.unwrap_or("")),
                 ScriptFileMeta {
                     path: path.clone(),
                     modified,
@@ -104,28 +134,23 @@ impl ScriptLoader {
             count += 1;
         }
 
-        log::info!("ScriptLoader: loaded {} scripts from {:?}", count, dir);
+        log::info!("ScriptLoader: loaded {} files from {:?}", count, dir);
         Ok(count)
     }
 
-    /// Check for changed files and reload them. Returns the list of map IDs
-    /// whose scripts were reloaded.
-    ///
-    /// Call this periodically in dev mode (e.g., once per second).
     #[cfg(not(target_arch = "wasm32"))]
     pub fn check_reload(&mut self) -> Vec<String> {
         use std::fs;
 
         let mut reloaded = Vec::new();
 
-        // Collect keys and meta first to avoid borrow conflict
         let entries: Vec<(String, std::path::PathBuf, std::time::SystemTime)> = self
             .file_meta
             .iter()
             .map(|(id, meta)| (id.clone(), meta.path.clone(), meta.modified))
             .collect();
 
-        for (map_id, path, old_modified) in entries {
+        for (meta_key, path, old_modified) in entries {
             let current_modified = match fs::metadata(&path).and_then(|m| m.modified()) {
                 Ok(t) => t,
                 Err(_) => continue,
@@ -133,9 +158,29 @@ impl ScriptLoader {
 
             if current_modified > old_modified {
                 match fs::read_to_string(&path) {
-                    Ok(source) => {
-                        self.scripts.insert(map_id.clone(), source);
-                        if let Some(meta) = self.file_meta.get_mut(&map_id) {
+                    Ok(content) => {
+                        let ext = path.extension().and_then(|e| e.to_str());
+                        let map_id = path
+                            .file_stem()
+                            .and_then(|s| s.to_str())
+                            .unwrap_or("")
+                            .to_string();
+
+                        match ext {
+                            Some("js") => {
+                                self.scripts.insert(map_id.clone(), content);
+                            }
+                            Some("json") => {
+                                if let Ok(config) =
+                                    serde_json::from_str::<MapScriptConfig>(&content)
+                                {
+                                    self.configs.insert(map_id.clone(), config);
+                                }
+                            }
+                            _ => {}
+                        }
+
+                        if let Some(meta) = self.file_meta.get_mut(&meta_key) {
                             meta.modified = current_modified;
                         }
                         log::info!("ScriptLoader: hot-reloaded {:?}", path);
@@ -151,12 +196,8 @@ impl ScriptLoader {
         reloaded
     }
 
-    /// Load embedded scripts compiled into the binary.
-    ///
-    /// This is used on WASM targets where filesystem access isn't available,
-    /// or as a fallback when the scripts directory doesn't exist.
     pub fn load_embedded(&mut self) -> usize {
-        let embedded: &[(&str, &str)] = &[
+        let embedded_scripts: &[(&str, &str)] = &[
             (
                 "PalletTown",
                 include_str!("../../../scripts/maps/PalletTown.js"),
@@ -176,13 +217,47 @@ impl ScriptLoader {
             ("OaksLab", include_str!("../../../scripts/maps/OaksLab.js")),
         ];
 
+        let embedded_configs: &[(&str, &str)] = &[
+            (
+                "PalletTown",
+                include_str!("../../../scripts/maps/PalletTown.json"),
+            ),
+            (
+                "RedsHouse1F",
+                include_str!("../../../scripts/maps/RedsHouse1F.json"),
+            ),
+            (
+                "RedsHouse2F",
+                include_str!("../../../scripts/maps/RedsHouse2F.json"),
+            ),
+            (
+                "BluesHouse",
+                include_str!("../../../scripts/maps/BluesHouse.json"),
+            ),
+            (
+                "OaksLab",
+                include_str!("../../../scripts/maps/OaksLab.json"),
+            ),
+        ];
+
         let mut count = 0;
-        for (map_id, source) in embedded {
+        for (map_id, source) in embedded_scripts {
             self.scripts.insert(map_id.to_string(), source.to_string());
             count += 1;
         }
 
-        log::info!("ScriptLoader: loaded {} embedded scripts", count);
+        for (map_id, json) in embedded_configs {
+            if let Ok(config) = serde_json::from_str::<MapScriptConfig>(json) {
+                self.configs.insert(map_id.to_string(), config);
+            } else {
+                log::warn!(
+                    "ScriptLoader: failed to parse embedded config for {}",
+                    map_id
+                );
+            }
+        }
+
+        log::info!("ScriptLoader: loaded {} embedded scripts + configs", count);
         count
     }
 }
@@ -225,6 +300,26 @@ mod tests {
     }
 
     #[test]
+    fn test_register_config_json() {
+        let mut loader = ScriptLoader::new();
+        let json = r#"{
+            "mapScripts": ["stateDefault", "stateOak"],
+            "npcs": [{"id": 1, "talk": "talkOak"}],
+            "signs": [{"id": 1, "talk": "signLab"}],
+            "coordEvents": [{"position": [4, 1], "trigger": "enterRoute1"}]
+        }"#;
+        loader.register_config_json("TestMap", json).unwrap();
+        assert!(loader.has_config("TestMap"));
+        let config = loader.get_config("TestMap").unwrap();
+        assert_eq!(config.map_scripts.len(), 2);
+        assert_eq!(config.npcs.len(), 1);
+        assert_eq!(config.npc_talk_fn(1), Some("talkOak"));
+        assert_eq!(config.sign_talk_fn(1), Some("signLab"));
+        assert_eq!(config.coord_event_fn(4, 1), Some("enterRoute1"));
+        assert_eq!(config.resolve_map_script_index("stateOak"), Some(1));
+    }
+
+    #[test]
     fn test_load_embedded() {
         let mut loader = ScriptLoader::new();
         let count = loader.load_embedded();
@@ -234,6 +329,8 @@ mod tests {
         assert!(loader.has_script("RedsHouse1F"));
         assert!(loader.has_script("RedsHouse2F"));
         assert!(loader.has_script("BluesHouse"));
+        assert!(loader.has_config("PalletTown"));
+        assert!(loader.has_config("OaksLab"));
     }
 
     #[cfg(not(target_arch = "wasm32"))]

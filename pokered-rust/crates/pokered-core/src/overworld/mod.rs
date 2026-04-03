@@ -273,7 +273,7 @@ impl OverworldState {
 // ── Overworld Screen (frame-loop adapter) ─────────────────────────
 
 use crate::game_state::ScreenAction;
-use pokered_script::{CommandResult, ScriptEngine, ScriptLoader};
+use pokered_script::{CommandResult, MapScriptConfig, ScriptEngine, ScriptLoader};
 
 // ── Warp Fade Transition ──────────────────────────────────────────
 //
@@ -474,6 +474,7 @@ pub struct OverworldScreen {
     prev_a_pressed: bool,
     script_engine: ScriptEngine,
     script_loader: ScriptLoader,
+    map_script_config: MapScriptConfig,
     active_script_effect: Option<script_bridge::ScriptEffect>,
     joy_ignore_mask: u8,
     map_script_index: u8,
@@ -497,6 +498,10 @@ impl OverworldScreen {
         if let Some(source) = script_loader.get_script(&map_key) {
             let _ = script_engine.load_script(source);
         }
+        let map_script_config = script_loader
+            .get_config(&map_key)
+            .cloned()
+            .unwrap_or_default();
 
         Self {
             state: OverworldState::new(start_map),
@@ -513,6 +518,7 @@ impl OverworldScreen {
             prev_a_pressed: false,
             script_engine,
             script_loader,
+            map_script_config,
             active_script_effect: None,
             joy_ignore_mask: 0,
             map_script_index: 0,
@@ -968,8 +974,13 @@ impl OverworldScreen {
                 script_bridge::ScriptEffect::ClearJoyIgnore => {
                     self.joy_ignore_mask = 0;
                 }
-                script_bridge::ScriptEffect::SetMapScript { script_index } => {
-                    self.map_script_index = script_index;
+                script_bridge::ScriptEffect::SetMapScript { state_name } => {
+                    if let Some(idx) = self.map_script_config.resolve_map_script_index(&state_name)
+                    {
+                        self.map_script_index = idx as u8;
+                    } else {
+                        log::warn!("SetMapScript: unknown state '{}'", state_name);
+                    }
                 }
                 script_bridge::ScriptEffect::FaceNpc { npc_id, direction } => {
                     if let Some(idx) =
@@ -1010,31 +1021,34 @@ impl OverworldScreen {
         if let Some(source) = self.script_loader.get_script(&map_key) {
             let _ = self.script_engine.load_script(source);
         }
+        self.map_script_config = self
+            .script_loader
+            .get_config(&map_key)
+            .cloned()
+            .unwrap_or_default();
         self.active_script_effect = None;
         self.map_script_index = 0;
     }
 
     fn try_call_script_npc_talk(&mut self, text_id: u8) -> bool {
-        if self.script_engine.has_function("onTalkNpc") {
-            if let Ok(Some(cmd)) = self
-                .script_engine
-                .call_function_with_u8("onTalkNpc", text_id)
-            {
-                self.active_script_effect = Some(script_bridge::dispatch_command(&cmd));
-                return true;
+        if let Some(fn_name) = self.map_script_config.npc_talk_fn(text_id) {
+            if self.script_engine.has_function(fn_name) {
+                if let Ok(Some(cmd)) = self.script_engine.call_function_no_args(fn_name) {
+                    self.active_script_effect = Some(script_bridge::dispatch_command(&cmd));
+                    return true;
+                }
             }
         }
         false
     }
 
     fn try_call_script_sign_talk(&mut self, text_id: u8) -> bool {
-        if self.script_engine.has_function("onTalkSign") {
-            if let Ok(Some(cmd)) = self
-                .script_engine
-                .call_function_with_u8("onTalkSign", text_id)
-            {
-                self.active_script_effect = Some(script_bridge::dispatch_command(&cmd));
-                return true;
+        if let Some(fn_name) = self.map_script_config.sign_talk_fn(text_id) {
+            if self.script_engine.has_function(fn_name) {
+                if let Ok(Some(cmd)) = self.script_engine.call_function_no_args(fn_name) {
+                    self.active_script_effect = Some(script_bridge::dispatch_command(&cmd));
+                    return true;
+                }
             }
         }
         false

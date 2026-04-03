@@ -1,9 +1,12 @@
 use std::cell::RefCell;
+use std::path::Path;
 use std::rc::Rc;
 
+use boa_engine::builtins::promise::PromiseState;
+use boa_engine::module::SimpleModuleLoader;
 use boa_engine::object::builtins::{JsFunction, JsPromise};
 use boa_engine::property::Attribute;
-use boa_engine::{js_string, Context, JsArgs, JsResult, JsValue, NativeFunction, Source};
+use boa_engine::{js_string, Context, JsArgs, JsResult, JsValue, Module, NativeFunction, Source};
 
 use crate::command::{CommandResult, ScriptCommand};
 
@@ -54,11 +57,25 @@ pub struct ScriptEngine {
     context: Context,
     bridge: Rc<RefCell<SharedBridge>>,
     state: EngineState,
+    /// The module loader shared with the context (needed to insert modules).
+    loader: Rc<SimpleModuleLoader>,
+    /// The currently loaded ES6 module (holds exported function bindings).
+    current_module: Option<Module>,
 }
 
 impl ScriptEngine {
     pub fn new() -> Self {
-        let mut context = Context::default();
+        // SimpleModuleLoader requires a real directory path.
+        // We use the current directory; it only matters for relative imports
+        // which we don't use (all modules are loaded from in-memory strings).
+        let loader = Rc::new(
+            SimpleModuleLoader::new(".")
+                .expect("failed to create module loader (current directory must exist)"),
+        );
+        let mut context = Context::builder()
+            .module_loader(loader.clone())
+            .build()
+            .expect("failed to build JS context");
         let bridge = Rc::new(RefCell::new(SharedBridge::new()));
 
         register_game_api(&mut context, bridge.clone());
@@ -67,6 +84,8 @@ impl ScriptEngine {
             context,
             bridge,
             state: EngineState::Idle,
+            loader,
+            current_module: None,
         }
     }
 
@@ -99,23 +118,54 @@ impl ScriptEngine {
     }
 
     pub fn load_script(&mut self, source: &str) -> Result<(), ScriptEngineError> {
-        self.context
-            .eval(Source::from_bytes(source))
+        let src = Source::from_reader(source.as_bytes(), Some(Path::new("./script.mjs")));
+        let module = Module::parse(src, None, &mut self.context)
             .map_err(|e| ScriptEngineError::JsError(e.to_string()))?;
+
+        // Register in the loader (required by Boa even for in-memory modules)
+        let canonical = Path::new(".")
+            .canonicalize()
+            .unwrap_or_default()
+            .join("script.mjs");
+        self.loader.insert(canonical, module.clone());
+
+        let promise = module.load_link_evaluate(&mut self.context);
+        self.context.run_jobs();
+
+        match promise.state() {
+            PromiseState::Fulfilled(_) => {}
+            PromiseState::Rejected(err) => {
+                return Err(ScriptEngineError::JsError(format!(
+                    "Module evaluation failed: {:?}",
+                    err
+                )));
+            }
+            PromiseState::Pending => {
+                return Err(ScriptEngineError::JsError(
+                    "Module evaluation stuck in pending state".to_string(),
+                ));
+            }
+        }
+
+        self.current_module = Some(module);
         Ok(())
     }
 
-    /// Call a JS async function by name (e.g., "onEnter", "onTalkNpc").
-    /// The function should be declared at the top level of the loaded script.
+    /// Call a JS async function by name (e.g., "scriptDefault", "talkOak").
+    /// The function must be `export`-ed from the loaded module.
     /// Returns the first ScriptCommand if the function immediately awaits one.
     pub fn call_function(
         &mut self,
         fn_name: &str,
         args: &[JsValue],
     ) -> Result<Option<ScriptCommand>, ScriptEngineError> {
-        let global = self.context.global_object();
-        let func = global
-            .get(js_string!(fn_name), &mut self.context)
+        let module = self
+            .current_module
+            .as_ref()
+            .ok_or(ScriptEngineError::NotInitialized)?;
+
+        let func = module
+            .get_value(js_string!(fn_name), &mut self.context)
             .map_err(|e| ScriptEngineError::JsError(e.to_string()))?;
 
         if func.is_undefined() || func.is_null() {
@@ -208,7 +258,7 @@ impl ScriptEngine {
         self.call_function(fn_name, &[])
     }
 
-    /// Call a JS function with a single u8 argument (e.g., onTalkNpc(textId)).
+    /// Call a JS function with a single u8 argument (e.g., npc text_id lookup).
     pub fn call_function_with_u8(
         &mut self,
         fn_name: &str,
@@ -217,7 +267,7 @@ impl ScriptEngine {
         self.call_function(fn_name, &[JsValue::from(arg as i32)])
     }
 
-    /// Call a JS function with two u16 arguments (e.g., onCoordEvent(x, y)).
+    /// Call a JS function with two u16 arguments (e.g., coord event trigger).
     pub fn call_function_with_xy(
         &mut self,
         fn_name: &str,
@@ -236,10 +286,13 @@ impl ScriptEngine {
         self.call_function(fn_name, &[JsValue::from(js_string!(arg))])
     }
 
-    /// Check if a JS function exists in the global scope.
+    /// Check if a JS function exists in the module's exports.
     pub fn has_function(&mut self, fn_name: &str) -> bool {
-        let global = self.context.global_object();
-        match global.get(js_string!(fn_name), &mut self.context) {
+        let module = match self.current_module.as_ref() {
+            Some(m) => m,
+            None => return false,
+        };
+        match module.get_value(js_string!(fn_name), &mut self.context) {
             Ok(val) => val.is_callable(),
             Err(_) => false,
         }
@@ -569,15 +622,18 @@ fn register_game_api(context: &mut Context, bridge: Rc<RefCell<SharedBridge>>) {
         }
     );
 
-    // game.setMapScript(scriptIndex: number) -> Promise<void>
+    // game.setMapScript(stateName: string) -> Promise<void>
     register_async_command!(
         "setMapScript",
         bridge,
         context,
         game_obj,
         |args: &[JsValue], ctx: &mut Context| -> JsResult<ScriptCommand> {
-            let script_index = args.get_or_undefined(0).to_u32(ctx)? as u8;
-            Ok(ScriptCommand::SetMapScript { script_index })
+            let state_name = args
+                .get_or_undefined(0)
+                .to_string(ctx)?
+                .to_std_string_lossy();
+            Ok(ScriptCommand::SetMapScript { state_name })
         }
     );
 

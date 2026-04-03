@@ -24,7 +24,7 @@ pub enum ScriptCommand {
     WarpTo { map: String, x: u8, y: u8 },
     Heal,
     FadeScreen { fade_type: String },
-    SetMapScript { script_index: u8 },
+    SetMapScript { state_name: String },
     SetJoyIgnore { mask: u8 },
     ClearJoyIgnore,
 }

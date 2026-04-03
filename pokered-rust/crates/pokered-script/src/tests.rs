@@ -13,7 +13,7 @@ fn test_load_and_call_simple_script() {
     engine
         .load_script(
             r#"
-        async function onEnter() {
+        export async function onEnter() {
             await game.showText("Hello world!");
         }
     "#,
@@ -36,7 +36,7 @@ fn test_signal_done_continues_script() {
     engine
         .load_script(
             r#"
-        async function onEnter() {
+        export async function onEnter() {
             await game.showText("Line 1");
             await game.showText("Line 2");
         }
@@ -72,7 +72,7 @@ fn test_show_choice_returns_number() {
         .load_script(
             r#"
         var chosen = -1;
-        async function onEnter() {
+        export async function onEnter() {
             chosen = await game.showChoice(["Yes", "No"]);
             await game.showText("You picked: " + chosen);
         }
@@ -104,7 +104,7 @@ fn test_flag_operations() {
         .load_script(
             r#"
         var result = false;
-        async function checkFlags() {
+        export async function checkFlags() {
             result = game.getFlag("TEST_FLAG");
             game.setFlag("TEST_FLAG");
             result = game.getFlag("TEST_FLAG");
@@ -132,7 +132,7 @@ fn test_conditional_branching() {
     engine
         .load_script(
             r#"
-        async function onEnter() {
+        export async function onEnter() {
             if (game.getFlag("GOT_STARTER")) {
                 await game.showText("You already have a starter!");
             } else {
@@ -159,7 +159,7 @@ fn test_conditional_branching_else() {
     engine
         .load_script(
             r#"
-        async function onEnter() {
+        export async function onEnter() {
             if (game.getFlag("GOT_STARTER")) {
                 await game.showText("You already have a starter!");
             } else {
@@ -195,7 +195,7 @@ fn test_move_npc_command() {
     engine
         .load_script(
             r#"
-        async function onEnter() {
+        export async function onEnter() {
             await game.moveNpc("oak", [[2, 3], [2, 5], [4, 5]]);
         }
     "#,
@@ -218,7 +218,7 @@ fn test_multiple_commands_sequence() {
     engine
         .load_script(
             r#"
-        async function onEnter() {
+        export async function onEnter() {
             await game.playMusic("PALLET_TOWN");
             await game.showText("Welcome!");
             await game.delay(30);
@@ -261,7 +261,7 @@ fn test_tick_returns_pending_command() {
     engine
         .load_script(
             r#"
-        async function onEnter() {
+        export async function onEnter() {
             await game.showText("Tick test");
         }
     "#,
@@ -283,7 +283,7 @@ fn test_tick_returns_pending_command() {
 #[test]
 fn test_function_not_found() {
     let mut engine = ScriptEngine::new();
-    engine.load_script("function foo() {}").unwrap();
+    engine.load_script("export function foo() {}").unwrap();
 
     let result = engine.call_function("nonExistent", &[]);
     assert!(result.is_err());
@@ -295,7 +295,7 @@ fn test_warp_command() {
     engine
         .load_script(
             r#"
-        async function doWarp() {
+        export async function doWarp() {
             await game.warpTo("OAKS_LAB", 5, 3);
         }
     "#,
@@ -320,7 +320,7 @@ fn test_battle_with_result() {
         .load_script(
             r#"
         var battleResult = "";
-        async function onEnter() {
+        export async function onEnter() {
             battleResult = await game.startBattle("RIVAL_1");
             if (battleResult === "won") {
                 await game.showText("You won!");
@@ -360,7 +360,7 @@ fn test_reset_flag() {
     engine
         .load_script(
             r#"
-        async function doReset() {
+        export async function doReset() {
             game.resetFlag("MY_FLAG");
             if (!game.getFlag("MY_FLAG")) {
                 await game.showText("Flag was reset!");
@@ -386,15 +386,20 @@ fn test_set_map_script() {
     engine
         .load_script(
             r#"
-        async function onEnter() {
-            await game.setMapScript(3);
+        export async function onEnter() {
+            await game.setMapScript("scriptFollowedOak");
         }
     "#,
         )
         .unwrap();
 
     let cmd = engine.call_function("onEnter", &[]).unwrap();
-    assert_eq!(cmd, Some(ScriptCommand::SetMapScript { script_index: 3 }));
+    assert_eq!(
+        cmd,
+        Some(ScriptCommand::SetMapScript {
+            state_name: "scriptFollowedOak".to_string()
+        })
+    );
 }
 
 #[test]
@@ -403,7 +408,7 @@ fn test_set_joy_ignore() {
     engine
         .load_script(
             r#"
-        async function onEnter() {
+        export async function onEnter() {
             await game.setJoyIgnore(0xFF);
             await game.showText("Input disabled");
             await game.clearJoyIgnore();

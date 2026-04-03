@@ -1,0 +1,38 @@
+{
+  "mapScripts": [
+    "scriptDefault",
+    "scriptOakEntersLab",
+    "scriptToggleOaks",
+    "scriptPlayerEntersLab",
+    "scriptFollowedOak",
+    "scriptOakChooseMonSpeech",
+    "scriptPlayerDontGoAway",
+    "scriptPlayerForcedWalkBack",
+    "scriptChoseStarter",
+    "scriptRivalChoosesStarter",
+    "scriptRivalChallengesPlayer",
+    "scriptRivalStartBattle",
+    "scriptRivalEndBattle",
+    "scriptRivalStartsExit",
+    "scriptPlayerWatchRivalExit",
+    "scriptRivalArrivesAtOaksRequest",
+    "scriptOakGivesPokedex",
+    "scriptRivalLeavesWithPokedex",
+    "scriptNoop"
+  ],
+  "npcs": [
+    { "id": 1, "talk": "talkRival" },
+    { "id": 2, "talk": "talkCharmanderBall" },
+    { "id": 3, "talk": "talkSquirtleBall" },
+    { "id": 4, "talk": "talkBulbasaurBall" },
+    { "id": 5, "talk": "talkOak1" },
+    { "id": 6, "talk": "talkPokedex" },
+    { "id": 7, "talk": "talkPokedex" },
+    { "id": 8, "talk": "talkOak2" },
+    { "id": 9, "talk": "talkLabGirl" },
+    { "id": 10, "talk": "talkScientist" },
+    { "id": 11, "talk": "talkScientist" }
+  ],
+  "signs": [],
+  "coordEvents": []
+}

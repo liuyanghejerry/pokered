@@ -1,4 +1,2 @@
-async function onTalkNpc(_npcTextId) {}
-async function onTalkSign(_signTextId) {}
-async function onMapScript() {}
-async function onCoordEvent(_x, _y) {}
+// RedsHouse2F.js — Red's House 2F map script (JSON-bound architecture)
+// No NPCs, signs, coord events, or map scripts for this map.
