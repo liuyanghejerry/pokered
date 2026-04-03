@@ -285,6 +285,12 @@ fn draw_move_menu(buf: &mut ScreenTileBuffer, screen: &BattleScreen) {
         let move_box = TextBoxFrame::new(4, 12, 16, 6);
         move_box.draw_frame(buf);
 
+        // Match engine/battle/core.asm MoveSelectionMenu:
+        // after drawing the move box, top border is patched at (4,12)='─' and (10,12)='┘'
+        // to join the left TYPE/PP panel cleanly.
+        buf.set(4, 12, 0x7A);
+        buf.set(10, 12, 0x7E);
+
         let moves = mm.moves();
         for (i, slot) in moves.iter().enumerate() {
             let name = move_display_name(slot.move_id);
@@ -313,7 +319,12 @@ fn draw_move_menu(buf: &mut ScreenTileBuffer, screen: &BattleScreen) {
                 write_tiles_at(buf, 1, 10, &type_tiles);
             }
 
-            let pp_text = format!("{:>2}/{:>2}", slot.current_pp, slot.max_pp);
+            // Match PrintMenuItem in engine/battle/core.asm:
+            // (5,9)='/', (7,11)='/', current PP at (5,11), max PP at (8,11), plus "PP" label.
+            let pp_label = ascii_to_tiles("PP");
+            write_tiles_at(buf, 2, 11, &pp_label);
+
+            let pp_text = format!("{:>2}/{:>2}", slot.current_pp.min(99), slot.max_pp.min(99));
             let pp_tiles = ascii_to_tiles(&pp_text);
             write_tiles_at(buf, 5, 11, &pp_tiles);
         }
