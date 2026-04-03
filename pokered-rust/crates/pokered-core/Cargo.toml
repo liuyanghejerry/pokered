@@ -5,6 +5,7 @@ edition.workspace = true
 
 [dependencies]
 pokered-data = { path = "../pokered-data" }
+pokered-script = { path = "../pokered-script" }
 serde = { workspace = true }
 thiserror = { workspace = true }
 rand = { workspace = true }

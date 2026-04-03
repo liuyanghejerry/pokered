@@ -1,17 +1,14 @@
 //! M9.3 Integration tests — NPC interaction + trainer encounter + line-of-sight.
 
-use pokered_core::overworld::event_flags::EventFlags;
-use pokered_core::overworld::map_scripts::MapScriptContext;
 use pokered_core::overworld::npc_interaction::{
     check_sign_interaction, check_trainer_line_of_sight, collect_item, mark_trainer_defeated,
-    try_interact, InteractionResult, TrainerSighting,
+    try_interact, InteractionResult,
 };
 use pokered_core::overworld::npc_movement::{load_map_npcs, NpcRuntimeState};
 use pokered_core::overworld::trainer_engine::{
-    advance_trainer_battle, TrainerBattleState, TrainerEncounter, TrainerHeader, TrainerPosition,
+    advance_trainer_battle, TrainerBattleState, TrainerEncounter,
 };
 use pokered_core::overworld::Direction;
-use pokered_data::event_flags::EventFlag;
 use pokered_data::maps::MapId;
 use pokered_data::npc_data::get_map_npcs;
 
@@ -262,57 +259,6 @@ fn sign_not_detected_no_sign_at_position() {
     let signs: Vec<(u8, u8, u8)> = vec![(10, 10, 7)];
     let text = check_sign_interaction(&signs, 5, 5, Direction::Up);
     assert_eq!(text, None);
-}
-
-// ── Map Script Context Trainer Check ─────────────────────────────────
-
-#[test]
-fn map_context_trainer_check_with_defeated_flag() {
-    let ctx = MapScriptContext::new(MapId::PewterGym);
-    let mut flags = EventFlags::new();
-
-    let positions = vec![TrainerPosition {
-        x: 5,
-        y: 2,
-        facing_dx: 0,
-        facing_dy: 1,
-    }];
-
-    let spotted = ctx.check_trainers(&flags, &positions, 5, 5);
-    // Result depends on whether PewterGym has trainer headers in data
-    // If it does, the first undefeated trainer in range should spot the player
-    if spotted.is_some() {
-        // Mark first trainer's event flag as defeated
-        let headers = pokered_data::trainer_headers::get_trainer_headers(MapId::PewterGym);
-        if let Some(h) = headers.first() {
-            flags.set(h.event_flag);
-        }
-        let spotted_again = ctx.check_trainers(&flags, &positions, 5, 5);
-        // The first trainer is now defeated, check if none or next trainer
-        if headers.len() <= 1 {
-            assert!(spotted_again.is_none() || spotted_again != spotted);
-        }
-    }
-}
-
-#[test]
-fn map_context_trainer_encounter_lifecycle() {
-    let mut ctx = MapScriptContext::new(MapId::PewterGym);
-    assert!(!ctx.is_encounter_active());
-
-    ctx.start_trainer_battle(0, 1);
-    assert!(ctx.is_encounter_active());
-
-    // Advance through states
-    let s1 = ctx.advance_active_encounter();
-    assert_eq!(s1, Some(TrainerBattleState::Spotted));
-
-    let s2 = ctx.advance_active_encounter();
-    assert_eq!(s2, Some(TrainerBattleState::WalkingToPlayer));
-
-    ctx.clear_encounter();
-    assert!(!ctx.is_encounter_active());
-    assert!(ctx.advance_active_encounter().is_none());
 }
 
 // ── Real Map NPC Data Integration ────────────────────────────────────

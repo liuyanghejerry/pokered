@@ -11,12 +11,11 @@ pub mod event_flags;
 pub mod hm_effects;
 pub mod map_data_loading;
 pub mod map_loading;
-pub mod map_scripts;
 pub mod map_transitions;
 pub mod npc_interaction;
 pub mod npc_movement;
 pub mod player_movement;
-pub mod script_engine;
+pub mod script_bridge;
 pub mod special_terrain;
 pub mod sprites;
 pub mod trainer_engine;
@@ -274,6 +273,7 @@ impl OverworldState {
 // ── Overworld Screen (frame-loop adapter) ─────────────────────────
 
 use crate::game_state::ScreenAction;
+use pokered_script::{CommandResult, ScriptEngine, ScriptLoader};
 
 // ── Warp Fade Transition ──────────────────────────────────────────
 //
@@ -403,6 +403,13 @@ impl BedroomDialogue {
         }
     }
 
+    pub fn from_pages(pages: Vec<DialoguePage>) -> Self {
+        Self {
+            pages,
+            current_page: 0,
+        }
+    }
+
     pub fn current(&self) -> Option<&DialoguePage> {
         self.pages.get(self.current_page)
     }
@@ -463,13 +470,13 @@ pub struct OverworldScreen {
     pub pending_warp: Option<PendingWarp>,
     pub player_name: String,
     pub rival_name: String,
-    /// Frame counter incremented every update, used as RNG seed for NPC movement.
-    /// Mirrors hRandomAdd in the original game, which is updated every VBlank.
     pub frame_counter: u32,
-    /// Previous frame's A-button state for edge detection.
-    /// Mirrors hJoyPressed vs hJoyHeld in the original game — dialogue only
-    /// advances on a rising edge (newly pressed), not while held.
     prev_a_pressed: bool,
+    script_engine: ScriptEngine,
+    script_loader: ScriptLoader,
+    active_script_effect: Option<script_bridge::ScriptEffect>,
+    joy_ignore_mask: u8,
+    map_script_index: u8,
 }
 
 const MAP_NAME_DISPLAY_FRAMES: u8 = 120;
@@ -481,6 +488,16 @@ impl OverworldScreen {
             .as_ref()
             .map(|md| build_npc_runtime_states(&md.npcs))
             .unwrap_or_default();
+
+        let mut script_loader = ScriptLoader::new();
+        script_loader.load_embedded();
+
+        let mut script_engine = ScriptEngine::new();
+        let map_key = script_bridge::map_id_to_script_key(start_map);
+        if let Some(source) = script_loader.get_script(&map_key) {
+            let _ = script_engine.load_script(source);
+        }
+
         Self {
             state: OverworldState::new(start_map),
             map_data,
@@ -494,6 +511,11 @@ impl OverworldScreen {
             rival_name: "BLUE".to_string(),
             frame_counter: 0,
             prev_a_pressed: false,
+            script_engine,
+            script_loader,
+            active_script_effect: None,
+            joy_ignore_mask: 0,
+            map_script_index: 0,
         }
     }
 
@@ -531,6 +553,7 @@ impl OverworldScreen {
                 .as_ref()
                 .map(|md| build_npc_runtime_states(&md.npcs))
                 .unwrap_or_default();
+            self.load_map_script(warp.dest_map);
             if !warp.dest_map.is_indoor() {
                 self.map_name_timer = MAP_NAME_DISPLAY_FRAMES;
             }
@@ -585,6 +608,24 @@ impl OverworldScreen {
             WarpFadeState::Idle => {}
         }
 
+        // ── Script engine tick ────────────────────────────────────────
+        if let Some(ref mut effect) = self.active_script_effect {
+            let done = Self::tick_active_effect(effect, &input, &mut self.pending_dialogue);
+            if done {
+                let result = Self::finish_effect(effect);
+                let effect_done = self.active_script_effect.take();
+                self.apply_finished_effect(effect_done);
+                if let Ok(Some(next_cmd)) = self.script_engine.signal_done(result) {
+                    self.active_script_effect = Some(script_bridge::dispatch_command(&next_cmd));
+                }
+            }
+            return ScreenAction::Continue;
+        }
+        if let Some(cmd) = self.script_engine.tick() {
+            self.active_script_effect = Some(script_bridge::dispatch_command(&cmd));
+            return ScreenAction::Continue;
+        }
+
         // Door exit auto-step (PlayerStepOutFromDoor / BIT_EXITING_DOOR).
         // When exiting_door is active, advance the walk animation ignoring real input.
         if self.state.exiting_door {
@@ -635,6 +676,9 @@ impl OverworldScreen {
                     self.state.player.y,
                     self.state.player.facing,
                 ) {
+                    if self.try_call_script_sign_talk(sign_text_id) {
+                        return ScreenAction::Continue;
+                    }
                     let text_pages = pokered_data::map_text_data::get_sign_text(
                         self.state.current_map,
                         sign_text_id,
@@ -659,9 +703,6 @@ impl OverworldScreen {
                 match interaction {
                     npc_interaction::InteractionResult::Talk { npc_index, text_id }
                     | npc_interaction::InteractionResult::AlreadyDefeated { npc_index, text_id } => {
-                        // MakeNPCFacePlayer: NPC turns to face the player (opposite direction).
-                        // In the original game this is called via UpdateSpriteFacingOffsetAndDelayMovement
-                        // in text_script.asm for every NPC spoken to.
                         let face_dir =
                             player_movement::opposite_direction(self.state.player.facing);
                         if let Some(npc) = self
@@ -670,6 +711,10 @@ impl OverworldScreen {
                             .find(|n| n.npc_index == npc_index)
                         {
                             npc.facing = face_dir;
+                        }
+
+                        if self.try_call_script_npc_talk(text_id) {
+                            return ScreenAction::Continue;
                         }
 
                         let text_pages = pokered_data::map_text_data::get_npc_text(
@@ -803,6 +848,7 @@ impl OverworldScreen {
                                 .unwrap_or_default();
                             self.state.player.x = transition.new_x;
                             self.state.player.y = transition.new_y;
+                            self.load_map_script(new_map);
 
                             if !new_map.is_indoor() {
                                 self.map_name_timer = MAP_NAME_DISPLAY_FRAMES;
@@ -860,5 +906,137 @@ impl OverworldScreen {
         }
 
         ScreenAction::Continue
+    }
+
+    fn tick_active_effect(
+        effect: &mut script_bridge::ScriptEffect,
+        input: &OverworldInput,
+        pending_dialogue: &mut Option<BedroomDialogue>,
+    ) -> bool {
+        match effect {
+            script_bridge::ScriptEffect::ShowDialogue { text } => {
+                if pending_dialogue.is_none() {
+                    *pending_dialogue = Some(script_bridge::text_to_dialogue(text));
+                    false
+                } else if pending_dialogue.as_ref().map_or(true, |d| d.is_done()) {
+                    *pending_dialogue = None;
+                    true
+                } else {
+                    if input.a {
+                        if let Some(ref mut dlg) = pending_dialogue {
+                            if !dlg.advance() {
+                                *pending_dialogue = None;
+                                return true;
+                            }
+                        }
+                    }
+                    false
+                }
+            }
+            script_bridge::ScriptEffect::Delay {
+                frames: _,
+                ref mut frames_remaining,
+            } => {
+                if *frames_remaining == 0 {
+                    return true;
+                }
+                *frames_remaining -= 1;
+                *frames_remaining == 0
+            }
+            script_bridge::ScriptEffect::Immediate { .. } => true,
+            script_bridge::ScriptEffect::SetJoyIgnore { .. } => true,
+            script_bridge::ScriptEffect::ClearJoyIgnore => true,
+            script_bridge::ScriptEffect::SetMapScript { .. } => true,
+            _ => true,
+        }
+    }
+
+    fn finish_effect(effect: &script_bridge::ScriptEffect) -> CommandResult {
+        match effect {
+            script_bridge::ScriptEffect::ShowChoice { .. } => CommandResult::Number(0.0),
+            script_bridge::ScriptEffect::Immediate { result } => result.clone(),
+            _ => CommandResult::Void,
+        }
+    }
+
+    fn apply_finished_effect(&mut self, effect: Option<script_bridge::ScriptEffect>) {
+        if let Some(eff) = effect {
+            match eff {
+                script_bridge::ScriptEffect::SetJoyIgnore { mask } => {
+                    self.joy_ignore_mask = mask;
+                }
+                script_bridge::ScriptEffect::ClearJoyIgnore => {
+                    self.joy_ignore_mask = 0;
+                }
+                script_bridge::ScriptEffect::SetMapScript { script_index } => {
+                    self.map_script_index = script_index;
+                }
+                script_bridge::ScriptEffect::FaceNpc { npc_id, direction } => {
+                    if let Some(idx) =
+                        script_bridge::find_npc_index_by_id(&self.npc_states, &npc_id)
+                    {
+                        self.npc_states[idx].facing = direction;
+                    }
+                }
+                script_bridge::ScriptEffect::FacePlayer { direction } => {
+                    self.state.player.facing = direction;
+                }
+                script_bridge::ScriptEffect::ShowObject { object_index } => {
+                    if let Some(npc) = self
+                        .npc_states
+                        .iter_mut()
+                        .find(|n| n.npc_index == object_index)
+                    {
+                        npc.visible = true;
+                    }
+                }
+                script_bridge::ScriptEffect::HideObject { object_index } => {
+                    if let Some(npc) = self
+                        .npc_states
+                        .iter_mut()
+                        .find(|n| n.npc_index == object_index)
+                    {
+                        npc.visible = false;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn load_map_script(&mut self, map_id: MapId) {
+        let map_key = script_bridge::map_id_to_script_key(map_id);
+        self.script_engine = ScriptEngine::new();
+        if let Some(source) = self.script_loader.get_script(&map_key) {
+            let _ = self.script_engine.load_script(source);
+        }
+        self.active_script_effect = None;
+        self.map_script_index = 0;
+    }
+
+    fn try_call_script_npc_talk(&mut self, text_id: u8) -> bool {
+        if self.script_engine.has_function("onTalkNpc") {
+            if let Ok(Some(cmd)) = self
+                .script_engine
+                .call_function_with_u8("onTalkNpc", text_id)
+            {
+                self.active_script_effect = Some(script_bridge::dispatch_command(&cmd));
+                return true;
+            }
+        }
+        false
+    }
+
+    fn try_call_script_sign_talk(&mut self, text_id: u8) -> bool {
+        if self.script_engine.has_function("onTalkSign") {
+            if let Ok(Some(cmd)) = self
+                .script_engine
+                .call_function_with_u8("onTalkSign", text_id)
+            {
+                self.active_script_effect = Some(script_bridge::dispatch_command(&cmd));
+                return true;
+            }
+        }
+        false
     }
 }
