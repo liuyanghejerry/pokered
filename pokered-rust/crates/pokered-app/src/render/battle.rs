@@ -425,7 +425,7 @@ pub fn draw_battle(screen: &BattleScreen, res: &mut Option<ResourceManager>, fb:
         // ── Enemy HUD (top-left) ─────────────────────────────────────
         let enemy_name_tiles = ascii_to_tiles(&enemy_name);
         let enemy_status_tiles = core_status_to_tiles(&screen.enemy_status).map(|s| s.tiles());
-        let enemy_hp_color = EnemyHud::draw(
+        let _enemy_hp_color = EnemyHud::draw(
             &mut tile_buf,
             &enemy_name_tiles,
             screen.enemy_level,
@@ -437,7 +437,7 @@ pub fn draw_battle(screen: &BattleScreen, res: &mut Option<ResourceManager>, fb:
         // ── Player HUD (right side) ─────────────────────────────────
         let player_name_tiles = ascii_to_tiles(&player_name);
         let player_status_tiles = core_status_to_tiles(&screen.player_status).map(|s| s.tiles());
-        let player_hp_color = PlayerHud::draw(
+        let _player_hp_color = PlayerHud::draw(
             &mut tile_buf,
             &player_name_tiles,
             screen.player_level,
@@ -508,16 +508,8 @@ pub fn draw_battle(screen: &BattleScreen, res: &mut Option<ResourceManager>, fb:
         // ── Render tile buffer to framebuffer ────────────────────────
         tile_buf.render(fb, &battle_ts, pal);
 
-        // ── Apply HP bar color palettes ──────────────────────────────
-        // SGB BlkPacket_Battle defines palette regions:
-        //   Enemy:  pal 1, rect (1,0)-(10,3)  — name/level + HP bar
-        //   Player: pal 0, rect (10,7)-(19,10) — name/level + HP bar + HP numbers
-        // We apply colored HP palettes only to the HP bar rows (+ HP numbers for player),
-        // since coloring name/level text with green/yellow/red would look wrong.
-        // Enemy HP bar: tiles (2,2) through (10,2) — 9 tiles wide, 1 row
-        tile_buf.render_region(fb, &battle_ts, enemy_hp_color.palette(), 2, 2, 9, 1);
-        // Player HP bar + HP numbers: tiles (10,9) through (18,10) — 9 tiles wide, 2 rows
-        tile_buf.render_region(fb, &battle_ts, player_hp_color.palette(), 10, 9, 9, 2);
+        // DMG-original look: keep battle HUD (including HP bars) in grayscale.
+        // Do not apply SGB-style green/yellow/red recolor overlays here.
 
         // ── Overlay Pokémon sprites on top ───────────────────────────
         // Enemy front sprite: centered within 7×7 tile area at tile (12, 0)
