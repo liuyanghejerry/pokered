@@ -1,14 +1,16 @@
 use pokered_core::battle::state::StatusCondition as CoreStatus;
 use pokered_core::battle::{BattlePhase, BattleScreen};
+use pokered_renderer::battle_anim::{AnimEffect, AnimTickResult, AnimationPlayer};
 use pokered_renderer::battle_scene::{
     EnemyHud, PlayerHud, PokeballIndicators, PokeballStatus, StatusCondition,
 };
 use pokered_renderer::palette::GRAYSCALE_PALETTE;
 use pokered_renderer::resource::{AssetCategory, LoadedPng, ResourceManager};
+use pokered_renderer::sprite::SpriteLayer;
 use pokered_renderer::text_renderer::{write_tiles_at, ScreenTileBuffer};
 use pokered_renderer::textbox::TextBoxFrame;
 use pokered_renderer::tile::{Tile, TileSet, TILE_PIXELS};
-use pokered_renderer::{FrameBuffer, Rgba, TILE_SIZE};
+use pokered_renderer::{FrameBuffer, Rgba, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE};
 
 use super::{blit_tileset, species_to_sprite_name};
 
@@ -22,11 +24,20 @@ struct AttackLunge {
 struct HitFlash {
     target_is_player: bool,
     frame: u8,
+    duration: u8,
 }
 
 #[derive(Debug, Clone, Copy)]
 struct SlideAnim {
     frame: u8,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ScreenShake {
+    amp_x: i32,
+    amp_y: i32,
+    remaining: u8,
+    phase: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -53,6 +64,12 @@ pub struct BattleVisualEffects {
     enemy_exit: Option<SlideAnim>,
     attack_lunge: Option<AttackLunge>,
     hit_flash: Option<HitFlash>,
+    anim_player: AnimationPlayer,
+    anim_wait: u8,
+    anim_tileset: u8,
+    anim_layer: SpriteLayer,
+    flash_frames: u8,
+    screen_shake: Option<ScreenShake>,
 }
 
 impl Default for BattleVisualEffects {
@@ -68,6 +85,12 @@ impl Default for BattleVisualEffects {
             enemy_exit: None,
             attack_lunge: None,
             hit_flash: None,
+            anim_player: AnimationPlayer::new(),
+            anim_wait: 0,
+            anim_tileset: 0,
+            anim_layer: SpriteLayer::new(),
+            flash_frames: 0,
+            screen_shake: None,
         }
     }
 }
@@ -110,7 +133,30 @@ impl BattleVisualEffects {
         }
     }
 
-    fn trigger_from_message(&mut self, message: &str) {
+    fn resolve_message_move(screen: &BattleScreen, message: &str) -> Option<(usize, bool)> {
+        if !(message.contains(" used ") && message.ends_with('!')) {
+            return None;
+        }
+
+        let bs = screen.battle_state.as_ref()?;
+        if message.starts_with("Enemy ") {
+            let id = bs.enemy.selected_move as usize;
+            if id > 0 {
+                Some((id - 1, false))
+            } else {
+                None
+            }
+        } else {
+            let id = bs.player.selected_move as usize;
+            if id > 0 {
+                Some((id - 1, true))
+            } else {
+                None
+            }
+        }
+    }
+
+    fn trigger_from_message(&mut self, screen: &BattleScreen, message: &str) {
         let normalized = message.replace('\n', " ");
 
         if normalized.contains(" used ") && normalized.ends_with('!') {
@@ -122,7 +168,15 @@ impl BattleVisualEffects {
             self.hit_flash = Some(HitFlash {
                 target_is_player: enemy_attacker,
                 frame: 0,
+                duration: 10,
             });
+
+            if let Some((anim_id, player_is_attacker)) = Self::resolve_message_move(screen, &normalized)
+            {
+                self.anim_player.start(anim_id, player_is_attacker);
+                self.anim_wait = 0;
+                self.anim_layer.clear();
+            }
         }
 
         if normalized.starts_with("Go! ") {
@@ -147,6 +201,107 @@ impl BattleVisualEffects {
         }
     }
 
+    fn apply_anim_effect(&mut self, effect: AnimEffect) {
+        match effect {
+            AnimEffect::FlashScreen { frames } => {
+                self.flash_frames = self.flash_frames.max(frames);
+            }
+            AnimEffect::ShakeScreenH { pixels, frames } => {
+                self.screen_shake = Some(ScreenShake {
+                    amp_x: pixels.unsigned_abs() as i32,
+                    amp_y: 0,
+                    remaining: frames.max(1),
+                    phase: false,
+                });
+            }
+            AnimEffect::ShakeScreenV { pixels, frames } => {
+                self.screen_shake = Some(ScreenShake {
+                    amp_x: 0,
+                    amp_y: pixels.unsigned_abs() as i32,
+                    remaining: frames.max(1),
+                    phase: false,
+                });
+            }
+            AnimEffect::HidePlayerMon => self.player_visible = false,
+            AnimEffect::ShowPlayerMon => self.player_visible = true,
+            AnimEffect::HideEnemyMon => self.enemy_visible = false,
+            AnimEffect::ShowEnemyMon => self.enemy_visible = true,
+            AnimEffect::SlideEnemyMonOff => {
+                self.enemy_exit = Some(SlideAnim { frame: 0 });
+            }
+            AnimEffect::SlidePlayerMonHalfOff | AnimEffect::SlidePlayerMonDown => {
+                self.player_exit = Some(SlideAnim { frame: 0 });
+            }
+            AnimEffect::SlidePlayerMonUp | AnimEffect::ResetPlayerMonPosition => {
+                self.player_visible = true;
+                self.player_entry = Some(SlideAnim { frame: 0 });
+            }
+            AnimEffect::MovePlayerMonH => {
+                self.attack_lunge = Some(AttackLunge {
+                    attacker_is_player: true,
+                    frame: 0,
+                });
+            }
+            AnimEffect::BlinkEnemyMon { times } => {
+                self.hit_flash = Some(HitFlash {
+                    target_is_player: false,
+                    frame: 0,
+                    duration: times.saturating_mul(2).max(6),
+                });
+            }
+            AnimEffect::BlinkPlayerMon { times } => {
+                self.hit_flash = Some(HitFlash {
+                    target_is_player: true,
+                    frame: 0,
+                    duration: times.saturating_mul(2).max(6),
+                });
+            }
+            _ => {}
+        }
+    }
+
+    fn advance_move_animation(&mut self) {
+        if self.anim_player.is_finished() {
+            self.anim_layer.clear();
+            return;
+        }
+
+        if self.anim_wait > 0 {
+            self.anim_wait -= 1;
+            return;
+        }
+
+        match self.anim_player.tick() {
+            AnimTickResult::Playing => {
+                self.anim_layer.clear();
+                for entry in self.anim_player.oam_entries() {
+                    self.anim_layer.add(*entry);
+                }
+                if let Some(ts) = self.anim_player.current_tileset() {
+                    self.anim_tileset = ts;
+                }
+            }
+            AnimTickResult::WaitDelay(frames) => {
+                self.anim_wait = frames.max(1);
+            }
+            AnimTickResult::Effect(effect) => {
+                self.apply_anim_effect(AnimationPlayer::apply_effect(effect));
+            }
+            AnimTickResult::Done => {
+                self.anim_layer.clear();
+            }
+        }
+    }
+
+    fn shake_offset(&self) -> (i32, i32) {
+        if let Some(shake) = self.screen_shake {
+            let sign = if shake.phase { 1 } else { -1 };
+            (shake.amp_x * sign, shake.amp_y * sign)
+        } else {
+            (0, 0)
+        }
+    }
+
     pub fn update(&mut self, screen: &BattleScreen) {
         let kind = Self::phase_kind(&screen.phase);
         if self.last_phase_kind != Some(kind) {
@@ -156,10 +311,12 @@ impl BattleVisualEffects {
 
         if self.last_message.as_ref() != screen.current_message.as_ref() {
             if let Some(ref msg) = screen.current_message {
-                self.trigger_from_message(msg);
+                self.trigger_from_message(screen, msg);
             }
             self.last_message = screen.current_message.clone();
         }
+
+        self.advance_move_animation();
 
         if let Some(anim) = self.player_entry.as_mut() {
             anim.frame = anim.frame.saturating_add(1);
@@ -195,8 +352,22 @@ impl BattleVisualEffects {
         }
         if let Some(anim) = self.hit_flash.as_mut() {
             anim.frame = anim.frame.saturating_add(1);
-            if anim.frame >= 10 {
+            if anim.frame >= anim.duration {
                 self.hit_flash = None;
+            }
+        }
+
+        if self.flash_frames > 0 {
+            self.flash_frames -= 1;
+        }
+
+        if let Some(shake) = self.screen_shake.as_mut() {
+            shake.phase = !shake.phase;
+            if shake.remaining > 0 {
+                shake.remaining -= 1;
+            }
+            if shake.remaining == 0 {
+                self.screen_shake = None;
             }
         }
     }
@@ -220,6 +391,10 @@ impl BattleVisualEffects {
             }
         }
 
+        let (sx, sy) = self.shake_offset();
+        dx += sx;
+        dy += sy;
+
         (dx, dy)
     }
 
@@ -241,6 +416,10 @@ impl BattleVisualEffects {
                 dy += peak / 2;
             }
         }
+
+        let (sx, sy) = self.shake_offset();
+        dx += sx;
+        dy += sy;
 
         (dx, dy)
     }
@@ -815,11 +994,28 @@ pub fn draw_battle(
             }
         }
 
+        if !effects.anim_layer.entries.is_empty() {
+            let anim_tileset_name = match effects.anim_tileset {
+                1 => "move_anim_1",
+                2 => "move_anim_0",
+                _ => "move_anim_0",
+            };
+            if let Ok(cached) = rm.load_battle(anim_tileset_name) {
+                effects
+                    .anim_layer
+                    .render(fb, &cached.tileset, pal, pal, None);
+            }
+        }
+
         // In Gen1 move-select, the TYPE/PP panel overlays the player sprite.
         // Our sprite blit happens after tilemap rendering, so redraw this panel
         // region last to keep it in the foreground.
         if matches!(screen.phase, BattlePhase::MoveSelect) {
             tile_buf.render_region(fb, &battle_ts, pal, 0, 8, 11, 5);
+        }
+
+        if effects.flash_frames > 0 && effects.flash_frames % 2 == 0 {
+            fb.fill_rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, Rgba::WHITE);
         }
     } else {
         // No resources — fallback: render tile buffer with blank tileset

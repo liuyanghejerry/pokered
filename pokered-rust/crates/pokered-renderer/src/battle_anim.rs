@@ -2900,6 +2900,11 @@ impl AnimationPlayer {
         &self.oam_buffer
     }
 
+    /// Current move-animation tileset index (0/1/2) while a subanimation is active.
+    pub fn current_tileset(&self) -> Option<u8> {
+        self.subanim_state.as_ref().map(|s| s.tileset)
+    }
+
     /// Decode a raw command tuple from MOVE_ANIM_DATA into an AnimCommand.
     pub fn decode_command(raw: &(u8, u8, u8, u8)) -> AnimCommand {
         let (kind, sound_val, id_val, packed) = *raw;
