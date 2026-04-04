@@ -1,5 +1,6 @@
 mod audio;
 mod battle_config;
+mod battle_sfx;
 mod cli;
 mod direct_battle;
 mod game;
