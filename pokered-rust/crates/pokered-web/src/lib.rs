@@ -42,7 +42,7 @@ use pokered_renderer::{FrameBuffer, Rgba, SCREEN_HEIGHT, SCREEN_WIDTH};
 mod app_render;
 use app_render::{
     draw_battle, draw_intro_scene, draw_main_menu, draw_oak_speech, draw_options_menu,
-    draw_overworld, draw_save_menu, draw_start_menu, draw_title_screen,
+    draw_overworld, draw_save_menu, draw_start_menu, draw_title_screen, BattleVisualEffects,
 };
 
 const SCALE: u32 = 3;
@@ -59,6 +59,7 @@ struct PokemonGame {
     start_menu: StartMenuState,
     options_menu: OptionsMenuState,
     save_menu: SaveMenuState,
+    battle_vfx: BattleVisualEffects,
     player_name: String,
     rival_name: String,
     frame_count: u64,
@@ -109,6 +110,7 @@ impl PokemonGame {
             start_menu,
             options_menu,
             save_menu,
+            battle_vfx: BattleVisualEffects::default(),
             player_name: "RED".to_string(),
             rival_name: "BLUE".to_string(),
             frame_count: 0,
@@ -313,6 +315,7 @@ impl PokemonGame {
             }
             GameScreen::Battle => {
                 self.battle = BattleScreen::new(true);
+                self.battle_vfx = BattleVisualEffects::default();
             }
             GameScreen::StartMenu => {
                 self.start_menu.open(false, false, false);
@@ -359,7 +362,7 @@ impl PokemonGame {
             GameScreen::MainMenu => draw_main_menu(&self.main_menu, fb),
             GameScreen::OakSpeech => draw_oak_speech(&self.oak_speech, &mut self.resources, fb),
             GameScreen::Overworld => draw_overworld(&self.overworld, &mut self.resources, fb),
-            GameScreen::Battle => draw_battle(&self.battle, &mut self.resources, fb),
+            GameScreen::Battle => draw_battle(&self.battle, &mut self.resources, fb, &mut self.battle_vfx),
             GameScreen::StartMenu => {
                 draw_overworld(&self.overworld, &mut self.resources, fb);
                 draw_start_menu(&self.start_menu, &self.player_name, fb)
