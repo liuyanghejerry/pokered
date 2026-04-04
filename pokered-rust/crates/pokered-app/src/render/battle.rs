@@ -96,6 +96,7 @@ pub struct BattleVisualEffects {
     attack_lunge: Option<AttackLunge>,
     hit_flash: Option<HitFlash>,
     anim_player: AnimationPlayer,
+    current_attacker_is_player: bool,
     anim_wait: u8,
     anim_tileset: u8,
     anim_layer: SpriteLayer,
@@ -121,6 +122,7 @@ impl Default for BattleVisualEffects {
             attack_lunge: None,
             hit_flash: None,
             anim_player: AnimationPlayer::new(),
+            current_attacker_is_player: true,
             anim_wait: 0,
             anim_tileset: 0,
             anim_layer: SpriteLayer::new(),
@@ -316,6 +318,7 @@ impl BattleVisualEffects {
             if let Some((anim_id, player_is_attacker, move_id)) =
                 Self::resolve_message_move(screen, &normalized)
             {
+                self.current_attacker_is_player = player_is_attacker;
                 self.anim_player.start(anim_id, player_is_attacker);
                 self.anim_wait = 0;
                 self.anim_layer.clear();
@@ -349,6 +352,7 @@ impl BattleVisualEffects {
     }
 
     fn apply_anim_effect(&mut self, effect: AnimEffect) {
+        let attacker_is_player = self.current_attacker_is_player;
         match effect {
             AnimEffect::None => {}
             AnimEffect::FlashScreen { frames } => {
@@ -378,15 +382,24 @@ impl BattleVisualEffects {
                 self.enemy_exit = Some(SlideAnim { frame: 0 });
             }
             AnimEffect::SlidePlayerMonHalfOff | AnimEffect::SlidePlayerMonDown => {
-                self.player_exit = Some(SlideAnim { frame: 0 });
+                if attacker_is_player {
+                    self.player_exit = Some(SlideAnim { frame: 0 });
+                } else {
+                    self.enemy_exit = Some(SlideAnim { frame: 0 });
+                }
             }
             AnimEffect::SlidePlayerMonUp | AnimEffect::ResetPlayerMonPosition => {
-                self.player_visible = true;
-                self.player_entry = Some(SlideAnim { frame: 0 });
+                if attacker_is_player {
+                    self.player_visible = true;
+                    self.player_entry = Some(SlideAnim { frame: 0 });
+                } else {
+                    self.enemy_visible = true;
+                    self.enemy_entry = Some(SlideAnim { frame: 0 });
+                }
             }
             AnimEffect::MovePlayerMonH => {
                 self.attack_lunge = Some(AttackLunge {
-                    attacker_is_player: true,
+                    attacker_is_player,
                     frame: 0,
                 });
             }
@@ -443,23 +456,39 @@ impl BattleVisualEffects {
                 self.wave_frames = self.wave_frames.max(24);
             }
             AnimEffect::SubstituteMon => {
-                self.apply_anim_effect(AnimEffect::BlinkPlayerMon { times: 4 });
+                if attacker_is_player {
+                    self.apply_anim_effect(AnimEffect::BlinkPlayerMon { times: 4 });
+                } else {
+                    self.apply_anim_effect(AnimEffect::BlinkEnemyMon { times: 4 });
+                }
             }
             AnimEffect::TransformMon => {
-                self.apply_anim_effect(AnimEffect::FlashPlayerMonPic);
+                if attacker_is_player {
+                    self.apply_anim_effect(AnimEffect::FlashPlayerMonPic);
+                } else {
+                    self.apply_anim_effect(AnimEffect::FlashEnemyMonPic);
+                }
                 self.wave_frames = self.wave_frames.max(18);
             }
             AnimEffect::MinimizeMon => {
-                self.apply_anim_effect(AnimEffect::BlinkPlayerMon { times: 5 });
+                if attacker_is_player {
+                    self.apply_anim_effect(AnimEffect::BlinkPlayerMon { times: 5 });
+                } else {
+                    self.apply_anim_effect(AnimEffect::BlinkEnemyMon { times: 5 });
+                }
             }
             AnimEffect::BounceUpAndDown => {
                 self.attack_lunge = Some(AttackLunge {
-                    attacker_is_player: true,
+                    attacker_is_player,
                     frame: 0,
                 });
             }
             AnimEffect::SquishMonPic => {
-                self.apply_anim_effect(AnimEffect::BlinkPlayerMon { times: 3 });
+                if attacker_is_player {
+                    self.apply_anim_effect(AnimEffect::BlinkPlayerMon { times: 3 });
+                } else {
+                    self.apply_anim_effect(AnimEffect::BlinkEnemyMon { times: 3 });
+                }
             }
             AnimEffect::SpiralBallsInward => {
                 self.spawn_spiral_particles();
