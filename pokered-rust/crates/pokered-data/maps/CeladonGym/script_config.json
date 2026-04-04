@@ -1,0 +1,41 @@
+{
+  "mapScripts": [
+    "enterMap"
+  ],
+  "npcs": [
+    {
+      "id": 1,
+      "talk": "talkSilphWorkerF"
+    },
+    {
+      "id": 2,
+      "talk": "talkCooltrainerF"
+    },
+    {
+      "id": 3,
+      "talk": "talkBeauty"
+    },
+    {
+      "id": 4,
+      "talk": "talkCooltrainerF1"
+    },
+    {
+      "id": 5,
+      "talk": "talkBeauty1"
+    },
+    {
+      "id": 6,
+      "talk": "talkCooltrainerF2"
+    },
+    {
+      "id": 7,
+      "talk": "talkBeauty2"
+    },
+    {
+      "id": 8,
+      "talk": "talkCooltrainerF3"
+    }
+  ],
+  "signs": [],
+  "coordEvents": []
+}

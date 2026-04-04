@@ -1,0 +1,33 @@
+{
+  "mapScripts": [
+    "enterMap"
+  ],
+  "npcs": [
+    {
+      "id": 1,
+      "talk": "talkBoulder"
+    },
+    {
+      "id": 2,
+      "talk": "talkBoulder1"
+    },
+    {
+      "id": 3,
+      "talk": "talkBoulder2"
+    },
+    {
+      "id": 4,
+      "talk": "talkBoulder3"
+    },
+    {
+      "id": 5,
+      "talk": "talkBoulder4"
+    },
+    {
+      "id": 6,
+      "talk": "talkBoulder5"
+    }
+  ],
+  "signs": [],
+  "coordEvents": []
+}
