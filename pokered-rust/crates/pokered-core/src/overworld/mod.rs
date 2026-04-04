@@ -1056,6 +1056,15 @@ impl OverworldScreen {
             .unwrap_or_default();
         self.active_script_effect = None;
         self.map_script_index = 0;
+
+        // Auto-call the first mapScript function (if any)
+        if let Some(fn_name) = self.map_script_config.map_script_fn_name(0) {
+            if self.script_engine.has_function(fn_name) {
+                if let Ok(Some(cmd)) = self.script_engine.call_function_no_args(fn_name) {
+                    self.active_script_effect = Some(script_bridge::dispatch_command(&cmd));
+                }
+            }
+        }
     }
 
     fn try_call_script_npc_talk(&mut self, text_id: u8) -> bool {
