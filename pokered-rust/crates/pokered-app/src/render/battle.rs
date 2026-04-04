@@ -1,6 +1,8 @@
 use pokered_core::battle::state::StatusCondition as CoreStatus;
 use pokered_core::battle::{BattlePhase, BattleScreen};
-use pokered_renderer::battle_anim::{AnimEffect, AnimTickResult, AnimationPlayer};
+use pokered_data::move_data::MoveData;
+use pokered_data::moves::{MoveEffect, MoveId};
+use pokered_renderer::battle_anim::{AnimEffect, AnimTickResult, AnimationPlayer, AnimationType};
 use pokered_renderer::battle_scene::{
     EnemyHud, PlayerHud, PokeballIndicators, PokeballStatus, StatusCondition,
 };
@@ -40,6 +42,35 @@ struct ScreenShake {
     phase: bool,
 }
 
+#[derive(Debug, Clone, Copy)]
+enum TintMode {
+    Light,
+    Dark,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ScreenTint {
+    mode: TintMode,
+    remaining: u8,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct OverlayParticle {
+    x: i32,
+    y: i32,
+    vx: i32,
+    vy: i32,
+    life: u8,
+    color: Rgba,
+    size: u8,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct PendingApplying {
+    anim_type: AnimationType,
+    attacker_is_player: bool,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum BattlePhaseKind {
     Intro,
@@ -68,8 +99,12 @@ pub struct BattleVisualEffects {
     anim_wait: u8,
     anim_tileset: u8,
     anim_layer: SpriteLayer,
+    pending_applying: Option<PendingApplying>,
     flash_frames: u8,
     screen_shake: Option<ScreenShake>,
+    screen_tint: Option<ScreenTint>,
+    wave_frames: u8,
+    particles: Vec<OverlayParticle>,
 }
 
 impl Default for BattleVisualEffects {
@@ -89,8 +124,12 @@ impl Default for BattleVisualEffects {
             anim_wait: 0,
             anim_tileset: 0,
             anim_layer: SpriteLayer::new(),
+            pending_applying: None,
             flash_frames: 0,
             screen_shake: None,
+            screen_tint: None,
+            wave_frames: 0,
+            particles: Vec::new(),
         }
     }
 }
@@ -133,26 +172,108 @@ impl BattleVisualEffects {
         }
     }
 
-    fn resolve_message_move(screen: &BattleScreen, message: &str) -> Option<(usize, bool)> {
+    fn resolve_message_move(screen: &BattleScreen, message: &str) -> Option<(usize, bool, MoveId)> {
         if !(message.contains(" used ") && message.ends_with('!')) {
             return None;
         }
 
         let bs = screen.battle_state.as_ref()?;
         if message.starts_with("Enemy ") {
-            let id = bs.enemy.selected_move as usize;
+            let move_id = bs.enemy.selected_move;
+            let id = move_id as usize;
             if id > 0 {
-                Some((id - 1, false))
+                Some((id - 1, false, move_id))
             } else {
                 None
             }
         } else {
-            let id = bs.player.selected_move as usize;
+            let move_id = bs.player.selected_move;
+            let id = move_id as usize;
             if id > 0 {
-                Some((id - 1, true))
+                Some((id - 1, true, move_id))
             } else {
                 None
             }
+        }
+    }
+
+    fn classify_applying_attack(move_id: MoveId, attacker_is_player: bool) -> AnimationType {
+        let Some(data) = MoveData::get(move_id) else {
+            return AnimationType::None;
+        };
+
+        if data.power == 0 {
+            return if attacker_is_player {
+                AnimationType::ShakeScreenHorizontallySlow2
+            } else {
+                AnimationType::ShakeScreenHorizontallySlow
+            };
+        }
+
+        if data.effect == MoveEffect::NoAdditionalEffect {
+            if attacker_is_player {
+                AnimationType::BlinkEnemyMonSprite
+            } else {
+                AnimationType::ShakeScreenVertically
+            }
+        } else if attacker_is_player {
+            AnimationType::ShakeScreenHorizontallyLight
+        } else {
+            AnimationType::ShakeScreenHorizontallyHeavy
+        }
+    }
+
+    fn run_applying_attack_feedback(&mut self, anim_type: AnimationType, attacker_is_player: bool) {
+        match anim_type {
+            AnimationType::None => {}
+            AnimationType::ShakeScreenVertically => {
+                self.apply_anim_effect(AnimEffect::ShakeScreenV {
+                    pixels: 4,
+                    frames: 8,
+                });
+                self.hit_flash = Some(HitFlash {
+                    target_is_player: true,
+                    frame: 0,
+                    duration: 8,
+                });
+            }
+            AnimationType::ShakeScreenHorizontallyHeavy => {
+                self.apply_anim_effect(AnimEffect::ShakeScreenH {
+                    pixels: 4,
+                    frames: 10,
+                });
+                self.hit_flash = Some(HitFlash {
+                    target_is_player: true,
+                    frame: 0,
+                    duration: 8,
+                });
+            }
+            AnimationType::ShakeScreenHorizontallySlow => {
+                self.apply_anim_effect(AnimEffect::ShakeScreenH {
+                    pixels: 2,
+                    frames: 12,
+                });
+            }
+            AnimationType::BlinkEnemyMonSprite => {
+                self.apply_anim_effect(AnimEffect::BlinkEnemyMon { times: 6 });
+            }
+            AnimationType::ShakeScreenHorizontallyLight => {
+                self.apply_anim_effect(AnimEffect::ShakeScreenH {
+                    pixels: 2,
+                    frames: 8,
+                });
+                self.apply_anim_effect(AnimEffect::BlinkEnemyMon { times: 3 });
+            }
+            AnimationType::ShakeScreenHorizontallySlow2 => {
+                self.apply_anim_effect(AnimEffect::ShakeScreenH {
+                    pixels: 1,
+                    frames: 10,
+                });
+            }
+        }
+
+        if !attacker_is_player && matches!(anim_type, AnimationType::BlinkEnemyMonSprite) {
+            self.apply_anim_effect(AnimEffect::BlinkPlayerMon { times: 4 });
         }
     }
 
@@ -171,11 +292,16 @@ impl BattleVisualEffects {
                 duration: 10,
             });
 
-            if let Some((anim_id, player_is_attacker)) = Self::resolve_message_move(screen, &normalized)
+            if let Some((anim_id, player_is_attacker, move_id)) =
+                Self::resolve_message_move(screen, &normalized)
             {
                 self.anim_player.start(anim_id, player_is_attacker);
                 self.anim_wait = 0;
                 self.anim_layer.clear();
+                self.pending_applying = Some(PendingApplying {
+                    anim_type: Self::classify_applying_attack(move_id, player_is_attacker),
+                    attacker_is_player: player_is_attacker,
+                });
             }
         }
 
@@ -203,6 +329,7 @@ impl BattleVisualEffects {
 
     fn apply_anim_effect(&mut self, effect: AnimEffect) {
         match effect {
+            AnimEffect::None => {}
             AnimEffect::FlashScreen { frames } => {
                 self.flash_frames = self.flash_frames.max(frames);
             }
@@ -256,7 +383,141 @@ impl BattleVisualEffects {
                     duration: times.saturating_mul(2).max(6),
                 });
             }
-            _ => {}
+            AnimEffect::FlashEnemyMonPic => {
+                self.hit_flash = Some(HitFlash {
+                    target_is_player: false,
+                    frame: 0,
+                    duration: 8,
+                });
+            }
+            AnimEffect::FlashPlayerMonPic => {
+                self.hit_flash = Some(HitFlash {
+                    target_is_player: true,
+                    frame: 0,
+                    duration: 8,
+                });
+            }
+            AnimEffect::DarkScreenPalette => {
+                self.screen_tint = Some(ScreenTint {
+                    mode: TintMode::Dark,
+                    remaining: 18,
+                });
+            }
+            AnimEffect::LightScreenPalette => {
+                self.screen_tint = Some(ScreenTint {
+                    mode: TintMode::Light,
+                    remaining: 14,
+                });
+            }
+            AnimEffect::ResetScreenPalette => {
+                self.screen_tint = None;
+            }
+            AnimEffect::DarkenMonPalette => {
+                self.screen_tint = Some(ScreenTint {
+                    mode: TintMode::Dark,
+                    remaining: 10,
+                });
+            }
+            AnimEffect::WavyScreen => {
+                self.wave_frames = self.wave_frames.max(24);
+            }
+            AnimEffect::SubstituteMon => {
+                self.apply_anim_effect(AnimEffect::BlinkPlayerMon { times: 4 });
+            }
+            AnimEffect::TransformMon => {
+                self.apply_anim_effect(AnimEffect::FlashPlayerMonPic);
+                self.wave_frames = self.wave_frames.max(18);
+            }
+            AnimEffect::MinimizeMon => {
+                self.apply_anim_effect(AnimEffect::BlinkPlayerMon { times: 5 });
+            }
+            AnimEffect::BounceUpAndDown => {
+                self.attack_lunge = Some(AttackLunge {
+                    attacker_is_player: true,
+                    frame: 0,
+                });
+            }
+            AnimEffect::SquishMonPic => {
+                self.apply_anim_effect(AnimEffect::BlinkPlayerMon { times: 3 });
+            }
+            AnimEffect::SpiralBallsInward => {
+                self.spawn_spiral_particles();
+            }
+            AnimEffect::ShootBallsUpward { many } => {
+                self.spawn_upward_particles(many);
+            }
+            AnimEffect::PetalsFalling => {
+                self.spawn_falling_particles(Rgba::rgb(0xB0, 0xB0, 0xB0), 12, 2);
+            }
+            AnimEffect::LeavesFalling => {
+                self.spawn_falling_particles(Rgba::rgb(0x90, 0x90, 0x90), 12, 3);
+            }
+            AnimEffect::WaterDroplets => {
+                self.spawn_falling_particles(Rgba::rgb(0xC8, 0xC8, 0xC8), 16, 1);
+            }
+            AnimEffect::ShakeBackAndForth => {
+                self.apply_anim_effect(AnimEffect::ShakeScreenH {
+                    pixels: 3,
+                    frames: 10,
+                });
+            }
+            AnimEffect::ShakeEnemyHud { variant } => {
+                let px = if variant == 2 { 4 } else { 2 };
+                self.apply_anim_effect(AnimEffect::ShakeScreenH {
+                    pixels: px,
+                    frames: 6,
+                });
+            }
+            AnimEffect::Delay10 => {
+                self.anim_wait = self.anim_wait.max(10);
+            }
+        }
+    }
+
+    fn spawn_spiral_particles(&mut self) {
+        let center_x = 112;
+        let center_y = 40;
+        for i in 0..12 {
+            let step = i as i32;
+            self.particles.push(OverlayParticle {
+                x: center_x + (step - 6) * 4,
+                y: center_y + ((step % 4) - 2) * 5,
+                vx: (6 - step).signum(),
+                vy: ((step % 3) - 1),
+                life: 20,
+                color: Rgba::rgb(0xD0, 0xD0, 0xD0),
+                size: 2,
+            });
+        }
+    }
+
+    fn spawn_upward_particles(&mut self, many: bool) {
+        let count = if many { 14 } else { 7 };
+        for i in 0..count {
+            let offset = i as i32 - (count as i32 / 2);
+            self.particles.push(OverlayParticle {
+                x: 40 + offset * 3,
+                y: 88 + (i as i32 % 3) * 3,
+                vx: if i % 2 == 0 { 1 } else { -1 },
+                vy: -2 - (i as i32 % 2),
+                life: 18,
+                color: Rgba::rgb(0xC0, 0xC0, 0xC0),
+                size: 2,
+            });
+        }
+    }
+
+    fn spawn_falling_particles(&mut self, color: Rgba, count: usize, speed: i32) {
+        for i in 0..count {
+            self.particles.push(OverlayParticle {
+                x: 16 + (i as i32 * 11) % 128,
+                y: (i as i32 * 5) % 24,
+                vx: if i % 2 == 0 { 1 } else { -1 },
+                vy: speed,
+                life: 22,
+                color,
+                size: 2,
+            });
         }
     }
 
@@ -289,6 +550,12 @@ impl BattleVisualEffects {
             }
             AnimTickResult::Done => {
                 self.anim_layer.clear();
+                if let Some(pending) = self.pending_applying.take() {
+                    self.run_applying_attack_feedback(
+                        pending.anim_type,
+                        pending.attacker_is_player,
+                    );
+                }
             }
         }
     }
@@ -370,6 +637,30 @@ impl BattleVisualEffects {
                 self.screen_shake = None;
             }
         }
+
+        if let Some(tint) = self.screen_tint.as_mut() {
+            if tint.remaining > 0 {
+                tint.remaining -= 1;
+            }
+            if tint.remaining == 0 {
+                self.screen_tint = None;
+            }
+        }
+
+        if self.wave_frames > 0 {
+            self.wave_frames -= 1;
+        }
+
+        for particle in &mut self.particles {
+            particle.x += particle.vx;
+            particle.y += particle.vy;
+            if particle.life > 0 {
+                particle.life -= 1;
+            }
+        }
+        self.particles.retain(|p| {
+            p.life > 0 && p.x >= -8 && p.y >= -8 && p.x < SCREEN_WIDTH as i32 + 8 && p.y < SCREEN_HEIGHT as i32 + 8
+        });
     }
 
     fn player_offset(&self) -> (i32, i32) {
@@ -446,6 +737,66 @@ impl BattleVisualEffects {
             }
         }
         true
+    }
+
+    fn render_particles(&self, fb: &mut FrameBuffer) {
+        for p in &self.particles {
+            if p.x < 0 || p.y < 0 {
+                continue;
+            }
+            fb.fill_rect(
+                p.x as u32,
+                p.y as u32,
+                p.size as u32,
+                p.size as u32,
+                p.color,
+            );
+        }
+    }
+
+    fn apply_tint(&self, fb: &mut FrameBuffer) {
+        let Some(tint) = self.screen_tint else {
+            return;
+        };
+        for px in fb.data.chunks_exact_mut(4) {
+            match tint.mode {
+                TintMode::Light => {
+                    px[0] = px[0].saturating_add(28);
+                    px[1] = px[1].saturating_add(28);
+                    px[2] = px[2].saturating_add(28);
+                }
+                TintMode::Dark => {
+                    px[0] = px[0].saturating_sub(36);
+                    px[1] = px[1].saturating_sub(36);
+                    px[2] = px[2].saturating_sub(36);
+                }
+            }
+        }
+    }
+
+    fn apply_wave_distortion(&self, fb: &mut FrameBuffer) {
+        if self.wave_frames == 0 {
+            return;
+        }
+        let source = fb.data.clone();
+        let phase = self.wave_frames as i32;
+        for y in 0..SCREEN_HEIGHT as i32 {
+            let shift = ((y / 6 + phase) % 5) - 2;
+            for x in 0..SCREEN_WIDTH as i32 {
+                let sx = (x + shift).clamp(0, SCREEN_WIDTH as i32 - 1) as usize;
+                let dx = x as usize;
+                let yu = y as usize;
+                let src_off = (yu * SCREEN_WIDTH as usize + sx) * 4;
+                let dst_off = (yu * SCREEN_WIDTH as usize + dx) * 4;
+                fb.data[dst_off..dst_off + 4].copy_from_slice(&source[src_off..src_off + 4]);
+            }
+        }
+    }
+
+    fn apply_post_effects(&self, fb: &mut FrameBuffer) {
+        self.apply_wave_distortion(fb);
+        self.render_particles(fb);
+        self.apply_tint(fb);
     }
 }
 
@@ -1013,6 +1364,8 @@ pub fn draw_battle(
         if matches!(screen.phase, BattlePhase::MoveSelect) {
             tile_buf.render_region(fb, &battle_ts, pal, 0, 8, 11, 5);
         }
+
+        effects.apply_post_effects(fb);
 
         if effects.flash_frames > 0 && effects.flash_frames % 2 == 0 {
             fb.fill_rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, Rgba::WHITE);
