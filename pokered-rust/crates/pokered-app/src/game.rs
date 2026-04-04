@@ -570,6 +570,28 @@ impl PokemonGame {
         self.state.transition_to(screen);
     }
 
+    fn start_wild_battle(&mut self, species: pokered_data::species::Species, level: u8) {
+        use pokered_core::battle::state::{new_battle_state, BattleType, Pokemon};
+        use pokered_core::pokemon::stats::create_pokemon;
+
+        let enemy_mon = create_pokemon(species, level, [0x9A, 0x78]);
+        let player_mon =
+            create_pokemon(pokered_data::species::Species::Charmander, 5, [0xAA, 0xBB]);
+
+        if let (Some(enemy), Some(player)) = (enemy_mon, player_mon) {
+            self.battle =
+                pokered_core::battle::BattleScreen::from_parties(true, &[player], &[enemy], None);
+        } else {
+            self.battle = pokered_core::battle::BattleScreen::new(true);
+        }
+        self.battle_vfx = BattleVisualEffects::default();
+
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(ref audio) = self.audio {
+            audio.play_music(MusicId::WILD_BATTLE);
+        }
+    }
+
     /// Update game state for one frame. Available for both wasm and native builds.
     pub fn update(&mut self, input: &InputState) {
         self.frame_count += 1;
@@ -746,7 +768,13 @@ impl PokemonGame {
                         OverworldSfxEvent::None => {}
                     }
                 }
-                action
+
+                if let Some(encounter) = self.overworld.pending_wild_encounter.take() {
+                    self.start_wild_battle(encounter.species, encounter.level);
+                    ScreenAction::Transition(GameScreen::Battle)
+                } else {
+                    action
+                }
             }
             GameScreen::Battle => {
                 let battle_input = BattleInput {

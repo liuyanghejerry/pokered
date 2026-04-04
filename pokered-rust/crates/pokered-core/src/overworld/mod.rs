@@ -290,6 +290,15 @@ pub enum OverworldSfxEvent {
 use crate::game_state::ScreenAction;
 use pokered_script::{CommandResult, MapScriptConfig, ScriptEngine, ScriptLoader};
 
+// ── Wild Encounter ─────────────────────────────────────────────────
+
+/// Wild encounter data ready to be passed to BattleScreen.
+#[derive(Debug, Clone)]
+pub struct PendingWildEncounter {
+    pub species: pokered_data::species::Species,
+    pub level: u8,
+}
+
 // ── Warp Fade Transition ──────────────────────────────────────────
 //
 // Mirrors the original game's map transition:
@@ -501,12 +510,14 @@ pub struct OverworldScreen {
     pub last_map: Option<MapId>,
     pub warp_fade_state: WarpFadeState,
     pub pending_warp: Option<PendingWarp>,
+    pub pending_wild_encounter: Option<PendingWildEncounter>,
     pub sfx_event: OverworldSfxEvent,
     pub bump_anim_counter: u8,
     pub player_name: String,
     pub rival_name: String,
     pub frame_counter: u32,
     prev_a_pressed: bool,
+    prev_movement_state: MovementState,
     script_engine: ScriptEngine,
     script_loader: ScriptLoader,
     map_script_config: MapScriptConfig,
@@ -551,12 +562,14 @@ impl OverworldScreen {
             last_map: Some(MapId::PalletTown),
             warp_fade_state: WarpFadeState::Idle,
             pending_warp: None,
+            pending_wild_encounter: None,
             sfx_event: OverworldSfxEvent::None,
             bump_anim_counter: 0,
             player_name: "RED".to_string(),
             rival_name: "BLUE".to_string(),
             frame_counter: 0,
             prev_a_pressed: false,
+            prev_movement_state: MovementState::Idle,
             script_engine,
             script_loader,
             map_script_config,
@@ -852,6 +865,8 @@ impl OverworldScreen {
                 .map(|npc| collision::SpritePosition { x: npc.x, y: npc.y })
                 .collect();
 
+            let movement_before = self.state.player.movement_state;
+
             let result = player_movement::process_frame(
                 &mut self.state,
                 &movement_input,
@@ -860,6 +875,22 @@ impl OverworldScreen {
                 target_tile,
                 &npc_positions,
             );
+
+            let step_completed = movement_before == MovementState::Walking
+                && self.state.player.movement_state == MovementState::Idle;
+
+            let encounter_check_data = if step_completed && self.pending_wild_encounter.is_none() {
+                let new_standing_tile = player_movement::get_tile_at_position(
+                    map,
+                    self.state.player.x,
+                    self.state.player.y,
+                );
+                Some((map.id, map.tileset, new_standing_tile))
+            } else {
+                None
+            };
+
+            self.prev_movement_state = self.state.player.movement_state;
 
             match result {
                 MoveResult::Warped { warp_index: _ } => {
@@ -931,6 +962,16 @@ impl OverworldScreen {
 
             if self.map_name_timer > 0 {
                 self.map_name_timer -= 1;
+            }
+
+            if let Some((map_id, tileset, standing_tile)) = encounter_check_data {
+                self.check_wild_encounter_on_step(
+                    map_id,
+                    tileset,
+                    standing_tile,
+                    self.state.standing_on_warp,
+                    self.active_script_effect.is_some(),
+                );
             }
         } else {
             if let Some(dir) = movement_input.direction_pressed() {
@@ -1116,5 +1157,52 @@ impl OverworldScreen {
             }
         }
         false
+    }
+
+    fn check_wild_encounter_on_step(
+        &mut self,
+        map_id: pokered_data::maps::MapId,
+        tileset: pokered_data::tilesets::TilesetId,
+        standing_tile: u8,
+        standing_on_warp: bool,
+        has_script_effect: bool,
+    ) {
+        use crate::battle::wild::{EncounterContext, WildEncounterRandoms};
+        use pokered_data::wild_data::GameVersion;
+
+        let version = GameVersion::Red;
+
+        let encounter_roll = (self
+            .frame_counter
+            .wrapping_mul(1103515245)
+            .wrapping_add(12345)
+            >> 8) as u8;
+        let slot_roll = (self.frame_counter.wrapping_mul(22695477).wrapping_add(1) >> 8) as u8;
+
+        let randoms = WildEncounterRandoms {
+            encounter_roll,
+            slot_roll,
+        };
+
+        let context = EncounterContext {
+            repel_active: self.state.repel_steps > 0,
+            party_lead_level: 5,
+        };
+
+        let result = wild_encounters::check_wild_encounter(
+            map_id,
+            tileset,
+            standing_tile,
+            version,
+            &randoms,
+            &context,
+            standing_on_warp,
+            has_script_effect,
+            self.state.encounter_cooldown,
+        );
+
+        if let crate::battle::wild::WildEncounterResult::Encounter { level, species } = result {
+            self.pending_wild_encounter = Some(PendingWildEncounter { species, level });
+        }
     }
 }
