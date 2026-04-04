@@ -472,19 +472,39 @@ fn get_window_size() -> LogicalSize<f64> {
 #[wasm_bindgen(start)]
 pub async fn start() {
     std::panic::set_hook(Box::new(console_error_panic_hook::hook));
-    console_log::init_with_level(log::Level::Info).expect("error initializing logger");
-    run().await;
+    
+    if let Err(e) = console_log::init_with_level(log::Level::Info) {
+        web_sys::console::error_1(&format!("Failed to initialize logger: {}", e).into());
+    }
+    
+    if let Err(e) = run().await {
+        web_sys::console::error_1(&format!("Game initialization failed: {}", e).into());
+        
+        let document = web_sys::window()
+            .and_then(|w| w.document())
+            .expect("no document");
+        
+let error_div = document.get_element_by_id("error")
+            .expect("no error div");
+        error_div.set_attribute("class", "").ok();
+        
+        let loading = document.get_element_by_id("loading")
+            .expect("no loading div");
+        loading.set_attribute("class", "hidden").ok();
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn main() {
     env_logger::init();
-    pollster::block_on(run());
+    if let Err(e) = pollster::block_on(run()) {
+        eprintln!("Game initialization failed: {}", e);
+    }
 }
 
-async fn run() {
+async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let version = GameVersion::Red;
-    let event_loop = EventLoop::new().unwrap();
+    let event_loop = EventLoop::new()?;
 
     let window = {
         let size = LogicalSize::new(
@@ -509,8 +529,7 @@ async fn run() {
                             SCREEN_HEIGHT as f64,
                         ))
                         .with_resizable(true),
-                )
-                .unwrap(),
+                )?,
         )
     };
 
@@ -560,13 +579,17 @@ async fn run() {
 
         #[cfg(target_arch = "wasm32")]
         let builder = {
+            use pixels::wgpu::Backends;
+            
             let texture_format = pixels::wgpu::TextureFormat::Rgba8Unorm;
+            
             builder
                 .texture_format(texture_format)
                 .surface_texture_format(texture_format)
+                .wgpu_backend(Backends::GL | Backends::BROWSER_WEBGPU)
         };
 
-        builder.build_async().await.expect("Pixels error")
+        builder.build_async().await?
     };
 
     let mut game = PokemonGame::new(version);
@@ -641,7 +664,8 @@ async fn run() {
         _ => {}
     });
 
-    res.unwrap();
+    res?;
+    Ok(())
 }
 
 fn log_error<E: std::error::Error + 'static>(method_name: &str, err: E) {
