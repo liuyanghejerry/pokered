@@ -1,6 +1,59 @@
 export const TILE_SIZE = 8
 export const BLOCK_TILES = 4
 
+// All 45 music IDs from pokered-data/src/music.rs
+export const MUSIC_LIST: string[] = [
+  'PalletTown',
+  'Pokecenter',
+  'Gym',
+  'Cities1',
+  'Cities2',
+  'Celadon',
+  'Cinnabar',
+  'Vermilion',
+  'Lavender',
+  'SSAnne',
+  'MeetProfOak',
+  'MeetRival',
+  'MuseumGuy',
+  'SafariZone',
+  'PkmnHealed',
+  'Routes1',
+  'Routes2',
+  'Routes3',
+  'Routes4',
+  'IndigoPlateau',
+  'GymLeaderBattle',
+  'TrainerBattle',
+  'WildBattle',
+  'FinalBattle',
+  'DefeatedTrainer',
+  'DefeatedWildMon',
+  'DefeatedGymLeader',
+  'TitleScreen',
+  'Credits',
+  'HallOfFame',
+  'OaksLab',
+  'JigglypuffSong',
+  'BikeRiding',
+  'Surfing',
+  'GameCorner',
+  'IntroBattle',
+  'Dungeon1',
+  'Dungeon2',
+  'Dungeon3',
+  'CinnabarMansion',
+  'PokemonTower',
+  'SilphCo',
+  'MeetEvilTrainer',
+  'MeetFemaleTrainer',
+  'MeetMaleTrainer',
+]
+
+// Direction names for map connections
+export const CONNECTION_DIRECTIONS = ['north', 'south', 'west', 'east'] as const
+export type ConnectionDirection = typeof CONNECTION_DIRECTIONS[number]
+
 export const TILESET_FILES: Record<string, string> = {
   Overworld: 'overworld.png',
   RedsHouse1: 'reds_house.png',

@@ -1,5 +1,5 @@
-import { TILE_SIZE } from '../types/constants'
-import type { WarpJson, SignJson, NpcJson, CoordEvent, SelectedEntity } from '../types'
+import { TILE_SIZE, BLOCK_TILES } from '../types/constants'
+import type { WarpJson, SignJson, NpcJson, CoordEvent, SelectedEntity, ConnectionsJson } from '../types'
 
 export function renderWarps(
   ctx: CanvasRenderingContext2D,
@@ -123,4 +123,136 @@ export function renderSelectionHighlight(
   ctx.lineWidth = 1.5
   ctx.strokeRect(px - 1, py - 1, size + 2, size + 2)
   ctx.restore()
+}
+
+const ARROW_SIZE = 12
+
+function drawArrow(ctx: CanvasRenderingContext2D, x: number, y: number, direction: 'north' | 'south' | 'west' | 'east') {
+  ctx.save()
+  ctx.translate(x, y)
+  
+  ctx.fillStyle = 'rgba(46, 204, 113, 0.9)'
+  ctx.strokeStyle = '#27ae60'
+  ctx.lineWidth = 2
+  
+  ctx.beginPath()
+  switch (direction) {
+    case 'north':
+      ctx.moveTo(0, -ARROW_SIZE)
+      ctx.lineTo(-ARROW_SIZE/2, 0)
+      ctx.lineTo(ARROW_SIZE/2, 0)
+      ctx.closePath()
+      break
+    case 'south':
+      ctx.moveTo(0, ARROW_SIZE)
+      ctx.lineTo(-ARROW_SIZE/2, 0)
+      ctx.lineTo(ARROW_SIZE/2, 0)
+      ctx.closePath()
+      break
+    case 'west':
+      ctx.moveTo(-ARROW_SIZE, 0)
+      ctx.lineTo(0, -ARROW_SIZE/2)
+      ctx.lineTo(0, ARROW_SIZE/2)
+      ctx.closePath()
+      break
+    case 'east':
+      ctx.moveTo(ARROW_SIZE, 0)
+      ctx.lineTo(0, -ARROW_SIZE/2)
+      ctx.lineTo(0, ARROW_SIZE/2)
+      ctx.closePath()
+      break
+  }
+  ctx.fill()
+  ctx.stroke()
+  ctx.restore()
+}
+
+export function renderConnections(
+  ctx: CanvasRenderingContext2D,
+  connections: ConnectionsJson,
+  mapWidthBlocks: number,
+  mapHeightBlocks: number,
+) {
+  const mapWidthPx = mapWidthBlocks * BLOCK_TILES * TILE_SIZE
+  const mapHeightPx = mapHeightBlocks * BLOCK_TILES * TILE_SIZE
+  
+  ctx.font = 'bold 10px sans-serif'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  
+  if (connections.north) {
+    const offsetTiles = connections.north.offset * 2
+    const centerX = offsetTiles * TILE_SIZE + (mapWidthPx / 2)
+    const y = 20
+    
+    ctx.fillStyle = 'rgba(46, 204, 113, 0.7)'
+    ctx.fillRect(0, 0, mapWidthPx, 8)
+    
+    drawArrow(ctx, centerX, y, 'north')
+    
+    ctx.fillStyle = '#fff'
+    const targetName = connections.north.targetMap
+    ctx.fillText(targetName, centerX, y + 15)
+    ctx.fillStyle = '#aaa'
+    ctx.fillText(`off:${connections.north.offset}`, centerX, y + 26)
+  }
+  
+  if (connections.south) {
+    const offsetTiles = connections.south.offset * 2
+    const centerX = offsetTiles * TILE_SIZE + (mapWidthPx / 2)
+    const y = mapHeightPx - 20
+    
+    ctx.fillStyle = 'rgba(46, 204, 113, 0.7)'
+    ctx.fillRect(0, mapHeightPx - 8, mapWidthPx, 8)
+    
+    drawArrow(ctx, centerX, y, 'south')
+    
+    ctx.fillStyle = '#fff'
+    const targetName = connections.south.targetMap
+    ctx.fillText(targetName, centerX, y - 15)
+    ctx.fillStyle = '#aaa'
+    ctx.fillText(`off:${connections.south.offset}`, centerX, y - 26)
+  }
+  
+  if (connections.west) {
+    const offsetTiles = connections.west.offset * 2
+    const centerY = offsetTiles * TILE_SIZE + (mapHeightPx / 2)
+    const x = 20
+    
+    ctx.fillStyle = 'rgba(46, 204, 113, 0.7)'
+    ctx.fillRect(0, 0, 8, mapHeightPx)
+    
+    drawArrow(ctx, x, centerY, 'west')
+    
+    ctx.fillStyle = '#fff'
+    const targetName = connections.west.targetMap
+    ctx.save()
+    ctx.translate(x + 15, centerY)
+    ctx.rotate(-Math.PI / 2)
+    ctx.fillText(targetName, 0, 0)
+    ctx.fillStyle = '#aaa'
+    ctx.fillText(`off:${connections.west.offset}`, 0, 11)
+    ctx.restore()
+  }
+  
+  if (connections.east) {
+    const offsetTiles = connections.east.offset * 2
+    const centerY = offsetTiles * TILE_SIZE + (mapHeightPx / 2)
+    const x = mapWidthPx - 20
+    
+    ctx.fillStyle = 'rgba(46, 204, 113, 0.7)'
+    ctx.fillRect(mapWidthPx - 8, 0, 8, mapHeightPx)
+    
+    drawArrow(ctx, x, centerY, 'east')
+    
+    ctx.fillStyle = '#fff'
+    const targetName = connections.east.targetMap
+    ctx.save()
+    ctx.translate(x - 15, centerY)
+    ctx.rotate(Math.PI / 2)
+    ctx.fillText(targetName, 0, 0)
+    ctx.fillStyle = '#aaa'
+    ctx.fillText(`off:${connections.east.offset}`, 0, 11)
+    ctx.restore()
+  }
 }

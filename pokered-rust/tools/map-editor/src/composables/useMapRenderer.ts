@@ -3,7 +3,7 @@ import { useMapStore } from '../stores/mapStore'
 import { TILE_SIZE, BLOCK_TILES } from '../types/constants'
 import type { TileInfo, CoordEvent } from '../types'
 import { renderTilesAndCollision, renderGrid } from './renderTiles'
-import { renderWarps, renderSigns, renderNpcs, renderCoordEvents, renderSelectionHighlight } from './renderOverlays'
+import { renderWarps, renderSigns, renderNpcs, renderCoordEvents, renderSelectionHighlight, renderConnections } from './renderOverlays'
 import { getTileInfoAt, hasClickableEntity } from './hitTest'
 
 export function useMapRenderer(canvasRef: Ref<HTMLCanvasElement | null>) {
@@ -39,7 +39,7 @@ export function useMapRenderer(canvasRef: Ref<HTMLCanvasElement | null>) {
     ctx.fillStyle = '#000'
     ctx.fillRect(0, 0, pw, ph)
 
-    const { showTiles, showCollision, showGrid, showWarps, showSigns, showNpcs, showCoordEvents } = store.displayOptions
+    const { showTiles, showCollision, showGrid, showWarps, showSigns, showNpcs, showCoordEvents, showConnections } = store.displayOptions
     const blockset = store.getBlockset(map.header.tileset)
     const tilesetImg = store.tilesetImages[map.header.tileset]
     const blocks = store.currentBlocks
@@ -68,6 +68,10 @@ export function useMapRenderer(canvasRef: Ref<HTMLCanvasElement | null>) {
       if (coordEvents.length > 0) {
         renderCoordEvents(ctx, coordEvents)
       }
+    }
+
+    if (showConnections && map.connections) {
+      renderConnections(ctx, map.connections, map.header.width, map.header.height)
     }
 
     if (store.selectedEntity) {
@@ -172,6 +176,7 @@ export function useMapRenderer(canvasRef: Ref<HTMLCanvasElement | null>) {
       store.displayOptions.showNpcs,
       store.displayOptions.showGrid,
       store.displayOptions.showCoordEvents,
+      store.displayOptions.showConnections,
       store.tilesetImages,
     ],
     () => render(),

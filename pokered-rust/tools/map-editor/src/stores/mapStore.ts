@@ -2,9 +2,9 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type {
   MapJson, MapScriptConfig, Blockset, EditorTool, DisplayOptions,
-  SelectedEntity, CoordEvent,
+  SelectedEntity, ConnectionEntry,
 } from '../types'
-import { TILESET_FILES } from '../types/constants'
+import { TILESET_FILES, MUSIC_LIST } from '../types/constants'
 
 export const useMapStore = defineStore('map', () => {
   const maps = ref<MapJson[]>([])
@@ -359,6 +359,28 @@ export const useMapStore = defineStore('map', () => {
     statusMessage.value = msg
   }
 
+  function updateMapMusic(music: string) {
+    const map = currentMap.value
+    if (!map) return
+    map.header.music = music
+    hasUnsavedChanges.value = true
+  }
+
+  function updateMapConnection(direction: 'north' | 'south' | 'west' | 'east', entry: ConnectionEntry | null) {
+    const map = currentMap.value
+    if (!map) return
+    if (entry) {
+      map.connections[direction] = entry
+    } else {
+      delete map.connections[direction]
+    }
+    hasUnsavedChanges.value = true
+  }
+
+  function getMapNames(): string[] {
+    return maps.value.map(m => m.name)
+  }
+
   return {
     maps,
     blockData,
@@ -411,5 +433,9 @@ export const useMapStore = defineStore('map', () => {
     closeScriptEditor,
     jumpToFunction,
     clearJumpTarget,
+    updateMapMusic,
+    updateMapConnection,
+    getMapNames,
+    MUSIC_LIST,
   }
 })

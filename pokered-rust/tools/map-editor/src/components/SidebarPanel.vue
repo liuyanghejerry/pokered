@@ -3,10 +3,10 @@ import { useMapStore } from '../stores/mapStore'
 import { storeToRefs } from 'pinia'
 import EntityDetailPanel from './EntityDetailPanel.vue'
 import MapInfoPanel from './MapInfoPanel.vue'
+import MapHeaderEditor from './MapHeaderEditor.vue'
 
 const store = useMapStore()
 const {
-  currentMap,
   filteredMaps,
   currentMapIndex,
   searchQuery,
@@ -153,6 +153,10 @@ function handleMapChange(e: Event) {
 
     <div class="mt-4">
       <EntityDetailPanel />
+    </div>
+
+    <div class="mt-4">
+      <MapHeaderEditor />
     </div>
 
     <div class="mt-4">
