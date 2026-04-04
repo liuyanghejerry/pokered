@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia'
 import EntityDetailPanel from './EntityDetailPanel.vue'
 import MapInfoPanel from './MapInfoPanel.vue'
 import MapHeaderEditor from './MapHeaderEditor.vue'
+import MinimapPanel from './MinimapPanel.vue'
 
 const store = useMapStore()
 const {
@@ -131,6 +132,10 @@ function handleMapChange(e: Event) {
 
     <div v-if="hasUnsavedChanges" class="mt-2 text-warning text-[11px] font-bold">
       *Unsaved Changes*
+    </div>
+
+    <div class="mt-4">
+      <MinimapPanel />
     </div>
 
     <div class="mt-4 bg-bg-inset p-2.5 rounded-md">
