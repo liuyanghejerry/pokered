@@ -13,33 +13,14 @@ const {
   displayOptions,
   hasUnsavedChanges,
   canGoBack,
+  loading,
+  currentPassableTiles,
+  scriptEditorOpen,
 } = storeToRefs(store)
-
-async function handleFileChange(e: Event) {
-  const input = e.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (!file) return
-  try {
-    await store.loadFile(file)
-  } catch (err) {
-    store.updateStatus(`Error: ${(err as Error).message}`)
-  }
-}
 
 function handleMapChange(e: Event) {
   const select = e.target as HTMLSelectElement
   store.selectMap(parseInt(select.value))
-}
-
-async function handleScriptConfigChange(e: Event) {
-  const input = e.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (!file) return
-  try {
-    await store.loadScriptConfigFile(file)
-  } catch (err) {
-    store.updateStatus(`Error: ${(err as Error).message}`)
-  }
 }
 </script>
 
@@ -50,6 +31,8 @@ async function handleScriptConfigChange(e: Event) {
   >
     <h2 class="text-accent text-base font-bold mb-4">Map Editor</h2>
 
+    <div v-if="loading" class="text-text-muted text-xs mb-3">Loading...</div>
+
     <button
       v-if="canGoBack"
       class="w-full mb-3 px-3 py-1.5 bg-[#e67e22] text-white border-none rounded cursor-pointer text-[11px] font-bold hover:bg-[#d35400]"
@@ -57,14 +40,6 @@ async function handleScriptConfigChange(e: Event) {
     >
       ← Back
     </button>
-
-    <label class="block text-xs mb-1 mt-3">Data File:</label>
-    <input
-      type="file"
-      accept=".json"
-      class="text-[11px] w-full"
-      @change="handleFileChange"
-    />
 
     <label class="block text-xs mb-1 mt-3">Map:</label>
     <select
@@ -115,31 +90,30 @@ async function handleScriptConfigChange(e: Event) {
         Show Coord Events
       </label>
       <label class="flex items-center gap-1.5 cursor-pointer text-xs">
+        <input v-model="displayOptions.showConnections" type="checkbox" class="w-auto" />
+        Show Connections
+      </label>
+      <label class="flex items-center gap-1.5 cursor-pointer text-xs">
         <input v-model="displayOptions.showGrid" type="checkbox" class="w-auto" />
         Show Grid
       </label>
     </div>
 
-    <label class="block text-xs mb-1 mt-3">Script Config:</label>
-    <input
-      type="file"
-      accept=".json"
-      class="text-[11px] w-full"
-      @change="handleScriptConfigChange"
-    />
-
     <div class="flex gap-1.5 flex-wrap mt-3">
       <button
         class="px-3 py-1.5 bg-[#27ae60] text-white border-none rounded cursor-pointer text-[11px] font-bold hover:bg-[#229954]"
-        @click="store.exportScriptConfig()"
+        :disabled="!hasUnsavedChanges"
+        :class="!hasUnsavedChanges ? 'opacity-50 cursor-not-allowed' : ''"
+        @click="store.saveCurrentMap()"
       >
-        Export Script Config
+        Save
       </button>
       <button
-        class="px-3 py-1.5 bg-accent text-bg-panel border-none rounded cursor-pointer text-[11px] font-bold hover:bg-accent-hover"
-        @click="store.exportJson()"
+        class="px-3 py-1.5 border-none rounded cursor-pointer text-[11px] font-bold"
+        :class="scriptEditorOpen ? 'bg-accent text-bg-panel hover:opacity-85' : 'bg-[#2c3e50] text-text hover:bg-[#34495e]'"
+        @click="scriptEditorOpen ? store.closeScriptEditor() : store.openScriptEditor()"
       >
-        Export JSON
+        {{ scriptEditorOpen ? '🗺 Map' : '{ } Script' }}
       </button>
       <button
         class="px-3 py-1.5 bg-[#333] text-text border-none rounded cursor-pointer text-[11px] font-bold hover:bg-[#444]"
@@ -161,13 +135,12 @@ async function handleScriptConfigChange(e: Event) {
 
     <div class="mt-4 bg-bg-inset p-2.5 rounded-md">
       <h3 class="text-accent text-[13px] font-bold mb-2">Passable Tiles</h3>
-      <p class="text-[10px] text-text-muted mb-1">Click tiles on map to toggle passable</p>
       <div
-        v-if="currentMap"
+        v-if="currentPassableTiles.length > 0"
         class="max-h-[150px] overflow-y-auto font-mono text-[10px] space-y-0.5"
       >
         <div
-          v-for="tileId in currentMap.passable_tiles"
+          v-for="tileId in currentPassableTiles"
           :key="tileId"
           class="flex items-center gap-1.5 p-0.5 hover:bg-bg"
         >
@@ -175,6 +148,7 @@ async function handleScriptConfigChange(e: Event) {
           <span class="text-accent">Passable</span>
         </div>
       </div>
+      <p v-else class="text-[10px] text-text-muted">No tileset loaded</p>
     </div>
 
     <div class="mt-4">

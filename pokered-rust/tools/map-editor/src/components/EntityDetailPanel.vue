@@ -27,7 +27,7 @@ function toHex(n: number, pad = 2): string {
     <template v-if="selectedEntity.type === 'sign'">
   <div v-if="selectedEntity.data.talk" class="mt-1">
     <span class="text-text-muted">Script: </span>
-    <span class="text-accent">{{ selectedEntity.data.talk }}</span>
+    <span class="text-accent cursor-pointer hover:underline" @click="store.jumpToFunction(selectedEntity!.data.talk!)">{{ selectedEntity.data.talk }}</span>
   </div>
   <label class="block text-[10px] text-text-muted mt-2">Script Function:</label>
   <input
@@ -38,29 +38,21 @@ function toHex(n: number, pad = 2): string {
     @change="store.updateSignTalk(selectedEntity!.index, ($event.target as HTMLInputElement).value)"
   />
       <div class="font-mono text-[11px] space-y-1">
-        <p>Position: ({{ selectedEntity.data.x * 2 }}, {{ selectedEntity.data.y * 2 }})</p>
-        <p>Text ID: {{ selectedEntity.data.text_id }}</p>
+        <p>Position: ({{ selectedEntity.data.x }}, {{ selectedEntity.data.y }})</p>
+        <p>Text ID: {{ selectedEntity.data.textId }}</p>
       </div>
       <div
-        v-if="selectedEntity.data.text_pages && selectedEntity.data.text_pages.length > 0"
-        class="mt-2 space-y-1.5"
+        v-if="selectedEntity.data.textId != null"
+        class="mt-2"
       >
-        <div
-          v-for="(page, pi) in selectedEntity.data.text_pages"
-          :key="pi"
-          class="bg-bg p-2 rounded border border-[#333] font-mono text-[11px]"
-        >
-          <div v-if="page.line1" class="text-text">{{ page.line1 }}</div>
-          <div v-if="page.line2" class="text-text-muted">{{ page.line2 }}</div>
-        </div>
+        <p class="text-[10px] text-text-muted italic">Text data in map.json text section</p>
       </div>
-      <p v-else class="text-[10px] text-text-muted mt-1 italic">No text data</p>
     </template>
 
     <template v-if="selectedEntity.type === 'npc'">
   <div v-if="selectedEntity.data.talk" class="mt-1">
     <span class="text-text-muted">Script: </span>
-    <span class="text-accent">{{ selectedEntity.data.talk }}</span>
+    <span class="text-accent cursor-pointer hover:underline" @click="store.jumpToFunction(selectedEntity!.data.talk!)">{{ selectedEntity.data.talk }}</span>
   </div>
   <label class="block text-[10px] text-text-muted mt-2">Script Function:</label>
   <input
@@ -73,64 +65,53 @@ function toHex(n: number, pad = 2): string {
       <div class="font-mono text-[11px] space-y-1">
         <p>
           <span
-            :class="selectedEntity.data.is_trainer ? 'text-danger' : selectedEntity.data.item_id != null ? 'text-accent' : 'text-[#9b59b6]'"
+            :class="selectedEntity.data.isTrainer ? 'text-danger' : selectedEntity.data.itemId != null ? 'text-accent' : 'text-[#9b59b6]'"
             class="font-bold"
           >
-            {{ selectedEntity.data.sprite_name }}
+            {{ selectedEntity.data.spriteName }}
           </span>
         </p>
-        <p>Position: ({{ selectedEntity.data.x * 2 }}, {{ selectedEntity.data.y * 2 }})</p>
+        <p>Position: ({{ selectedEntity.data.x }}, {{ selectedEntity.data.y }})</p>
         <p>Movement: {{ selectedEntity.data.movement }} / {{ selectedEntity.data.facing }}</p>
         <p v-if="selectedEntity.data.range > 0">Range: {{ selectedEntity.data.range }}</p>
-        <p v-if="selectedEntity.data.is_trainer">
-          Trainer: {{ selectedEntity.data.trainer_class }} #{{ selectedEntity.data.trainer_set }}
+        <p v-if="selectedEntity.data.isTrainer">
+          Trainer: {{ selectedEntity.data.trainerClass }} #{{ selectedEntity.data.trainerSet }}
         </p>
-        <p v-if="selectedEntity.data.item_id != null">
-          Item: {{ toHex(selectedEntity.data.item_id) }}
+        <p v-if="selectedEntity.data.itemId != null">
+          Item: {{ toHex(selectedEntity.data.itemId) }}
         </p>
       </div>
       <div
-        v-if="selectedEntity.data.text_pages && selectedEntity.data.text_pages.length > 0"
-        class="mt-2 space-y-1.5"
+        v-if="selectedEntity.data.textId != null"
+        class="mt-2"
       >
-        <p class="text-[10px] text-text-muted">
-          Dialog ({{ selectedEntity.data.text_pages.length }} page{{ selectedEntity.data.text_pages.length > 1 ? 's' : '' }}):
-        </p>
-        <div
-          v-for="(page, pi) in selectedEntity.data.text_pages"
-          :key="pi"
-          class="bg-bg p-2 rounded border border-[#333] font-mono text-[11px]"
-        >
-          <div v-if="page.line1" class="text-text">{{ page.line1 }}</div>
-          <div v-if="page.line2" class="text-text-muted">{{ page.line2 }}</div>
-        </div>
+        <p class="text-[10px] text-text-muted italic">Text data in map.json text section</p>
       </div>
-      <p v-else class="text-[10px] text-text-muted mt-1 italic">No text data</p>
     </template>
 
     <template v-if="selectedEntity.type === 'coordEvent'">
   <div class="font-mono text-[11px] space-y-1">
     <p>Position: ({{ selectedEntity.data.x }}, {{ selectedEntity.data.y }})</p>
-    <p>Trigger: <span class="text-accent">{{ selectedEntity.data.trigger }}</span></p>
+    <p>Trigger: <span class="text-accent cursor-pointer hover:underline" @click="store.jumpToFunction(selectedEntity!.data.trigger)">{{ selectedEntity.data.trigger }}</span></p>
   </div>
 </template>
 
 <template v-if="selectedEntity.type === 'warp'">
       <div class="font-mono text-[11px] space-y-1">
-        <p>Position: ({{ selectedEntity.data.x * 2 }}, {{ selectedEntity.data.y * 2 }})</p>
-        <p v-if="selectedEntity.data.dest_map_name">
-          Destination: {{ selectedEntity.data.dest_map_name }}
+        <p>Position: ({{ selectedEntity.data.x }}, {{ selectedEntity.data.y }})</p>
+        <p v-if="selectedEntity.data.destMap">
+          Destination: {{ selectedEntity.data.destMap }}
         </p>
-        <p v-if="selectedEntity.data.dest_warp_id != null">
-          Dest Warp ID: {{ selectedEntity.data.dest_warp_id }}
+        <p v-if="selectedEntity.data.destWarpId != null">
+          Dest Warp ID: {{ selectedEntity.data.destWarpId }}
         </p>
       </div>
       <button
-        v-if="selectedEntity.data.dest_map_name"
+        v-if="selectedEntity.data.destMap"
         class="mt-2 px-3 py-1.5 bg-[#3498db] text-white border-none rounded cursor-pointer text-[11px] font-bold hover:bg-[#2980b9] w-full"
-        @click="store.navigateToMap(selectedEntity!.type === 'warp' ? selectedEntity!.data.dest_map_name! : '')"
+        @click="store.navigateToMap(selectedEntity!.type === 'warp' ? selectedEntity!.data.destMap! : '')"
       >
-        Go to {{ selectedEntity.data.dest_map_name }} →
+        Go to {{ selectedEntity.data.destMap }} →
       </button>
     </template>
   </div>

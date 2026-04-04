@@ -1,9 +1,9 @@
 import { ref, watch, type Ref } from 'vue'
 import { useMapStore } from '../stores/mapStore'
 import { TILE_SIZE, BLOCK_TILES } from '../types/constants'
-import type { TileInfo } from '../types'
+import type { TileInfo, CoordEvent } from '../types'
 import { renderTilesAndCollision, renderGrid } from './renderTiles'
-import { renderWarps, renderSigns, renderNpcs, renderSelectionHighlight } from './renderOverlays'
+import { renderWarps, renderSigns, renderNpcs, renderCoordEvents, renderSelectionHighlight } from './renderOverlays'
 import { getTileInfoAt, hasClickableEntity } from './hitTest'
 
 export function useMapRenderer(canvasRef: Ref<HTMLCanvasElement | null>) {
@@ -13,6 +13,12 @@ export function useMapRenderer(canvasRef: Ref<HTMLCanvasElement | null>) {
   const hoveringClickable = ref(false)
   let animationFrameId: number | null = null
 
+  function getCoordEvents(): CoordEvent[] {
+    const config = store.currentScriptConfig
+    if (!config?.coordEvents) return []
+    return config.coordEvents.map(ce => ({ x: ce.position[0], y: ce.position[1], trigger: ce.trigger }))
+  }
+
   function render() {
     const canvas = canvasRef.value
     const map = store.currentMap
@@ -21,8 +27,8 @@ export function useMapRenderer(canvasRef: Ref<HTMLCanvasElement | null>) {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    const pw = map.width * BLOCK_TILES * TILE_SIZE
-    const ph = map.height * BLOCK_TILES * TILE_SIZE
+    const pw = map.header.width * BLOCK_TILES * TILE_SIZE
+    const ph = map.header.height * BLOCK_TILES * TILE_SIZE
     canvas.width = pw * store.zoom
     canvas.height = ph * store.zoom
     canvas.style.width = `${pw * store.zoom}px`
@@ -33,11 +39,13 @@ export function useMapRenderer(canvasRef: Ref<HTMLCanvasElement | null>) {
     ctx.fillStyle = '#000'
     ctx.fillRect(0, 0, pw, ph)
 
-    const { showTiles, showCollision, showGrid, showWarps, showSigns, showNpcs } = store.displayOptions
-    const blockset = store.getBlockset(map.tileset_name)
-    const tilesetImg = store.tilesetImages[map.tileset_name]
+    const { showTiles, showCollision, showGrid, showWarps, showSigns, showNpcs, showCoordEvents } = store.displayOptions
+    const blockset = store.getBlockset(map.header.tileset)
+    const tilesetImg = store.tilesetImages[map.header.tileset]
+    const blocks = store.currentBlocks
+    const passable = store.currentPassableTiles
 
-    renderTilesAndCollision(ctx, map, blockset, tilesetImg, showTiles, showCollision)
+    renderTilesAndCollision(ctx, map.header.width, map.header.height, blocks, passable, blockset, tilesetImg, showTiles, showCollision)
 
     if (showGrid) {
       renderGrid(ctx, pw, ph)
@@ -53,6 +61,13 @@ export function useMapRenderer(canvasRef: Ref<HTMLCanvasElement | null>) {
 
     if (showNpcs && map.npcs) {
       renderNpcs(ctx, map.npcs)
+    }
+
+    if (showCoordEvents) {
+      const coordEvents = getCoordEvents()
+      if (coordEvents.length > 0) {
+        renderCoordEvents(ctx, coordEvents)
+      }
     }
 
     if (store.selectedEntity) {
@@ -85,19 +100,16 @@ export function useMapRenderer(canvasRef: Ref<HTMLCanvasElement | null>) {
     const map = store.currentMap
     if (!canvas || !map) return
 
-    const info = getTileInfoAt(canvas, map, store.getBlockset(map.tileset_name), store.zoom, e.clientX, e.clientY)
+    const blocks = store.currentBlocks
+    const passable = store.currentPassableTiles
+    const coordEvents = getCoordEvents()
+    const info = getTileInfoAt(canvas, map, store.getBlockset(map.header.tileset), blocks, passable, coordEvents, store.zoom, e.clientX, e.clientY)
     if (!info) return
-
-    if (store.currentTool === 'edit') {
-      store.togglePassableTile(info.tileId)
-      render()
-      return
-    }
 
     if (info.warp) {
       const warpIndex = map.warps?.indexOf(info.warp) ?? -1
-      if (info.warp.dest_map_name) {
-        store.navigateToMap(info.warp.dest_map_name)
+      if (info.warp.destMap) {
+        store.navigateToMap(info.warp.destMap)
       } else {
         store.selectEntity({ type: 'warp', data: info.warp, index: warpIndex })
       }
@@ -116,6 +128,12 @@ export function useMapRenderer(canvasRef: Ref<HTMLCanvasElement | null>) {
       return
     }
 
+    if (info.coordEvent) {
+      const ceIndex = coordEvents.indexOf(info.coordEvent)
+      store.selectEntity({ type: 'coordEvent', data: info.coordEvent, index: ceIndex })
+      return
+    }
+
     store.selectEntity(null)
   }
 
@@ -124,7 +142,10 @@ export function useMapRenderer(canvasRef: Ref<HTMLCanvasElement | null>) {
     const map = store.currentMap
     if (!canvas || !map) return
 
-    const info = getTileInfoAt(canvas, map, store.getBlockset(map.tileset_name), store.zoom, e.clientX, e.clientY)
+    const blocks = store.currentBlocks
+    const passable = store.currentPassableTiles
+    const coordEvents = getCoordEvents()
+    const info = getTileInfoAt(canvas, map, store.getBlockset(map.header.tileset), blocks, passable, coordEvents, store.zoom, e.clientX, e.clientY)
     tooltip.value = info
     tooltipPosition.value = { x: e.clientX + 15, y: e.clientY + 15 }
 
@@ -150,6 +171,7 @@ export function useMapRenderer(canvasRef: Ref<HTMLCanvasElement | null>) {
       store.displayOptions.showSigns,
       store.displayOptions.showNpcs,
       store.displayOptions.showGrid,
+      store.displayOptions.showCoordEvents,
       store.tilesetImages,
     ],
     () => render(),

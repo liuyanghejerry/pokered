@@ -93,19 +93,23 @@ onUnmounted(() => {
         <template v-if="tooltip.warp">
           <br />
           <b class="text-[#3498db]">WARP</b>
-          <template v-if="tooltip.warp.dest_map_name"> → {{ tooltip.warp.dest_map_name }}</template>
+          <template v-if="tooltip.warp.destMap"> → {{ tooltip.warp.destMap }}</template>
         </template>
         <template v-if="tooltip.sign">
-          <br /><b class="text-[#f1c40f]">SIGN</b> text#{{ tooltip.sign.text_id }}
+          <br /><b class="text-[#f1c40f]">SIGN</b> text#{{ tooltip.sign.textId }}
         </template>
         <template v-if="tooltip.npc">
           <br />
-          <b :class="tooltip.npc.is_trainer ? 'text-danger' : tooltip.npc.item_id != null ? 'text-accent' : 'text-[#9b59b6]'">
-            {{ tooltip.npc.is_trainer ? 'TRAINER' : tooltip.npc.item_id != null ? 'ITEM' : 'NPC' }}
+          <b :class="tooltip.npc.isTrainer ? 'text-danger' : tooltip.npc.itemId != null ? 'text-accent' : 'text-[#9b59b6]'">
+            {{ tooltip.npc.isTrainer ? 'TRAINER' : tooltip.npc.itemId != null ? 'ITEM' : 'NPC' }}
           </b>
-          {{ tooltip.npc.sprite_name }}
-          <template v-if="tooltip.npc.is_trainer"> ({{ tooltip.npc.trainer_class }})</template>
-          <template v-if="tooltip.npc.item_id != null"> item={{ toHex(tooltip.npc.item_id) }}</template>
+          {{ tooltip.npc.spriteName }}
+          <template v-if="tooltip.npc.isTrainer"> ({{ tooltip.npc.trainerClass }})</template>
+          <template v-if="tooltip.npc.itemId != null"> item={{ toHex(tooltip.npc.itemId) }}</template>
+        </template>
+        <template v-if="tooltip.coordEvent">
+          <br />
+          <b class="text-[#e67e22]">COORD</b> {{ tooltip.coordEvent.trigger }}
         </template>
       </div>
     </Teleport>

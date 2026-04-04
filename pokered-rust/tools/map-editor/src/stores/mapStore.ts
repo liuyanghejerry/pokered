@@ -1,25 +1,33 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { ExportData, MapData, Blockset, EditorTool, DisplayOptions, SelectedEntity, MapScriptConfig } from '../types'
+import type {
+  MapJson, MapScriptConfig, Blockset, EditorTool, DisplayOptions,
+  SelectedEntity, CoordEvent,
+} from '../types'
 import { TILESET_FILES } from '../types/constants'
 
 export const useMapStore = defineStore('map', () => {
-  const exportData = ref<ExportData | null>(null)
-  const maps = ref<MapData[]>([])
-  const blocksets = ref<Blockset[]>([])
+  const maps = ref<MapJson[]>([])
+  const blockData = ref<Record<string, number[]>>({})
+  const blocksets = ref<Record<string, Record<number, number[]>>>({})
+  const passableTiles = ref<Record<string, number[]>>({})
   const currentMapIndex = ref(0)
   const zoom = ref(2)
   const currentTool = ref<EditorTool>('view')
   const hasUnsavedChanges = ref(false)
-  const statusMessage = ref('Ready')
+  const statusMessage = ref('Loading...')
   const searchQuery = ref('')
   const tilesetImages = ref<Record<string, HTMLImageElement>>({})
   const selectedEntity = ref<SelectedEntity | null>(null)
   const mapHistory = ref<number[]>([])
-
   const scriptConfigs = ref<Record<string, MapScriptConfig>>({})
+  const loading = ref(false)
+  const scriptFiles = ref<Record<string, string>>({})
+  const scriptEditorOpen = ref(false)
+  const scriptJumpTarget = ref<string | null>(null)
+  const scriptDirty = ref(false)
 
-const displayOptions = ref<DisplayOptions>({
+  const displayOptions = ref<DisplayOptions>({
     showTiles: true,
     showCollision: true,
     showWarps: true,
@@ -27,11 +35,24 @@ const displayOptions = ref<DisplayOptions>({
     showNpcs: true,
     showGrid: false,
     showCoordEvents: true,
+    showConnections: true,
   })
 
-  const currentMap = computed<MapData | null>(() => {
+  const currentMap = computed<MapJson | null>(() => {
     if (maps.value.length === 0) return null
     return maps.value[currentMapIndex.value] ?? null
+  })
+
+  const currentBlocks = computed<number[]>(() => {
+    const map = currentMap.value
+    if (!map) return []
+    return blockData.value[map.name] ?? []
+  })
+
+  const currentPassableTiles = computed<number[]>(() => {
+    const map = currentMap.value
+    if (!map) return []
+    return passableTiles.value[map.header.tileset] ?? []
   })
 
   const canGoBack = computed(() => mapHistory.value.length > 0)
@@ -45,20 +66,78 @@ const displayOptions = ref<DisplayOptions>({
   })
 
   function getBlockset(tilesetName: string): Blockset | undefined {
-    return blocksets.value.find((b) => b.tileset_name === tilesetName)
+    const blocks = blocksets.value[tilesetName]
+    if (!blocks) return undefined
+    return { tileset_name: tilesetName, blocks }
   }
 
-  async function loadFile(file: File) {
-    const text = await file.text()
-    const data: ExportData = JSON.parse(text)
-    exportData.value = data
-    maps.value = data.maps || []
-    blocksets.value = data.blocksets || []
-    await loadTilesets()
-    currentMapIndex.value = 0
-    selectedEntity.value = null
-    mapHistory.value = []
-    updateStatus(`Loaded ${maps.value.length} maps`)
+  async function loadAllMaps() {
+    loading.value = true
+    statusMessage.value = 'Loading maps...'
+    try {
+      const [mapNames, allBlocksets, allPassable] = await Promise.all([
+        fetch('/api/maps').then(r => r.json()) as Promise<string[]>,
+        fetch('/api/blocksets').then(r => r.json()) as Promise<Record<string, Record<number, number[]>>>,
+        fetch('/api/passable-tiles').then(r => r.json()) as Promise<Record<string, number[]>>,
+      ])
+
+      blocksets.value = allBlocksets
+      passableTiles.value = allPassable
+
+      const batchSize = 50
+      const allMaps: MapJson[] = []
+      const allBlocks: Record<string, number[]> = {}
+      const allConfigs: Record<string, MapScriptConfig> = {}
+
+      for (let i = 0; i < mapNames.length; i += batchSize) {
+        const batch = mapNames.slice(i, i + batchSize)
+        const results = await Promise.all(
+          batch.map(async (name) => {
+            const [mapJson, blk, config] = await Promise.all([
+              fetch(`/api/maps/${name}/map.json`).then(r => r.json()) as Promise<MapJson>,
+              fetch(`/api/maps/${name}/map.blk`).then(r => r.json()).catch(() => []) as Promise<number[]>,
+              fetch(`/api/maps/${name}/script_config.json`).then(r => r.ok ? r.json() : null).catch(() => null) as Promise<MapScriptConfig | null>,
+            ])
+            return { name, mapJson, blk, config }
+          })
+        )
+        for (const { name, mapJson, blk, config } of results) {
+          allMaps.push(mapJson)
+          allBlocks[name] = blk
+          if (config) {
+            allConfigs[name] = config
+            applyScriptBindings(mapJson, config)
+          }
+        }
+        statusMessage.value = `Loading maps... ${Math.min(i + batchSize, mapNames.length)}/${mapNames.length}`
+      }
+
+      allMaps.sort((a, b) => a.id - b.id)
+      maps.value = allMaps
+      blockData.value = allBlocks
+      scriptConfigs.value = allConfigs
+
+      await loadTilesets()
+      currentMapIndex.value = 0
+      selectedEntity.value = null
+      mapHistory.value = []
+      statusMessage.value = `Loaded ${allMaps.length} maps`
+    } catch (err) {
+      statusMessage.value = `Error: ${(err as Error).message}`
+    } finally {
+      loading.value = false
+    }
+  }
+
+  function applyScriptBindings(mapJson: MapJson, config: MapScriptConfig) {
+    config.npcs.forEach(({ id, talk }) => {
+      const npc = mapJson.npcs?.find(n => n.textId === id)
+      if (npc) npc.talk = talk
+    })
+    config.signs.forEach(({ id, talk }) => {
+      const sign = mapJson.signs?.find(s => s.textId === id)
+      if (sign) sign.talk = talk
+    })
   }
 
   async function loadTilesets() {
@@ -86,7 +165,7 @@ const displayOptions = ref<DisplayOptions>({
   }
 
   function navigateToMap(mapName: string) {
-    const targetIndex = maps.value.findIndex((m) => m.name === mapName)
+    const targetIndex = maps.value.findIndex(m => m.name === mapName)
     if (targetIndex < 0) {
       updateStatus(`Map "${mapName}" not found`)
       return
@@ -139,59 +218,6 @@ const displayOptions = ref<DisplayOptions>({
     zoom.value = Math.max(1, zoom.value - 1)
   }
 
-  function togglePassableTile(tileId: number) {
-    const map = currentMap.value
-    if (!map) return
-    const idx = map.passable_tiles.indexOf(tileId)
-    if (idx >= 0) {
-      map.passable_tiles.splice(idx, 1)
-      updateStatus(`Tile 0x${tileId.toString(16).padStart(2, '0')} marked as IMPASSABLE`)
-    } else {
-      map.passable_tiles.push(tileId)
-      updateStatus(`Tile 0x${tileId.toString(16).padStart(2, '0')} marked as PASSABLE`)
-    }
-    hasUnsavedChanges.value = true
-  }
-
-  function exportJson() {
-    if (!exportData.value) return
-    const json = JSON.stringify(exportData.value, null, 2)
-    const blob = new Blob([json], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'map_data_edited.json'
-    a.click()
-    URL.revokeObjectURL(url)
-    hasUnsavedChanges.value = false
-    updateStatus('Exported to map_data_edited.json')
-  }
-
-    function loadScriptConfig(mapName: string, config: MapScriptConfig) {
-    scriptConfigs.value[mapName] = config
-    const map = maps.value.find((m) => m.name === mapName)
-    if (!map) return
-
-    config.npcs.forEach(({ id, talk }) => {
-      const npc = map.npcs?.find((n) => n.text_id === id)
-      if (npc) npc.talk = talk
-    })
-
-    config.signs.forEach(({ id, talk }) => {
-      const sign = map.signs?.find((s) => s.text_id === id)
-      if (sign) sign.talk = talk
-    })
-  }
-
-  async function loadScriptConfigFile(file: File) {
-    const text = await file.text()
-    const config: MapScriptConfig = JSON.parse(text)
-    if (currentMap.value) {
-      loadScriptConfig(currentMap.value.name, config)
-      updateStatus(`Loaded script config for ${currentMap.value.name}`)
-    }
-  }
-
   const currentScriptConfig = computed(() => {
     return currentMap.value ? scriptConfigs.value[currentMap.value.name] : undefined
   })
@@ -203,7 +229,7 @@ const displayOptions = ref<DisplayOptions>({
     if (npc) {
       npc.talk = talk
       const config = scriptConfigs.value[map.name]
-      const configNpc = config?.npcs.find((n) => n.id === npc.text_id)
+      const configNpc = config?.npcs.find(n => n.id === npc.textId)
       if (configNpc) configNpc.talk = talk
       hasUnsavedChanges.value = true
     }
@@ -216,7 +242,7 @@ const displayOptions = ref<DisplayOptions>({
     if (sign) {
       sign.talk = talk
       const config = scriptConfigs.value[map.name]
-      const configSign = config?.signs.find((s) => s.id === sign.text_id)
+      const configSign = config?.signs.find(s => s.id === sign.textId)
       if (configSign) configSign.talk = talk
       hasUnsavedChanges.value = true
     }
@@ -246,18 +272,87 @@ const displayOptions = ref<DisplayOptions>({
     }
   }
 
-  function exportScriptConfig() {
-    const config = currentScriptConfig.value
-    if (!config || !currentMap.value) return
-    const json = JSON.stringify(config, null, 2)
-    const blob = new Blob([json], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${currentMap.value.name}.json`
-    a.click()
-    URL.revokeObjectURL(url)
-    updateStatus(`Exported script config for ${currentMap.value.name}`)
+  async function saveCurrentMap() {
+    const map = currentMap.value
+    if (!map) return
+
+    try {
+      const mapCopy = { ...map } as Record<string, unknown>
+      if (map.npcs) {
+        mapCopy.npcs = map.npcs.map(({ talk, ...rest }) => rest)
+      }
+      if (map.signs) {
+        mapCopy.signs = map.signs.map(({ talk, ...rest }) => rest)
+      }
+
+      await fetch(`/api/maps/${map.name}/map.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(mapCopy),
+      })
+
+      const config = scriptConfigs.value[map.name]
+      if (config) {
+        await fetch(`/api/maps/${map.name}/script_config.json`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(config),
+        })
+      }
+
+      hasUnsavedChanges.value = false
+      updateStatus(`Saved ${map.name}`)
+    } catch (err) {
+      updateStatus(`Save error: ${(err as Error).message}`)
+    }
+  }
+
+  async function loadScriptFile(mapName: string): Promise<string> {
+    if (scriptFiles.value[mapName] != null) {
+      return scriptFiles.value[mapName]
+    }
+    const res = await fetch(`/api/maps/${mapName}/script.js`)
+    const text = res.ok ? await res.text() : ''
+    scriptFiles.value[mapName] = text
+    return text
+  }
+
+  async function saveScriptFile(mapName: string, content: string) {
+    try {
+      await fetch(`/api/maps/${mapName}/script.js`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'text/plain' },
+        body: content,
+      })
+      scriptFiles.value[mapName] = content
+      scriptDirty.value = false
+      updateStatus(`Saved script for ${mapName}`)
+    } catch (err) {
+      updateStatus(`Script save error: ${(err as Error).message}`)
+    }
+  }
+
+  function updateScriptContent(mapName: string, content: string) {
+    scriptFiles.value[mapName] = content
+    scriptDirty.value = true
+  }
+
+  function openScriptEditor() {
+    scriptEditorOpen.value = true
+  }
+
+  function closeScriptEditor() {
+    scriptEditorOpen.value = false
+    scriptJumpTarget.value = null
+  }
+
+  function jumpToFunction(funcName: string) {
+    scriptEditorOpen.value = true
+    scriptJumpTarget.value = funcName
+  }
+
+  function clearJumpTarget() {
+    scriptJumpTarget.value = null
   }
 
   function updateStatus(msg: string) {
@@ -265,9 +360,10 @@ const displayOptions = ref<DisplayOptions>({
   }
 
   return {
-    exportData,
     maps,
+    blockData,
     blocksets,
+    passableTiles,
     currentMapIndex,
     zoom,
     currentTool,
@@ -278,11 +374,14 @@ const displayOptions = ref<DisplayOptions>({
     displayOptions,
     selectedEntity,
     mapHistory,
+    loading,
     currentMap,
+    currentBlocks,
+    currentPassableTiles,
     canGoBack,
     filteredMaps,
     getBlockset,
-    loadFile,
+    loadAllMaps,
     selectMap,
     navigateToMap,
     goBack,
@@ -292,18 +391,25 @@ const displayOptions = ref<DisplayOptions>({
     setTool,
     zoomIn,
     zoomOut,
-    togglePassableTile,
-    exportJson,
     scriptConfigs,
-    loadScriptConfig,
-    loadScriptConfigFile,
     currentScriptConfig,
     updateNpcTalk,
     updateSignTalk,
     addCoordEvent,
     removeCoordEvent,
     updateMapScripts,
-    exportScriptConfig,
+    saveCurrentMap,
     updateStatus,
+    scriptFiles,
+    scriptEditorOpen,
+    scriptJumpTarget,
+    scriptDirty,
+    loadScriptFile,
+    saveScriptFile,
+    updateScriptContent,
+    openScriptEditor,
+    closeScriptEditor,
+    jumpToFunction,
+    clearJumpTarget,
   }
 })

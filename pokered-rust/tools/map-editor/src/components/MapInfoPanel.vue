@@ -46,12 +46,29 @@ function isSelected(type: string, index: number): boolean {
     <template v-if="currentMap">
       <p class="my-0.5"><b>{{ currentMap.name }}</b></p>
       <p class="my-0.5">ID: <code class="text-accent">{{ toHex(currentMap.id) }}</code></p>
-      <p class="my-0.5">Size: {{ currentMap.width }}x{{ currentMap.height }} blocks</p>
-      <p class="my-0.5">Tiles: {{ currentMap.width * 4 }}x{{ currentMap.height * 4 }}</p>
-      <p class="my-0.5">Tileset: {{ currentMap.tileset_name }}</p>
+      <p class="my-0.5">Size: {{ currentMap.header.width }}x{{ currentMap.header.height }} blocks</p>
+      <p class="my-0.5">Tiles: {{ currentMap.header.width * 4 }}x{{ currentMap.header.height * 4 }}</p>
+      <p class="my-0.5">Tileset: {{ currentMap.header.tileset }}</p>
+      <p class="my-0.5">Music: {{ currentMap.header.music }}</p>
+
+      <template v-if="currentMap.connections">
+        <p class="my-0.5"><b>Connections:</b></p>
+        <p v-if="currentMap.connections.north" class="my-0.5 ml-2.5 cursor-pointer hover:text-accent transition-colors" @click="store.navigateToMap(currentMap.connections.north!.targetMap)">
+          North → {{ currentMap.connections.north.targetMap }} (offset: {{ currentMap.connections.north.offset }})
+        </p>
+        <p v-if="currentMap.connections.south" class="my-0.5 ml-2.5 cursor-pointer hover:text-accent transition-colors" @click="store.navigateToMap(currentMap.connections.south!.targetMap)">
+          South → {{ currentMap.connections.south.targetMap }} (offset: {{ currentMap.connections.south.offset }})
+        </p>
+        <p v-if="currentMap.connections.west" class="my-0.5 ml-2.5 cursor-pointer hover:text-accent transition-colors" @click="store.navigateToMap(currentMap.connections.west!.targetMap)">
+          West → {{ currentMap.connections.west.targetMap }} (offset: {{ currentMap.connections.west.offset }})
+        </p>
+        <p v-if="currentMap.connections.east" class="my-0.5 ml-2.5 cursor-pointer hover:text-accent transition-colors" @click="store.navigateToMap(currentMap.connections.east!.targetMap)">
+          East → {{ currentMap.connections.east.targetMap }} (offset: {{ currentMap.connections.east.offset }})
+        </p>
+      </template>
 
       <template v-if="currentMap.warps && currentMap.warps.length > 0">
-        <p class="my-0.5"><b>Warps:</b></p>
+        <p class="my-0.5"><b>Warps ({{ currentMap.warps.length }}):</b></p>
         <p
           v-for="(warp, i) in currentMap.warps"
           :key="i"
@@ -59,8 +76,8 @@ function isSelected(type: string, index: number): boolean {
           :class="isSelected('warp', i) ? 'text-accent font-bold' : ''"
           @click="selectWarp(i)"
         >
-          Warp {{ i }}: ({{ warp.x * 2 }}, {{ warp.y * 2 }})
-          <template v-if="warp.dest_map_name"> → {{ warp.dest_map_name }}</template>
+          Warp {{ i }}: ({{ warp.x }}, {{ warp.y }})
+          <template v-if="warp.destMap"> → {{ warp.destMap }}</template>
         </p>
       </template>
 
@@ -73,25 +90,25 @@ function isSelected(type: string, index: number): boolean {
           :class="isSelected('sign', i) ? 'text-[#f1c40f] font-bold' : ''"
           @click="selectSign(i)"
         >
-          Sign {{ i }}: ({{ sign.x * 2 }}, {{ sign.y * 2 }}) text#{{ sign.text_id }}
-          <template v-if="sign.talk"> → <span class="text-accent">{{ sign.talk }}</span></template>
+          Sign {{ i }}: ({{ sign.x }}, {{ sign.y }}) text#{{ sign.textId }}
+          <template v-if="sign.talk"> → <span class="text-accent cursor-pointer hover:underline" @click.stop="store.jumpToFunction(sign.talk!)">{{ sign.talk }}</span></template>
         </p>
       </template>
 
       <template v-if="store.currentScriptConfig?.mapScripts?.length">
         <p class="my-0.5"><b>Map Scripts ({{ store.currentScriptConfig.mapScripts.length }}):</b></p>
-        <p v-for="(fn, i) in store.currentScriptConfig.mapScripts" :key="'ms-' + i" class="my-0.5 ml-2.5 font-mono text-accent">
+        <p v-for="(fn, i) in store.currentScriptConfig.mapScripts" :key="'ms-' + i" class="my-0.5 ml-2.5 font-mono text-accent cursor-pointer hover:underline" @click="store.jumpToFunction(fn)">
           [{{ i }}] {{ fn }}
         </p>
       </template>
 
       <template v-if="store.currentScriptConfig?.coordEvents?.length">
         <p class="my-0.5"><b>Coord Events ({{ store.currentScriptConfig.coordEvents.length }}):</b></p>
-        <p v-for="(ce, i) in store.currentScriptConfig.coordEvents" :key="'ce-' + i" 
+        <p v-for="(ce, i) in store.currentScriptConfig.coordEvents" :key="'ce-' + i"
            class="my-0.5 ml-2.5 cursor-pointer hover:text-[#e67e22] transition-colors"
            :class="isSelected('coordEvent', i) ? 'text-[#e67e22] font-bold' : ''"
            @click="selectCoordEvent(i)">
-          ({{ ce.position[0] }}, {{ ce.position[1] }}) → {{ ce.trigger }}
+          ({{ ce.position[0] }}, {{ ce.position[1] }}) → <span class="cursor-pointer hover:underline" @click.stop="store.jumpToFunction(ce.trigger)">{{ ce.trigger }}</span>
         </p>
       </template>
 
@@ -104,20 +121,31 @@ function isSelected(type: string, index: number): boolean {
           :class="isSelected('npc', i) ? 'font-bold' : ''"
           @click="selectNpc(i)"
         >
-          <span :class="npc.is_trainer ? 'text-danger' : npc.item_id != null ? 'text-accent' : 'text-text'">
-            {{ npc.sprite_name }}
+          <span :class="npc.isTrainer ? 'text-danger' : npc.itemId != null ? 'text-accent' : 'text-text'">
+            {{ npc.spriteName ?? `sprite#${npc.spriteId}` }}
           </span>
-          ({{ npc.x * 2 }}, {{ npc.y * 2 }})
-          <template v-if="npc.is_trainer"> 🗡{{ npc.trainer_class }}#{{ npc.trainer_set }}</template>
-          <template v-if="npc.item_id != null"> item={{ toHex(npc.item_id) }}</template>
-          <template v-if="npc.talk"> → <span class="text-accent">{{ npc.talk }}</span></template>
+          ({{ npc.x }}, {{ npc.y }})
+          <template v-if="npc.isTrainer"> {{ npc.trainerClass }}#{{ npc.trainerSet }}</template>
+          <template v-if="npc.itemId != null"> item={{ toHex(npc.itemId) }}</template>
+          <template v-if="npc.talk"> → <span class="text-accent cursor-pointer hover:underline" @click.stop="store.jumpToFunction(npc.talk!)">{{ npc.talk }}</span></template>
         </p>
       </template>
 
-      <p class="my-0.5">Passable tiles: {{ currentMap.passable_tiles.length }}</p>
+      <template v-if="currentMap.wild">
+        <p class="my-0.5"><b>Wild Pokemon:</b></p>
+        <template v-if="currentMap.wild.red?.grass?.mons?.length">
+          <p class="my-0.5 ml-2.5 text-text-muted">Red Grass (rate: {{ currentMap.wild.red.grass.encounterRate }}):</p>
+          <p v-for="(mon, i) in currentMap.wild.red.grass.mons.slice(0, 5)" :key="'rg-' + i" class="my-0.5 ml-5 text-[10px]">
+            Lv{{ mon.level }} {{ mon.species }}
+          </p>
+          <p v-if="currentMap.wild.red.grass.mons.length > 5" class="my-0.5 ml-5 text-[10px] text-text-muted">
+            ...+{{ currentMap.wild.red.grass.mons.length - 5 }} more
+          </p>
+        </template>
+      </template>
     </template>
     <template v-else>
-      <p>Load data file to begin</p>
+      <p>Loading map data...</p>
     </template>
   </div>
 </template>

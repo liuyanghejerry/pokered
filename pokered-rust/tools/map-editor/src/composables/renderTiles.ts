@@ -1,18 +1,21 @@
 import { TILE_SIZE, BLOCK_TILES } from '../types/constants'
-import type { MapData, Blockset } from '../types'
+import type { Blockset } from '../types'
 
 export function renderTilesAndCollision(
   ctx: CanvasRenderingContext2D,
-  map: MapData,
+  width: number,
+  height: number,
+  blocks: number[],
+  passableTiles: number[],
   blockset: Blockset | undefined,
   tilesetImg: HTMLImageElement | undefined,
   showTiles: boolean,
   showCollision: boolean,
 ) {
-  for (let by = 0; by < map.height; by++) {
-    for (let bx = 0; bx < map.width; bx++) {
-      const blockIdx = by * map.width + bx
-      const blockId = map.blocks[blockIdx]
+  for (let by = 0; by < height; by++) {
+    for (let bx = 0; bx < width; bx++) {
+      const blockIdx = by * width + bx
+      const blockId = blocks[blockIdx]
       const px = bx * BLOCK_TILES * TILE_SIZE
       const py = by * BLOCK_TILES * TILE_SIZE
 
@@ -43,7 +46,7 @@ export function renderTilesAndCollision(
         for (let ty = 0; ty < 4; ty++) {
           for (let tx = 0; tx < 4; tx++) {
             const tileId = blockTiles[ty * 4 + tx]
-            const passable = map.passable_tiles.includes(tileId)
+            const passable = passableTiles.includes(tileId)
             ctx.fillStyle = passable
               ? 'rgba(78, 204, 163, 0.25)'
               : 'rgba(231, 76, 60, 0.35)'

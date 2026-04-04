@@ -1,9 +1,9 @@
 import { TILE_SIZE } from '../types/constants'
-import type { Warp, Sign, NpcData, SelectedEntity } from '../types'
+import type { WarpJson, SignJson, NpcJson, CoordEvent, SelectedEntity } from '../types'
 
 export function renderWarps(
   ctx: CanvasRenderingContext2D,
-  warps: Warp[],
+  warps: WarpJson[],
 ) {
   warps.forEach((warp) => {
     const tileX = warp.x * 2
@@ -20,7 +20,7 @@ export function renderWarps(
 
 export function renderSigns(
   ctx: CanvasRenderingContext2D,
-  signs: Sign[],
+  signs: SignJson[],
 ) {
   signs.forEach((sign) => {
     const tileX = sign.x * 2
@@ -43,7 +43,7 @@ export function renderSigns(
 
 export function renderNpcs(
   ctx: CanvasRenderingContext2D,
-  npcs: NpcData[],
+  npcs: NpcJson[],
 ) {
   npcs.forEach((npc) => {
     const tileX = npc.x * 2
@@ -51,10 +51,10 @@ export function renderNpcs(
     const npx = tileX * TILE_SIZE
     const npy = tileY * TILE_SIZE
 
-    if (npc.is_trainer) {
+    if (npc.isTrainer) {
       ctx.fillStyle = 'rgba(231, 76, 60, 0.8)'
       ctx.strokeStyle = '#c0392b'
-    } else if (npc.item_id != null) {
+    } else if (npc.itemId != null) {
       ctx.fillStyle = 'rgba(46, 204, 113, 0.8)'
       ctx.strokeStyle = '#27ae60'
     } else {
@@ -67,7 +67,7 @@ export function renderNpcs(
     ctx.strokeRect(npx, npy, TILE_SIZE * 2, TILE_SIZE * 2)
 
     // Label: T=trainer, I=item, N=npc
-    const label = npc.is_trainer ? 'T' : npc.item_id != null ? 'I' : 'N'
+    const label = npc.isTrainer ? 'T' : npc.itemId != null ? 'I' : 'N'
     ctx.fillStyle = '#fff'
     ctx.font = `bold ${TILE_SIZE}px monospace`
     ctx.textAlign = 'center'
@@ -76,27 +76,34 @@ export function renderNpcs(
   })
 }
 
+export function renderCoordEvents(
+  ctx: CanvasRenderingContext2D,
+  coordEvents: CoordEvent[],
+) {
+  coordEvents.forEach((ce) => {
+    const tileX = ce.x * 2
+    const tileY = ce.y * 2
+    const cpx = tileX * TILE_SIZE
+    const cpy = tileY * TILE_SIZE
+    ctx.fillStyle = 'rgba(230, 126, 34, 0.8)'
+    ctx.fillRect(cpx, cpy, TILE_SIZE * 2, TILE_SIZE * 2)
+    ctx.strokeStyle = '#d35400'
+    ctx.lineWidth = 2
+    ctx.strokeRect(cpx, cpy, TILE_SIZE * 2, TILE_SIZE * 2)
+    ctx.fillStyle = '#fff'
+    ctx.font = `bold ${TILE_SIZE}px monospace`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('C', cpx + TILE_SIZE, cpy + TILE_SIZE)
+  })
+}
+
 export function renderSelectionHighlight(
   ctx: CanvasRenderingContext2D,
   selected: SelectedEntity,
 ) {
-  let x: number
-  let y: number
-
-  switch (selected.type) {
-    case 'warp':
-      x = selected.data.x
-      y = selected.data.y
-      break
-    case 'sign':
-      x = selected.data.x
-      y = selected.data.y
-      break
-    case 'npc':
-      x = selected.data.x
-      y = selected.data.y
-      break
-  }
+  const x = selected.data.x
+  const y = selected.data.y
 
   const tileX = x * 2
   const tileY = y * 2
