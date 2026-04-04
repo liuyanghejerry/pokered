@@ -6,6 +6,7 @@
 
 pub mod battle_anim;
 pub mod battle_scene;
+pub mod embedded;
 pub mod embedded_font;
 pub mod input;
 pub mod layout;

@@ -470,12 +470,30 @@ pub struct LoadedPng {
 
 impl LoadedPng {
     /// Load a PNG file from disk.
+    /// On wasm32, this always returns an error since file system is not available.
+    /// Use `load_from_bytes` for embedded assets on wasm32.
     pub fn load(path: impl AsRef<Path>) -> Result<Self> {
         let path = path.as_ref();
-        if !path.is_file() {
-            return Err(ResourceError::PngNotFound(path.to_path_buf()));
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            if !path.is_file() {
+                return Err(ResourceError::PngNotFound(path.to_path_buf()));
+            }
+            let image = image::open(path)?;
+            let dimensions = image.dimensions();
+            Ok(Self { image, dimensions })
         }
-        let image = image::open(path)?;
+        #[cfg(target_arch = "wasm32")]
+        {
+            // File system not available on wasm32
+            Err(ResourceError::PngNotFound(path.to_path_buf()))
+        }
+    }
+
+    /// Load a PNG from raw bytes (for embedded assets on wasm32).
+    pub fn load_from_bytes(data: &[u8]) -> Result<Self> {
+        use std::io::Cursor;
+        let image = image::load(Cursor::new(data), image::ImageFormat::Png)?;
         let dimensions = image.dimensions();
         Ok(Self { image, dimensions })
     }
@@ -562,15 +580,36 @@ impl ResourceManager {
     ) -> Result<&CachedTileSet> {
         let key = (category, filename.to_string());
         if !self.cache.contains_key(&key) {
-            let path = self.root.resolve_checked(category, filename)?;
-            let loaded = LoadedPng::load(&path)?;
-            let tileset = loaded.to_tileset(category.is_1bpp())?;
-            let entry = CachedTileSet {
-                tile_count: tileset.len(),
-                source_size: loaded.dimensions,
-                tileset,
-            };
-            self.cache.insert(key.clone(), entry);
+            #[cfg(target_arch = "wasm32")]
+            {
+                // On wasm32, load from embedded assets
+                let relative_path = format!("{}/{}", category.subdir(), filename);
+                let embedded =
+                    crate::embedded::get_embedded_asset(&relative_path).ok_or_else(|| {
+                        ResourceError::PngNotFound(std::path::PathBuf::from(&relative_path))
+                    })?;
+                let loaded = LoadedPng::load_from_bytes(embedded)?;
+                let tileset = loaded.to_tileset(category.is_1bpp())?;
+                let entry = CachedTileSet {
+                    tile_count: tileset.len(),
+                    source_size: loaded.dimensions,
+                    tileset,
+                };
+                self.cache.insert(key.clone(), entry);
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                // On native, load from file system
+                let path = self.root.resolve_checked(category, filename)?;
+                let loaded = LoadedPng::load(&path)?;
+                let tileset = loaded.to_tileset(category.is_1bpp())?;
+                let entry = CachedTileSet {
+                    tile_count: tileset.len(),
+                    source_size: loaded.dimensions,
+                    tileset,
+                };
+                self.cache.insert(key.clone(), entry);
+            }
         }
         Ok(self.cache.get(&key).unwrap())
     }

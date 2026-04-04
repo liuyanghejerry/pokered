@@ -314,6 +314,25 @@ pub fn draw_overworld(
                 }
             }
         }
+    } else {
+        // Fallback rendering when resources are not available (e.g., wasm32 without embedded graphics)
+        let map_name = format!("Map: {:?}", screen.state.current_map);
+        draw_text(&map_name, 10, 10, Rgba::BLACK, fb);
+        let player_pos = format!(
+            "Player: ({}, {})",
+            screen.state.player.x, screen.state.player.y
+        );
+        draw_text(&player_pos, 10, 30, Rgba::BLACK, fb);
+        let facing = format!("Facing: {:?}", screen.state.player.facing);
+        draw_text(&facing, 10, 50, Rgba::BLACK, fb);
+        draw_text("Graphics resources not loaded", 10, 80, Rgba::BLACK, fb);
+        draw_text(
+            "Use native build for full graphics",
+            10,
+            100,
+            Rgba::BLACK,
+            fb,
+        );
     }
 
     if let Some(ref dlg) = screen.pending_dialogue {

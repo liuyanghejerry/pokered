@@ -2443,6 +2443,7 @@ name = "pokered-renderer"
 version = "0.1.0"
 dependencies = [
  "error-iter",
+ "getrandom 0.2.17",
  "image",
  "log",
  "pixels",
