@@ -20,8 +20,7 @@ use pokered_core::main_menu::{MainMenuState, MenuInput};
 use pokered_core::naming_screen::NamingInput;
 use pokered_core::oak_speech::{OakSpeechInput, OakSpeechPhase, OakSpeechResult, OakSpeechState};
 use pokered_core::options_menu::{GameOptions, OptionsInput, OptionsMenuResult, OptionsMenuState};
-use pokered_core::overworld::{OverworldInput, OverworldScreen};
-#[cfg(not(target_arch = "wasm32"))]
+use pokered_core::overworld::{OverworldInput, OverworldScreen, OverworldSfxEvent};
 use pokered_core::save::sram_export::export_sram;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -736,7 +735,18 @@ impl PokemonGame {
                     start: input.is_just_pressed(GbButton::Start),
                     select: input.is_held(GbButton::Select),
                 };
-                self.overworld.update_frame(ow_input)
+                let action = self.overworld.update_frame(ow_input);
+                #[cfg(not(target_arch = "wasm32"))]
+                if let Some(ref audio) = self.audio {
+                    match self.overworld.sfx_event {
+                        OverworldSfxEvent::GoInside => audio.play_sfx(SfxId::GoInside),
+                        OverworldSfxEvent::GoOutside => audio.play_sfx(SfxId::GoOutside),
+                        OverworldSfxEvent::Collision => audio.play_sfx(SfxId::Collision),
+                        OverworldSfxEvent::Ledge => audio.play_sfx(SfxId::Ledge),
+                        OverworldSfxEvent::None => {}
+                    }
+                }
+                action
             }
             GameScreen::Battle => {
                 let battle_input = BattleInput {

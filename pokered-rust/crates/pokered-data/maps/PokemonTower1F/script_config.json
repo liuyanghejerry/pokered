@@ -1,0 +1,29 @@
+{
+  "mapScripts": [
+    "enterMap"
+  ],
+  "npcs": [
+    {
+      "id": 1,
+      "talk": "talkLinkReceptionist"
+    },
+    {
+      "id": 2,
+      "talk": "talkMiddleAgedWoman"
+    },
+    {
+      "id": 3,
+      "talk": "talkBaldingGuy"
+    },
+    {
+      "id": 4,
+      "talk": "talkGirl"
+    },
+    {
+      "id": 5,
+      "talk": "talkChanneler"
+    }
+  ],
+  "signs": [],
+  "coordEvents": []
+}

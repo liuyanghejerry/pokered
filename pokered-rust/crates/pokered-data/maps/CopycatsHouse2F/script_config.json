@@ -1,0 +1,38 @@
+{
+  "mapScripts": [
+    "enterMap"
+  ],
+  "npcs": [
+    {
+      "id": 1,
+      "talk": "talkBrunetteGirl"
+    },
+    {
+      "id": 2,
+      "talk": "talkBird"
+    },
+    {
+      "id": 3,
+      "talk": "talkMonster"
+    },
+    {
+      "id": 4,
+      "talk": "talkBird1"
+    },
+    {
+      "id": 5,
+      "talk": "talkFairy"
+    }
+  ],
+  "signs": [
+    {
+      "id": 1,
+      "talk": "sign1"
+    },
+    {
+      "id": 2,
+      "talk": "sign2"
+    }
+  ],
+  "coordEvents": []
+}

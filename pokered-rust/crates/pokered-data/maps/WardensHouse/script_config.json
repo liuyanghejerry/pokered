@@ -1,0 +1,30 @@
+{
+  "mapScripts": [
+    "enterMap"
+  ],
+  "npcs": [
+    {
+      "id": 1,
+      "talk": "talkWarden"
+    },
+    {
+      "id": 2,
+      "talk": "talkPokeBall"
+    },
+    {
+      "id": 3,
+      "talk": "talkBoulder"
+    }
+  ],
+  "signs": [
+    {
+      "id": 1,
+      "talk": "sign1"
+    },
+    {
+      "id": 2,
+      "talk": "sign2"
+    }
+  ],
+  "coordEvents": []
+}

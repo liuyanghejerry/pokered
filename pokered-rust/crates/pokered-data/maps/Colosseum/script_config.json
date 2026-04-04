@@ -1,0 +1,13 @@
+{
+  "mapScripts": [
+    "enterMap"
+  ],
+  "npcs": [
+    {
+      "id": 1,
+      "talk": "talkRed"
+    }
+  ],
+  "signs": [],
+  "coordEvents": []
+}

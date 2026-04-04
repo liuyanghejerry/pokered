@@ -1,0 +1,54 @@
+{
+  "mapScripts": [
+    "enterMap"
+  ],
+  "npcs": [
+    {
+      "id": 1,
+      "talk": "talkGambler"
+    },
+    {
+      "id": 2,
+      "talk": "talkGambler1"
+    },
+    {
+      "id": 3,
+      "talk": "talkYoungster"
+    },
+    {
+      "id": 4,
+      "talk": "talkSuperNerd"
+    },
+    {
+      "id": 5,
+      "talk": "talkYoungster1"
+    },
+    {
+      "id": 6,
+      "talk": "talkGambler2"
+    },
+    {
+      "id": 7,
+      "talk": "talkGambler3"
+    },
+    {
+      "id": 8,
+      "talk": "talkYoungster2"
+    },
+    {
+      "id": 9,
+      "talk": "talkSuperNerd1"
+    },
+    {
+      "id": 10,
+      "talk": "talkYoungster3"
+    }
+  ],
+  "signs": [
+    {
+      "id": 1,
+      "talk": "sign1"
+    }
+  ],
+  "coordEvents": []
+}

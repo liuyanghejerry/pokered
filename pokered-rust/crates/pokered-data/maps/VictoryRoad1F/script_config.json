@@ -1,0 +1,37 @@
+{
+  "mapScripts": [
+    "enterMap"
+  ],
+  "npcs": [
+    {
+      "id": 1,
+      "talk": "talkCooltrainerF"
+    },
+    {
+      "id": 2,
+      "talk": "talkCooltrainerM"
+    },
+    {
+      "id": 3,
+      "talk": "talkPokeBall"
+    },
+    {
+      "id": 4,
+      "talk": "talkPokeBall1"
+    },
+    {
+      "id": 5,
+      "talk": "talkBoulder"
+    },
+    {
+      "id": 6,
+      "talk": "talkBoulder1"
+    },
+    {
+      "id": 7,
+      "talk": "talkBoulder2"
+    }
+  ],
+  "signs": [],
+  "coordEvents": []
+}

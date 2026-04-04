@@ -1,0 +1,37 @@
+{
+  "mapScripts": [
+    "enterMap"
+  ],
+  "npcs": [
+    {
+      "id": 1,
+      "talk": "talkCook"
+    },
+    {
+      "id": 2,
+      "talk": "talkCook1"
+    },
+    {
+      "id": 3,
+      "talk": "talkCook2"
+    },
+    {
+      "id": 4,
+      "talk": "talkCook3"
+    },
+    {
+      "id": 5,
+      "talk": "talkCook4"
+    },
+    {
+      "id": 6,
+      "talk": "talkCook5"
+    },
+    {
+      "id": 7,
+      "talk": "talkCook6"
+    }
+  ],
+  "signs": [],
+  "coordEvents": []
+}

@@ -1,0 +1,106 @@
+{
+  "mapScripts": [
+    "enterMap"
+  ],
+  "npcs": [
+    {
+      "id": 1,
+      "talk": "talkYoungster"
+    },
+    {
+      "id": 2,
+      "talk": "talkGambler"
+    },
+    {
+      "id": 3,
+      "talk": "talkFisher"
+    },
+    {
+      "id": 4,
+      "talk": "talkYoungster1"
+    },
+    {
+      "id": 5,
+      "talk": "talkFairy"
+    },
+    {
+      "id": 6,
+      "talk": "talkPokeBall"
+    },
+    {
+      "id": 7,
+      "talk": "talkMonster"
+    },
+    {
+      "id": 8,
+      "talk": "talkMonster1"
+    },
+    {
+      "id": 9,
+      "talk": "talkSeel"
+    },
+    {
+      "id": 10,
+      "talk": "talkFossil"
+    }
+  ],
+  "signs": [
+    {
+      "id": 1,
+      "talk": "sign1"
+    },
+    {
+      "id": 2,
+      "talk": "sign2"
+    },
+    {
+      "id": 3,
+      "talk": "sign3"
+    },
+    {
+      "id": 4,
+      "talk": "sign4"
+    },
+    {
+      "id": 5,
+      "talk": "sign5"
+    },
+    {
+      "id": 6,
+      "talk": "sign6"
+    },
+    {
+      "id": 7,
+      "talk": "sign7"
+    },
+    {
+      "id": 8,
+      "talk": "sign8"
+    },
+    {
+      "id": 9,
+      "talk": "sign9"
+    },
+    {
+      "id": 10,
+      "talk": "sign10"
+    },
+    {
+      "id": 11,
+      "talk": "sign11"
+    },
+    {
+      "id": 12,
+      "talk": "sign12"
+    },
+    {
+      "id": 13,
+      "talk": "sign13"
+    },
+    {
+      "id": 14,
+      "talk": "sign14"
+    }
+  ],
+  "coordEvents": []
+}

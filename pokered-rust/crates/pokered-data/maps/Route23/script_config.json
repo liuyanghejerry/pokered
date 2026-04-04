@@ -1,0 +1,42 @@
+{
+  "mapScripts": [
+    "enterMap"
+  ],
+  "npcs": [
+    {
+      "id": 1,
+      "talk": "talkGuard"
+    },
+    {
+      "id": 2,
+      "talk": "talkGuard1"
+    },
+    {
+      "id": 3,
+      "talk": "talkSwimmer"
+    },
+    {
+      "id": 4,
+      "talk": "talkSwimmer1"
+    },
+    {
+      "id": 5,
+      "talk": "talkGuard2"
+    },
+    {
+      "id": 6,
+      "talk": "talkGuard3"
+    },
+    {
+      "id": 7,
+      "talk": "talkGuard4"
+    }
+  ],
+  "signs": [
+    {
+      "id": 1,
+      "talk": "sign1"
+    }
+  ],
+  "coordEvents": []
+}
