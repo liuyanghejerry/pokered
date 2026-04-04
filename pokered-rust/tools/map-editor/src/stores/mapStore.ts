@@ -261,6 +261,24 @@ export const useMapStore = defineStore('map', () => {
     if (config) {
       config.coordEvents.splice(index, 1)
       hasUnsavedChanges.value = true
+      selectedEntity.value = null
+    }
+  }
+
+  function updateCoordEvent(index: number, updates: { x?: number; y?: number; trigger?: string }) {
+    const config = currentScriptConfig.value
+    if (!config || index < 0 || index >= config.coordEvents.length) return
+    const ce = config.coordEvents[index]
+    if (updates.x != null) ce.position[0] = updates.x
+    if (updates.y != null) ce.position[1] = updates.y
+    if (updates.trigger != null) ce.trigger = updates.trigger
+    hasUnsavedChanges.value = true
+    if (selectedEntity.value?.type === 'coordEvent' && selectedEntity.value.index === index) {
+      selectedEntity.value = {
+        type: 'coordEvent',
+        data: { x: ce.position[0], y: ce.position[1], trigger: ce.trigger },
+        index,
+      }
     }
   }
 
@@ -419,6 +437,7 @@ export const useMapStore = defineStore('map', () => {
     updateSignTalk,
     addCoordEvent,
     removeCoordEvent,
+    updateCoordEvent,
     updateMapScripts,
     saveCurrentMap,
     updateStatus,

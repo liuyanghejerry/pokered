@@ -90,10 +90,44 @@ function toHex(n: number, pad = 2): string {
     </template>
 
     <template v-if="selectedEntity.type === 'coordEvent'">
-  <div class="font-mono text-[11px] space-y-1">
-    <p>Position: ({{ selectedEntity.data.x }}, {{ selectedEntity.data.y }})</p>
-    <p>Trigger: <span class="text-accent cursor-pointer hover:underline" @click="store.jumpToFunction(selectedEntity!.data.trigger)">{{ selectedEntity.data.trigger }}</span></p>
+  <div v-if="selectedEntity.data.trigger" class="mt-1">
+    <span class="text-text-muted">Script: </span>
+    <span class="text-accent cursor-pointer hover:underline" @click="store.jumpToFunction(selectedEntity!.data.trigger)">{{ selectedEntity.data.trigger }}</span>
   </div>
+  <label class="block text-[10px] text-text-muted mt-2">Trigger Function:</label>
+  <input
+    type="text"
+    :value="selectedEntity.data.trigger"
+    class="w-full p-1 rounded border border-accent bg-bg text-text text-[11px] font-mono mt-0.5"
+    placeholder="e.g. coordExitRow"
+    @change="store.updateCoordEvent(selectedEntity!.index, { trigger: ($event.target as HTMLInputElement).value })"
+  />
+  <div class="font-mono text-[11px] space-y-1 mt-2">
+    <div class="flex items-center gap-2">
+      <span class="text-text-muted">X:</span>
+      <input
+        type="number"
+        :value="selectedEntity.data.x"
+        class="w-16 p-1 rounded border border-accent bg-bg text-text text-[11px] font-mono"
+        min="0"
+        @change="store.updateCoordEvent(selectedEntity!.index, { x: parseInt(($event.target as HTMLInputElement).value) })"
+      />
+      <span class="text-text-muted">Y:</span>
+      <input
+        type="number"
+        :value="selectedEntity.data.y"
+        class="w-16 p-1 rounded border border-accent bg-bg text-text text-[11px] font-mono"
+        min="0"
+        @change="store.updateCoordEvent(selectedEntity!.index, { y: parseInt(($event.target as HTMLInputElement).value) })"
+      />
+    </div>
+  </div>
+  <button
+    class="mt-3 px-3 py-1.5 bg-danger text-white border-none rounded cursor-pointer text-[11px] font-bold hover:opacity-80 w-full"
+    @click="store.removeCoordEvent(selectedEntity!.index)"
+  >
+    Delete Coord Event
+  </button>
 </template>
 
 <template v-if="selectedEntity.type === 'warp'">
