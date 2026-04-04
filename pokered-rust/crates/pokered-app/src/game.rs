@@ -26,7 +26,7 @@ use pokered_renderer::{FrameBuffer, Rgba};
 use crate::audio::{species_to_cry, AudioOutput};
 use crate::render::{
     draw_battle, draw_intro_scene, draw_main_menu, draw_oak_speech, draw_options_menu,
-    draw_overworld, draw_save_menu, draw_start_menu, draw_title_screen,
+    draw_overworld, draw_save_menu, draw_start_menu, draw_title_screen, BattleVisualEffects,
 };
 
 const SAVE_FILE_NAME: &str = "pokered.sav";
@@ -74,6 +74,7 @@ pub struct PokemonGame {
     pub oak_speech: OakSpeechState,
     pub overworld: OverworldScreen,
     pub battle: BattleScreen,
+    pub battle_vfx: BattleVisualEffects,
     pub start_menu: StartMenuState,
     pub options_menu: OptionsMenuState,
     pub save_menu: SaveMenuState,
@@ -116,6 +117,7 @@ impl PokemonGame {
         let oak_speech = OakSpeechState::new();
         let overworld = OverworldScreen::new(MapId::PalletTown, scripts_dir.clone());
         let battle = BattleScreen::new(true);
+        let battle_vfx = BattleVisualEffects::default();
         let start_menu = StartMenuState::new(false, false, false);
         let options_menu = OptionsMenuState::new(GameOptions::default());
         let save_menu = SaveMenuState::new(
@@ -162,6 +164,7 @@ impl PokemonGame {
             oak_speech,
             overworld,
             battle,
+            battle_vfx,
             start_menu,
             options_menu,
             save_menu,
@@ -436,6 +439,7 @@ impl PokemonGame {
             }
             GameScreen::Battle => {
                 self.battle = BattleScreen::new(true);
+                self.battle_vfx = BattleVisualEffects::default();
                 #[cfg(not(target_arch = "wasm32"))]
                 if let Some(ref audio) = self.audio {
                     audio.play_music(MusicId::WILD_BATTLE);
@@ -651,7 +655,9 @@ impl GameLoop for PokemonGame {
                     a: input.is_just_pressed(GbButton::A),
                     b: input.is_just_pressed(GbButton::B),
                 };
-                self.battle.update_frame(battle_input)
+                let action = self.battle.update_frame(battle_input);
+                self.battle_vfx.update(&self.battle);
+                action
             }
             GameScreen::StartMenu => {
                 let sm_input = StartMenuInput {
@@ -756,7 +762,12 @@ impl GameLoop for PokemonGame {
                 draw_overworld(&self.overworld, &mut self.resources, frame_buffer);
             }
             GameScreen::Battle => {
-                draw_battle(&self.battle, &mut self.resources, frame_buffer);
+                draw_battle(
+                    &self.battle,
+                    &mut self.resources,
+                    frame_buffer,
+                    &mut self.battle_vfx,
+                );
             }
             GameScreen::StartMenu => {
                 draw_overworld(&self.overworld, &mut self.resources, frame_buffer);

@@ -1911,20 +1911,20 @@ fn pokeball_status_tiles() {
 #[test]
 fn draw_hp_bar_full() {
     let mut buf = ScreenTileBuffer::new();
-    draw_hp_bar(&mut buf, 0, 0, 100, 100, false);
+    draw_hp_bar(&mut buf, 0, 0, 100, 100, TILE_HP_END_CAP_BATTLE, false);
     assert_eq!(buf.get(0, 0), TILE_HP_LABEL);
     assert_eq!(buf.get(1, 0), TILE_HP_BAR_LEFT);
     // All 6 tiles should be full
     for i in 0..6 {
         assert_eq!(buf.get(2 + i, 0), TILE_HP_FULL, "tile {} should be full", i);
     }
-    assert_eq!(buf.get(8, 0), TILE_HP_END_CAP);
+    assert_eq!(buf.get(8, 0), TILE_HP_END_CAP_BATTLE);
 }
 
 #[test]
 fn draw_hp_bar_empty() {
     let mut buf = ScreenTileBuffer::new();
-    draw_hp_bar(&mut buf, 0, 0, 0, 100, false);
+    draw_hp_bar(&mut buf, 0, 0, 0, 100, TILE_HP_END_CAP_BATTLE, false);
     assert_eq!(buf.get(0, 0), TILE_HP_LABEL);
     assert_eq!(buf.get(1, 0), TILE_HP_BAR_LEFT);
     for i in 0..6 {
@@ -1935,14 +1935,14 @@ fn draw_hp_bar_empty() {
             i
         );
     }
-    assert_eq!(buf.get(8, 0), TILE_HP_END_CAP);
+    assert_eq!(buf.get(8, 0), TILE_HP_END_CAP_BATTLE);
 }
 
 #[test]
 fn draw_hp_bar_partial() {
     let mut buf = ScreenTileBuffer::new();
     // 12 pixels = 1 full tile (8px) + 1 partial (4px) + 4 empty
-    draw_hp_bar(&mut buf, 0, 0, 25, 100, false);
+    draw_hp_bar(&mut buf, 0, 0, 25, 100, TILE_HP_END_CAP_BATTLE, false);
     let pixels = calc_hp_bar_pixels(25, 100);
     assert_eq!(pixels, 12);
     assert_eq!(buf.get(2, 0), TILE_HP_FULL); // first 8px
@@ -1955,17 +1955,18 @@ fn draw_hp_bar_partial() {
 #[test]
 fn draw_hp_bar_with_numbers() {
     let mut buf = ScreenTileBuffer::new();
-    draw_hp_bar(&mut buf, 0, 0, 45, 120, true);
-    // After end cap at col 8, HP numbers start at col 9
-    // " 45/120" → space, 4, 5, /, 1, 2, 0
-    let num_start = 9u32;
-    assert_eq!(buf.get(num_start, 0), TILE_SPACE); // leading space for " 45"
-    assert_eq!(buf.get(num_start + 1, 0), 0xF6 + 4); // '4'
-    assert_eq!(buf.get(num_start + 2, 0), 0xF6 + 5); // '5'
-    assert_eq!(buf.get(num_start + 3, 0), 0xF3); // '/'
-    assert_eq!(buf.get(num_start + 4, 0), 0xF6 + 1); // '1'
-    assert_eq!(buf.get(num_start + 5, 0), 0xF6 + 2); // '2'
-    assert_eq!(buf.get(num_start + 6, 0), 0xF6 + 0); // '0'
+    draw_hp_bar(&mut buf, 0, 0, 45, 120, TILE_HP_END_CAP_BATTLE, true);
+    // HP numbers now placed at (x+1, y+1) per DrawHP_ in status_screen.asm
+    // With x=0, y=0: numbers at (1, 1) → " 45/120"
+    let num_start = 1u32;
+    let num_y = 1u32;
+    assert_eq!(buf.get(num_start, num_y), TILE_SPACE); // leading space for " 45"
+    assert_eq!(buf.get(num_start + 1, num_y), 0xF6 + 4); // '4'
+    assert_eq!(buf.get(num_start + 2, num_y), 0xF6 + 5); // '5'
+    assert_eq!(buf.get(num_start + 3, num_y), 0xF3); // '/'
+    assert_eq!(buf.get(num_start + 4, num_y), 0xF6 + 1); // '1'
+    assert_eq!(buf.get(num_start + 5, num_y), 0xF6 + 2); // '2'
+    assert_eq!(buf.get(num_start + 6, num_y), 0xF6 + 0); // '0'
 }
 
 #[test]
@@ -2018,27 +2019,28 @@ fn player_hud_border() {
     let mut buf = ScreenTileBuffer::new();
     PlayerHud::draw_border(&mut buf);
     assert_eq!(buf.get(18, 9), TILE_HUD_CONNECTOR);
-    assert_eq!(buf.get(18, 10), TILE_HUD_PLAYER_CORNER);
-    assert_eq!(buf.get(17, 10), TILE_HUD_PLAYER_TRIANGLE);
+    assert_eq!(buf.get(18, 10), TILE_HUD_CONNECTOR);
+    assert_eq!(buf.get(18, 11), TILE_HUD_PLAYER_CORNER);
     for i in 0..8 {
         assert_eq!(
-            buf.get(16 - i, 10),
+            buf.get(17 - i, 11),
             TILE_HUD_HORIZONTAL,
             "col {} should be horizontal",
-            16 - i
+            17 - i
         );
     }
+    assert_eq!(buf.get(9, 11), TILE_HUD_PLAYER_TRIANGLE);
 }
 
 #[test]
 fn player_hud_draw_full() {
     let mut buf = ScreenTileBuffer::new();
-    let name = [0x80, 0x81, 0x82]; // "ABC" encoded
+    let name = [0x80, 0x81, 0x82]; // "ABC" encoded (3 chars → +1 centering offset)
     PlayerHud::draw(&mut buf, &name, 25, None, 50, 100);
-    // Name at (10, 7)
-    assert_eq!(buf.get(10, 7), 0x80);
-    assert_eq!(buf.get(11, 7), 0x81);
-    assert_eq!(buf.get(12, 7), 0x82);
+    // Name at (10+1, 7) due to CenterMonName (3 chars → +1)
+    assert_eq!(buf.get(11, 7), 0x80);
+    assert_eq!(buf.get(12, 7), 0x81);
+    assert_eq!(buf.get(13, 7), 0x82);
     // Level at (14, 8): Lv25
     assert_eq!(buf.get(14, 8), 0x6E); // Lv
     assert_eq!(buf.get(15, 8), 0xF6 + 2); // '2'
@@ -2047,7 +2049,7 @@ fn player_hud_draw_full() {
     assert_eq!(buf.get(10, 9), TILE_HP_LABEL);
     assert_eq!(buf.get(11, 9), TILE_HP_BAR_LEFT);
     // Border
-    assert_eq!(buf.get(18, 10), TILE_HUD_PLAYER_CORNER);
+    assert_eq!(buf.get(18, 11), TILE_HUD_PLAYER_CORNER);
 }
 
 #[test]
@@ -2069,12 +2071,12 @@ fn enemy_hud_clear() {
 fn enemy_hud_border() {
     let mut buf = ScreenTileBuffer::new();
     EnemyHud::draw_border(&mut buf);
-    assert_eq!(buf.get(1, 3), TILE_HUD_CONNECTOR);
-    assert_eq!(buf.get(1, 2), TILE_HUD_ENEMY_CORNER);
-    assert_eq!(buf.get(2, 2), TILE_HUD_ENEMY_TRIANGLE);
+    assert_eq!(buf.get(1, 2), TILE_HUD_CONNECTOR);
+    assert_eq!(buf.get(1, 3), TILE_HUD_ENEMY_CORNER);
     for i in 0..8 {
-        assert_eq!(buf.get(3 + i, 2), TILE_HUD_HORIZONTAL);
+        assert_eq!(buf.get(2 + i, 3), TILE_HUD_HORIZONTAL);
     }
+    assert_eq!(buf.get(10, 3), TILE_HUD_ENEMY_TRIANGLE);
 }
 
 #[test]
@@ -2085,17 +2087,12 @@ fn enemy_hud_draw_no_hp_numbers() {
     EnemyHud::draw(&mut buf, &name, 10, None, 30, 60);
     // HP bar at (2, 2) — should NOT have numbers after end cap
     // End cap at col 2+2+6 = 10
-    assert_eq!(buf.get(10, 2), TILE_HP_END_CAP);
-    // Col 11 should still be 0x00 (no HP numbers written)
-    // Actually enemy HUD border overwrites row 2, let's check row 2 col 11
-    // The HP bar ends at col 10, and draw_hp_bar with show_hp_numbers=false
-    // should not write to col 11. But EnemyHud::draw_border writes horizontal bars there.
-    // Let's just verify the HP label is present
-    // Border draws: (1,2)=corner, (2,2)=triangle, (3..10,2)=horizontal
+    assert_eq!(buf.get(10, 2), TILE_HP_END_CAP_ENEMY);
+    // HP bar label and border corner
+    // Border draws: (1,2)=connector, (1,3)=corner, (2..9,3)=horizontal, (10,3)=triangle
     // HP bar draws after border: (2,2)=HP_LABEL, (3,2)=BAR_LEFT, (4..9,2)=bars, (10,2)=END_CAP
-    // HP bar overwrites border at (2,2) onward, but (1,2) corner survives
     assert_eq!(buf.get(2, 2), TILE_HP_LABEL);
-    assert_eq!(buf.get(1, 2), TILE_HUD_ENEMY_CORNER);
+    assert_eq!(buf.get(1, 3), TILE_HUD_ENEMY_CORNER);
 }
 
 #[test]
@@ -2374,14 +2371,14 @@ fn battle_scene_draw_huds_visible() {
         30,
         60,
     );
-    // Player HUD should be drawn
-    assert_eq!(buf.get(PlayerHud::NAME_X, PlayerHud::NAME_Y), 0x80);
+    // Player HUD: "ABC" (3 chars → +1 centering offset)
+    assert_eq!(buf.get(PlayerHud::NAME_X + 1, PlayerHud::NAME_Y), 0x80);
     assert_eq!(
         buf.get(PlayerHud::HP_BAR_X, PlayerHud::HP_BAR_Y),
         TILE_HP_LABEL
     );
-    // Enemy HUD should be drawn
-    assert_eq!(buf.get(EnemyHud::NAME_X, EnemyHud::NAME_Y), 0x90);
+    // Enemy HUD: 2-char name → +2 centering offset
+    assert_eq!(buf.get(EnemyHud::NAME_X + 2, EnemyHud::NAME_Y), 0x90);
     // Pokeball indicators
     assert_eq!(buf.get(11, 10), TILE_POKEBALL_NORMAL); // player
     assert_eq!(buf.get(3, 7), TILE_POKEBALL_NORMAL); // enemy first

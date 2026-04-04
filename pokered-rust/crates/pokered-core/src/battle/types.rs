@@ -2,7 +2,7 @@ use pokered_data::type_chart::TYPE_CHART;
 use pokered_data::types::{Effectiveness, PokemonType};
 
 /// Combined type multiplier result for display messages.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TypeMultiplier {
     Zero,
     Quarter,

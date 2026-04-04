@@ -28,8 +28,9 @@ impl Side {
 
 /// Non-volatile status. Only one active at a time.
 /// Sleep counter: 1-7, decremented each turn mon tries to act.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum StatusCondition {
+    #[default]
     None,
     Sleep(u8),
     Poison,
@@ -196,6 +197,14 @@ impl BattlerState {
         self.bide_accumulated_damage = 0;
         self.player_used_move = false;
         self.last_move_used = MoveId::None;
+    }
+
+    pub fn refresh_unmodified_stats(&mut self) {
+        let mon = &self.party[self.active_pokemon_index];
+        self.unmodified_attack = mon.attack;
+        self.unmodified_defense = mon.defense;
+        self.unmodified_speed = mon.speed;
+        self.unmodified_special = mon.special;
     }
 }
 

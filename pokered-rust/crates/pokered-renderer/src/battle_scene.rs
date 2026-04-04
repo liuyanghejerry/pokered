@@ -7,6 +7,7 @@
 //!   - HUD border tiles: $73=connector, $76=horizontal, $77/$74=corners, $6F/$78=triangles
 //!   - Pokeball status: $31=normal, $32=status, $33=fainted, $34=empty
 
+use crate::palette::{Palette, HP_BAR_GREEN_PALETTE, HP_BAR_RED_PALETTE, HP_BAR_YELLOW_PALETTE};
 use crate::text_renderer::{write_tiles_at, ScreenTileBuffer, SCREEN_TILES_X, SCREEN_TILES_Y};
 use crate::textbox::TILE_SPACE;
 
@@ -15,8 +16,8 @@ pub const TILE_HP_LABEL: u8 = 0x71; // "HP:" combined tile
 pub const TILE_HP_BAR_LEFT: u8 = 0x62; // left edge of HP bar
 pub const TILE_HP_EMPTY: u8 = 0x63; // empty 8-pixel segment
 pub const TILE_HP_FULL: u8 = 0x6B; // full 8-pixel segment
-pub const TILE_HP_END_CAP: u8 = 0x6D; // right end cap (battle/status)
-                                      // Partial fill tiles: 0x64..=0x6A represent 1..=7 pixels filled
+pub const TILE_HP_END_CAP_BATTLE: u8 = 0x6D; // right end cap: wHPBarType=1 (player battle/status)
+pub const TILE_HP_END_CAP_ENEMY: u8 = 0x6C; // right end cap: wHPBarType=0 (enemy HUD)
 pub const TILE_HP_PARTIAL_BASE: u8 = 0x63; // +N for N pixels (1-7)
 
 // ─── HUD border tile constants (from engine/battle/core.asm) ───
@@ -39,6 +40,79 @@ pub const TILE_POKEBALL_RETREATED: u8 = 0x4C; // shown after mon retreats
 // ─── Battle HP bar width (48 pixels = 6 tiles) ───
 pub const BATTLE_HP_BAR_TILES: u32 = 6;
 pub const BATTLE_HP_BAR_PIXELS: u32 = BATTLE_HP_BAR_TILES * 8;
+
+/// HP bar color thresholds matching GetHealthBarColor (home/palettes.asm):
+///   ≥27 pixels → Green (healthy)
+///   ≥10 pixels → Yellow (caution)
+///   <10 pixels → Red (danger)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HpBarColor {
+    Green = 0,
+    Yellow = 1,
+    Red = 2,
+}
+
+impl HpBarColor {
+    /// ASM: `cp 27` → green, `cp 10` → yellow, else red.
+    pub fn from_pixels(pixels: u32) -> Self {
+        if pixels >= 27 {
+            Self::Green
+        } else if pixels >= 10 {
+            Self::Yellow
+        } else {
+            Self::Red
+        }
+    }
+
+    pub fn from_hp(current_hp: u16, max_hp: u16) -> Self {
+        Self::from_pixels(calc_hp_bar_pixels(current_hp, max_hp))
+    }
+
+    pub fn palette(self) -> &'static Palette {
+        match self {
+            Self::Green => &HP_BAR_GREEN_PALETTE,
+            Self::Yellow => &HP_BAR_YELLOW_PALETTE,
+            Self::Red => &HP_BAR_RED_PALETTE,
+        }
+    }
+}
+
+/// Status condition identifiers matching the original game's status byte layout.
+/// From constants/battle_constants.asm:
+///   SLP = bits 0-2 (mask %111), PSN = bit 3, BRN = bit 4, FRZ = bit 5, PAR = bit 6
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StatusCondition {
+    Sleep,
+    Poison,
+    Burn,
+    Freeze,
+    Paralysis,
+}
+
+impl StatusCondition {
+    /// Get the 3-character status text as tile IDs.
+    /// Matches PrintStatusAilment (engine/pokemon/status_ailments.asm):
+    ///   PSN, BRN, FRZ, PAR, SLP — written as charmap-encoded tiles.
+    pub fn tiles(self) -> [u8; 3] {
+        match self {
+            Self::Sleep => [
+                0x92, 0x8B, 0x8F, // S, L, P
+            ],
+            Self::Poison => [
+                0x8F, 0x92, 0x8D, // P, S, N
+            ],
+            Self::Burn => [
+                0x81, 0x91, 0x8D, // B, R, N
+            ],
+            Self::Freeze => [
+                0x85, 0x91, 0x99, // F, R, Z
+            ],
+            Self::Paralysis => [
+                0x8F, 0x80, 0x91, // P, A, R
+            ],
+        }
+    }
+}
 
 /// Pokémon party member status for pokeball indicator display.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -95,9 +169,11 @@ pub fn draw_hp_bar(
     y: u32,
     current_hp: u16,
     max_hp: u16,
+    end_cap_tile: u8,
     show_hp_numbers: bool,
-) {
+) -> HpBarColor {
     let pixels = calc_hp_bar_pixels(current_hp, max_hp);
+    let color = HpBarColor::from_pixels(pixels);
 
     // HP: label
     buf.set(x, y, TILE_HP_LABEL);
@@ -122,13 +198,17 @@ pub fn draw_hp_bar(
     }
 
     // End cap
-    buf.set(x + 2 + BATTLE_HP_BAR_TILES, y, TILE_HP_END_CAP);
+    buf.set(x + 2 + BATTLE_HP_BAR_TILES, y, end_cap_tile);
 
     // Optionally show HP numbers (player HUD only)
+    // From DrawHP_ in engine/pokemon/status_screen.asm:
+    //   HP numbers are placed at SCREEN_WIDTH + 1 offset from bar start,
+    //   which means row+1, col+1 relative to the HP: label position.
     if show_hp_numbers {
-        let num_x = x + 2 + BATTLE_HP_BAR_TILES + 1;
-        draw_hp_numbers(buf, num_x, y, current_hp, max_hp);
+        draw_hp_numbers(buf, x + 1, y + 1, current_hp, max_hp);
     }
+
+    color
 }
 
 /// Draw "current/ max" HP number text.
@@ -188,19 +268,20 @@ impl PlayerHud {
 
     /// Draw the player HUD border tiles.
     ///
-    /// Places the distinctive L-shaped border on the right side:
-    ///   hlcoord(18,9) = $73 (connector)
-    ///   hlcoord(18,10) going left: $77(corner), $6F(triangle), then 8× $76(horizontal)
+    /// From PlacePlayerHUDTiles (draw_hud_pokeball_gfx.asm):
+    ///   hlcoord(18,10) = $73 (connector), then one row down:
+    ///   hlcoord(18,11) = $77(corner), (17..10,11) = 8× $76(horizontal), (9,11) = $6F(triangle)
     pub fn draw_border(buf: &mut ScreenTileBuffer) {
-        // Connector above the HUD border
+        // DrawPlayerHUDAndHPBar writes $73 at hlcoord(18,9)
         buf.set(18, 9, TILE_HUD_CONNECTOR);
+        // PlacePlayerHUDTiles writes $73 at hlcoord(18,10)
+        buf.set(18, 10, TILE_HUD_CONNECTOR);
 
-        // Bottom border line at row 10, from right to left
-        buf.set(18, 10, TILE_HUD_PLAYER_CORNER);
-        buf.set(17, 10, TILE_HUD_PLAYER_TRIANGLE);
+        buf.set(18, 11, TILE_HUD_PLAYER_CORNER);
         for i in 0..8 {
-            buf.set(16 - i, 10, TILE_HUD_HORIZONTAL);
+            buf.set(17 - i, 11, TILE_HUD_HORIZONTAL);
         }
+        buf.set(9, 11, TILE_HUD_PLAYER_TRIANGLE);
     }
 
     /// Draw the complete player HUD.
@@ -216,29 +297,39 @@ impl PlayerHud {
         status_tiles: Option<&[u8]>,
         current_hp: u16,
         max_hp: u16,
-    ) {
+    ) -> HpBarColor {
         Self::clear(buf);
         Self::draw_border(buf);
 
-        // Mon name (centered in available space)
-        write_tiles_at(buf, Self::NAME_X, Self::NAME_Y, name_tiles);
+        let name_offset = center_name_offset(name_tiles.len());
+        write_tiles_at(buf, Self::NAME_X + name_offset, Self::NAME_Y, name_tiles);
 
-        // Status or level at (14,8)
+        // ASM: hlcoord(14,8), inc hl → status at (15,8); else PrintLevel at (14,8)
         if let Some(status) = status_tiles {
-            write_tiles_at(buf, Self::LEVEL_X, Self::LEVEL_Y, status);
+            write_tiles_at(buf, Self::LEVEL_X + 1, Self::LEVEL_Y, status);
         } else {
             draw_level(buf, Self::LEVEL_X, Self::LEVEL_Y, level);
         }
 
-        // HP bar with numbers (player side shows HP numbers)
         draw_hp_bar(
             buf,
             Self::HP_BAR_X,
             Self::HP_BAR_Y,
             current_hp,
             max_hp,
+            TILE_HP_END_CAP_BATTLE,
             true,
-        );
+        )
+    }
+}
+
+/// CenterMonName offset: shift short names right for visual centering.
+/// ASM: 1-2 chars → +2, 3-4 chars → +1, 5+ chars → +0
+fn center_name_offset(name_len: usize) -> u32 {
+    match name_len {
+        0..=2 => 2,
+        3..=4 => 1,
+        _ => 0,
     }
 }
 
@@ -279,19 +370,17 @@ impl EnemyHud {
 
     /// Draw the enemy HUD border tiles.
     ///
-    /// Places the border on the left side at row 3:
-    ///   hlcoord(1,3): $73 (connector below)
-    ///   hlcoord(1,2) going right: $74(corner), $78(triangle), then 8× $76(horizontal)
+    /// From PlaceEnemyHUDTiles (draw_hud_pokeball_gfx.asm):
+    ///   hlcoord(1,2) = $73 (connector), then one row down:
+    ///   hlcoord(1,3) = $74(corner), (2..9,3) = 8× $76(horizontal), (10,3) = $78(triangle)
     pub fn draw_border(buf: &mut ScreenTileBuffer) {
-        // Connector below the HUD border
-        buf.set(1, 3, TILE_HUD_CONNECTOR);
+        buf.set(1, 2, TILE_HUD_CONNECTOR);
 
-        // Border line at row 2, from left to right (starting at col 1)
-        buf.set(1, 2, TILE_HUD_ENEMY_CORNER);
-        buf.set(2, 2, TILE_HUD_ENEMY_TRIANGLE);
+        buf.set(1, 3, TILE_HUD_ENEMY_CORNER);
         for i in 0..8 {
-            buf.set(3 + i, 2, TILE_HUD_HORIZONTAL);
+            buf.set(2 + i, 3, TILE_HUD_HORIZONTAL);
         }
+        buf.set(10, 3, TILE_HUD_ENEMY_TRIANGLE);
     }
 
     /// Draw the complete enemy HUD.
@@ -304,16 +393,17 @@ impl EnemyHud {
         status_tiles: Option<&[u8]>,
         current_hp: u16,
         max_hp: u16,
-    ) {
+    ) -> HpBarColor {
         Self::clear(buf);
         Self::draw_border(buf);
 
-        // Mon name
-        write_tiles_at(buf, Self::NAME_X, Self::NAME_Y, name_tiles);
+        // Mon name (centered per CenterMonName)
+        let name_offset = center_name_offset(name_tiles.len());
+        write_tiles_at(buf, Self::NAME_X + name_offset, Self::NAME_Y, name_tiles);
 
-        // Status or level
+        // ASM: hlcoord(4,1), inc hl → status at (5,1); else PrintLevel at (4,1)
         if let Some(status) = status_tiles {
-            write_tiles_at(buf, Self::LEVEL_X, Self::LEVEL_Y, status);
+            write_tiles_at(buf, Self::LEVEL_X + 1, Self::LEVEL_Y, status);
         } else {
             draw_level(buf, Self::LEVEL_X, Self::LEVEL_Y, level);
         }
@@ -325,8 +415,9 @@ impl EnemyHud {
             Self::HP_BAR_Y,
             current_hp,
             max_hp,
+            TILE_HP_END_CAP_ENEMY,
             false,
-        );
+        )
     }
 }
 

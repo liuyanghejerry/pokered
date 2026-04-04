@@ -5,7 +5,7 @@ pub const TILE_TOP_RIGHT: u8 = 0x7B;
 pub const TILE_BOTTOM_LEFT: u8 = 0x7C;
 pub const TILE_BOTTOM_RIGHT: u8 = 0x7E;
 pub const TILE_HORIZONTAL: u8 = 0x7A;
-pub const TILE_VERTICAL: u8 = 0x7F;
+pub const TILE_VERTICAL: u8 = 0x7C;
 pub const TILE_SPACE: u8 = 0x7F;
 pub const TILE_DOWN_ARROW: u8 = 0xED;
 
