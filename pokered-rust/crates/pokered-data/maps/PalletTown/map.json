@@ -98,34 +98,6 @@
   ],
   "text": {
     "npc": {
-      "3": [
-        {
-          "line1": "Technology is",
-          "line2": "incredible!"
-        },
-        {
-          "line1": "You can now store",
-          "line2": "and recall items"
-        },
-        {
-          "line1": "and POKeMON as",
-          "line2": "data via PC!"
-        }
-      ],
-      "2": [
-        {
-          "line1": "I'm raising",
-          "line2": "POKeMON too!"
-        },
-        {
-          "line1": "When they get",
-          "line2": "strong, they can"
-        },
-        {
-          "line1": "protect me!",
-          "line2": ""
-        }
-      ],
       "1": [
         {
           "line1": "OAK: It's unsafe!",
@@ -147,6 +119,34 @@
           "line1": "Here, come with",
           "line2": "me!"
         }
+      ],
+      "2": [
+        {
+          "line1": "I'm raising",
+          "line2": "POKeMON too!"
+        },
+        {
+          "line1": "When they get",
+          "line2": "strong, they can"
+        },
+        {
+          "line1": "protect me!",
+          "line2": ""
+        }
+      ],
+      "3": [
+        {
+          "line1": "Technology is",
+          "line2": "incredible!"
+        },
+        {
+          "line1": "You can now store",
+          "line2": "and recall items"
+        },
+        {
+          "line1": "and POKeMON as",
+          "line2": "data via PC!"
+        }
       ]
     },
     "sign": {
@@ -166,15 +166,15 @@
           "line2": ""
         }
       ],
-      "4": [
-        {
-          "line1": "<RIVAL>'s house",
-          "line2": ""
-        }
-      ],
       "3": [
         {
           "line1": "<PLAYER>'s house",
+          "line2": ""
+        }
+      ],
+      "4": [
+        {
+          "line1": "<RIVAL>'s house",
           "line2": ""
         }
       ]
