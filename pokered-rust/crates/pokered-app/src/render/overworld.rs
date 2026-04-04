@@ -228,6 +228,63 @@ pub fn draw_overworld(
             let player_px_x = screen_center_tx as u32 * TILE_SIZE;
             let player_px_y = screen_center_ty as u32 * TILE_SIZE;
 
+            // Ledge jump: compute vertical arc offset from the original game's
+            // PlayerJumpingYScreenCoords table. The table stores absolute Y positions;
+            // we convert to offsets from baseline. walk_counter counts 16 → 0, so
+            // jump frame index = 16 - walk_counter.
+            //
+            // Original table (baseline $3C = 60):
+            //   $38,$36,$34,$32,$31,$30,$30,$30,$31,$32,$33,$34,$36,$38,$3C,$3C
+            // Offsets from baseline:
+            //   -4, -6, -8,-10,-11,-12,-12,-12,-11,-10, -9, -8, -6, -4,  0,  0
+            const JUMP_Y_OFFSETS: [i32; 16] = [
+                -4, -6, -8, -10, -11, -12, -12, -12, -11, -10, -9, -8, -6, -4, 0, 0,
+            ];
+
+            // Original game scrolls the background via AdvancePlayerSprite (2px/frame)
+            // while _HandleMidJump applies the arc. Our map is tile-snapped, so we
+            // offset the sprite from screen center: 1px/frame × 16 frames = 16px = 2 tiles.
+            let (jump_translate_x, jump_translate_y, jump_arc_offset) =
+                if screen.state.player.movement_state == MovementState::Jumping {
+                    let wc = screen.state.walk_counter as i32;
+                    let elapsed = 16 - wc;
+                    let (tdx, tdy) = match screen.state.player.facing {
+                        Direction::Down => (0, elapsed),
+                        Direction::Up => (0, -elapsed),
+                        Direction::Left => (-elapsed, 0),
+                        Direction::Right => (elapsed, 0),
+                    };
+                    let idx = (elapsed as usize).min(JUMP_Y_OFFSETS.len() - 1);
+                    (tdx, tdy, JUMP_Y_OFFSETS[idx])
+                } else {
+                    (0, 0, 0)
+                };
+            if screen.state.player.movement_state == MovementState::Jumping && jump_arc_offset < 0 {
+                let shadow_cx = (player_px_x as i32 + jump_translate_x + 8) as i32;
+                let shadow_cy = (player_px_y as i32 + jump_translate_y + 15) as i32;
+                let rx: i32 = 7;
+                let ry: i32 = 3;
+                let shadow_color = Rgba::rgb(0x55, 0x55, 0x55);
+                for dy in -ry..=ry {
+                    for dx in -rx..=rx {
+                        if dx * dx * ry * ry + dy * dy * rx * rx <= rx * rx * ry * ry {
+                            let sx = shadow_cx + dx;
+                            let sy = shadow_cy + dy;
+                            if sx >= 0
+                                && sy >= 0
+                                && (sx as u32) < SCREEN_WIDTH
+                                && (sy as u32) < SCREEN_HEIGHT
+                            {
+                                fb.set_pixel(sx as u32, sy as u32, shadow_color);
+                            }
+                        }
+                    }
+                }
+            }
+
+            let draw_x = (player_px_x as i32 + jump_translate_x).max(0) as u32;
+            let draw_y = (player_px_y as i32 + jump_translate_y + jump_arc_offset).max(0) as u32;
+
             for row in 0..2_u32 {
                 for col in 0..2_u32 {
                     let src_col = if flip_h { 1 - col } else { col };
@@ -240,8 +297,8 @@ pub fn draw_overworld(
                         fb,
                         &ts,
                         tile_idx,
-                        player_px_x + col * TILE_SIZE,
-                        player_px_y + row * TILE_SIZE,
+                        draw_x + col * TILE_SIZE,
+                        draw_y + row * TILE_SIZE,
                         &sprite_pal,
                         flip_h,
                     );
