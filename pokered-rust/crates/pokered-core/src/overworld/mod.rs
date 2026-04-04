@@ -270,6 +270,21 @@ impl OverworldState {
     }
 }
 
+// ── Overworld SFX Events ──────────────────────────────────────────
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OverworldSfxEvent {
+    None,
+    /// SFX_GO_INSIDE — standing on door tile ($0b). home/overworld.asm:PlayMapChangeSound
+    GoInside,
+    /// SFX_GO_OUTSIDE — non-door warp (stairs, cave). home/overworld.asm:PlayMapChangeSound
+    GoOutside,
+    /// SFX_COLLISION — bumped into wall. home/overworld.asm:1246,1923
+    Collision,
+    /// SFX_LEDGE — jumped a ledge. engine/overworld/ledges.asm:53
+    Ledge,
+}
+
 // ── Overworld Screen (frame-loop adapter) ─────────────────────────
 
 use crate::game_state::ScreenAction;
@@ -486,6 +501,8 @@ pub struct OverworldScreen {
     pub last_map: Option<MapId>,
     pub warp_fade_state: WarpFadeState,
     pub pending_warp: Option<PendingWarp>,
+    pub sfx_event: OverworldSfxEvent,
+    pub bump_anim_counter: u8,
     pub player_name: String,
     pub rival_name: String,
     pub frame_counter: u32,
@@ -534,6 +551,8 @@ impl OverworldScreen {
             last_map: Some(MapId::PalletTown),
             warp_fade_state: WarpFadeState::Idle,
             pending_warp: None,
+            sfx_event: OverworldSfxEvent::None,
+            bump_anim_counter: 0,
             player_name: "RED".to_string(),
             rival_name: "BLUE".to_string(),
             frame_counter: 0,
@@ -605,6 +624,7 @@ impl OverworldScreen {
 
     pub fn update_frame(&mut self, input: OverworldInput) -> ScreenAction {
         self.frame_counter = self.frame_counter.wrapping_add(1);
+        self.sfx_event = OverworldSfxEvent::None;
 
         // Edge detection for the A button must be computed BEFORE any early-return
         // paths (warp fade, script effects, door auto-step, etc.) so that
@@ -849,6 +869,12 @@ impl OverworldScreen {
                         self.state.player.y as u8,
                         self.last_map,
                     ) {
+                        // PlayMapChangeSound: door tile → GoInside, otherwise → GoOutside
+                        if doors_elevators::is_standing_on_door(map.tileset, standing_tile) {
+                            self.sfx_event = OverworldSfxEvent::GoInside;
+                        } else {
+                            self.sfx_event = OverworldSfxEvent::GoOutside;
+                        }
                         let save_last_map = tileset_data::is_outside_tileset(map.tileset);
                         self.pending_warp = Some(PendingWarp {
                             dest_map,
@@ -890,7 +916,17 @@ impl OverworldScreen {
                         }
                     }
                 }
-                _ => {}
+                MoveResult::Blocked(_) => {
+                    self.sfx_event = OverworldSfxEvent::Collision;
+                    self.bump_anim_counter = self.bump_anim_counter.wrapping_add(1);
+                }
+                MoveResult::LedgeJump => {
+                    self.sfx_event = OverworldSfxEvent::Ledge;
+                    self.bump_anim_counter = 0;
+                }
+                _ => {
+                    self.bump_anim_counter = 0;
+                }
             }
 
             if self.map_name_timer > 0 {
