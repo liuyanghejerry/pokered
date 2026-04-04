@@ -1,22 +1,11 @@
 {
-  "mapScripts": [
-    "enterMap"
-  ],
+  "mapScripts": [],
   "npcs": [
-    {
-      "id": 1,
-      "talk": "talkYoungster"
-    },
-    {
-      "id": 2,
-      "talk": "talkYoungster1"
-    }
+    { "id": 1, "talk": "talkYoungster" },
+    { "id": 2, "talk": "talkYoungster1" }
   ],
   "signs": [
-    {
-      "id": 1,
-      "talk": "sign1"
-    }
+    { "id": 1, "talk": "sign1" }
   ],
   "coordEvents": []
 }
