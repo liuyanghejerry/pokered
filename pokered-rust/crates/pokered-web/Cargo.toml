@@ -3,6 +3,9 @@ name = "pokered-web"
 version.workspace = true
 edition.workspace = true
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [features]
 optimize = ["log/release_max_level_warn"]
 embedded-scripts = ["pokered-core/embedded-scripts"]

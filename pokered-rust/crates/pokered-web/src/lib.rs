@@ -18,10 +18,14 @@ use winit::window::Window;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::{Duration, Instant};
 
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
 use pokered_core::battle::{BattleInput, BattleScreen};
 use pokered_core::data::maps::MapId;
 use pokered_core::data::wild_data::GameVersion;
 use pokered_core::game_state::{GameScreen, GameState, ScreenAction};
+use pokered_core::intro_scene::IntroSceneState;
 use pokered_core::main_menu::{MainMenuState, MenuInput};
 use pokered_core::naming_screen::NamingInput;
 use pokered_core::oak_speech::{OakSpeechInput, OakSpeechResult, OakSpeechState};
@@ -30,9 +34,16 @@ use pokered_core::overworld::{OverworldInput, OverworldScreen};
 use pokered_core::save_menu::{SaveMenuResult, SaveMenuState, SaveScreenInfo, YesNoInput};
 use pokered_core::start_menu::{StartMenuAction, StartMenuInput, StartMenuState};
 use pokered_core::title_screen::TitleScreenState;
-use pokered_renderer::embedded_font::draw_text;
 use pokered_renderer::input::{GbButton, InputState};
+use pokered_renderer::resource::ResourceManager;
 use pokered_renderer::{FrameBuffer, Rgba, SCREEN_HEIGHT, SCREEN_WIDTH};
+
+#[path = "../../pokered-app/src/render/mod.rs"]
+mod app_render;
+use app_render::{
+    draw_battle, draw_intro_scene, draw_main_menu, draw_oak_speech, draw_options_menu,
+    draw_overworld, draw_save_menu, draw_start_menu, draw_title_screen,
+};
 
 const SCALE: u32 = 3;
 const BLACK_SCREEN_DURATION: u32 = 30;
@@ -40,6 +51,7 @@ const BLACK_SCREEN_DURATION: u32 = 30;
 struct PokemonGame {
     state: GameState,
     title_screen: TitleScreenState,
+    intro_scene: IntroSceneState,
     main_menu: MainMenuState,
     oak_speech: OakSpeechState,
     overworld: OverworldScreen,
@@ -52,15 +64,18 @@ struct PokemonGame {
     frame_count: u64,
     black_screen_frames: u32,
     pending_screen: Option<GameScreen>,
+    resources: Option<ResourceManager>,
 }
 
 impl PokemonGame {
     fn new(version: GameVersion) -> Self {
         let state = GameState::new(version);
         let title_screen = TitleScreenState::new(version);
+        let intro_scene = IntroSceneState::new();
         let main_menu = MainMenuState::new(None);
         let oak_speech = OakSpeechState::new();
-        let overworld = OverworldScreen::new(MapId::PalletTown, None);        let battle = BattleScreen::new(true);
+        let overworld = OverworldScreen::new(MapId::PalletTown, None);
+        let battle = BattleScreen::new(true);
         let start_menu = StartMenuState::new(false, false, false);
         let options_menu = OptionsMenuState::new(GameOptions::default());
         let save_menu = SaveMenuState::new(
@@ -74,9 +89,19 @@ impl PokemonGame {
             false,
             false,
         );
+
+        #[cfg(target_arch = "wasm32")]
+        let resources = None;
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let resources = pokered_renderer::resource::AssetRoot::auto_detect()
+            .ok()
+            .map(ResourceManager::new);
+
         Self {
             state,
             title_screen,
+            intro_scene,
             main_menu,
             oak_speech,
             overworld,
@@ -89,6 +114,7 @@ impl PokemonGame {
             frame_count: 0,
             black_screen_frames: 0,
             pending_screen: None,
+            resources,
         }
     }
 
@@ -106,9 +132,13 @@ impl PokemonGame {
         }
 
         let action = match self.state.screen {
-            GameScreen::CopyrightSplash | GameScreen::TitleScreen | GameScreen::IntroScene => {
+            GameScreen::CopyrightSplash | GameScreen::TitleScreen => {
                 let any_pressed = input.any_just_pressed();
                 self.title_screen.update_frame(any_pressed)
+            }
+            GameScreen::IntroScene => {
+                let any_pressed = input.any_just_pressed();
+                self.intro_scene.update_frame(any_pressed)
             }
             GameScreen::MainMenu => {
                 let menu_input = MenuInput {
@@ -304,12 +334,12 @@ impl PokemonGame {
                 );
             }
             GameScreen::CopyrightSplash => self.title_screen.reset(),
-            GameScreen::IntroScene => self.title_screen.reset(),
+            GameScreen::IntroScene => self.intro_scene.reset(),
         }
         self.state.transition_to(screen);
     }
 
-    fn draw(&self, fb: &mut FrameBuffer) {
+    fn draw(&mut self, fb: &mut FrameBuffer) {
         if self.black_screen_frames > 0 {
             fb.clear(Rgba::BLACK);
             return;
@@ -317,140 +347,30 @@ impl PokemonGame {
 
         fb.clear(Rgba::WHITE);
         match self.state.screen {
-            GameScreen::CopyrightSplash | GameScreen::TitleScreen | GameScreen::IntroScene => {
-                draw_title_screen(&self.title_screen, fb);
+            GameScreen::CopyrightSplash => {
+                draw_title_screen(&self.title_screen, true, &mut self.resources, fb);
+            }
+            GameScreen::IntroScene => {
+                draw_intro_scene(&self.intro_scene, &mut self.resources, fb);
+            }
+            GameScreen::TitleScreen => {
+                draw_title_screen(&self.title_screen, false, &mut self.resources, fb);
             }
             GameScreen::MainMenu => draw_main_menu(&self.main_menu, fb),
-            GameScreen::OakSpeech => draw_oak_speech(&self.oak_speech, fb),
-            GameScreen::Overworld => draw_overworld(&self.overworld, fb),
-            GameScreen::Battle => draw_battle(&self.battle, fb),
+            GameScreen::OakSpeech => draw_oak_speech(&self.oak_speech, &mut self.resources, fb),
+            GameScreen::Overworld => draw_overworld(&self.overworld, &mut self.resources, fb),
+            GameScreen::Battle => draw_battle(&self.battle, &mut self.resources, fb),
             GameScreen::StartMenu => {
-                draw_overworld(&self.overworld, fb);
+                draw_overworld(&self.overworld, &mut self.resources, fb);
                 draw_start_menu(&self.start_menu, &self.player_name, fb)
             }
             GameScreen::OptionsMenu => draw_options_menu(&self.options_menu, fb),
             GameScreen::SaveMenu => {
-                draw_overworld(&self.overworld, fb);
+                draw_overworld(&self.overworld, &mut self.resources, fb);
                 draw_save_menu(&self.save_menu, fb);
             }
         }
     }
-}
-
-fn draw_title_screen(state: &TitleScreenState, fb: &mut FrameBuffer) {
-    let fade = state.fade_progress();
-    let bg_color = if fade > 0.0 {
-        let v = (255.0 * (1.0 - fade)) as u8;
-        Rgba::rgb(v, v, v)
-    } else {
-        Rgba::WHITE
-    };
-    fb.clear(bg_color);
-
-    let phase_text = format!("Title Screen: {:?}", state.phase);
-    draw_text(&phase_text, 10, 10, Rgba::BLACK, fb);
-    let mon_text = format!("Current Mon: {:?}", state.current_mon);
-    draw_text(&mon_text, 10, 30, Rgba::BLACK, fb);
-    let scroll_text = format!("Scroll Y: {}", state.scroll_y);
-    draw_text(&scroll_text, 10, 50, Rgba::BLACK, fb);
-    draw_text("Press any button to continue", 10, 100, Rgba::BLACK, fb);
-    draw_text("[Web Build]", 10, 130, Rgba::BLACK, fb);
-}
-
-fn draw_main_menu(state: &MainMenuState, fb: &mut FrameBuffer) {
-    fb.clear(Rgba::WHITE);
-    draw_text("MAIN MENU", 60, 20, Rgba::BLACK, fb);
-    let labels = state.item_labels();
-    for (i, label) in labels.iter().enumerate() {
-        let y = 50 + (i as u32 * 20);
-        let prefix = if i == state.cursor { "> " } else { "  " };
-        let text = format!("{}{}", prefix, label);
-        draw_text(&text, 50, y, Rgba::BLACK, fb);
-    }
-    draw_text("Up/Down: Select", 10, 120, Rgba::BLACK, fb);
-    draw_text("A/Start: Confirm", 10, 130, Rgba::BLACK, fb);
-}
-
-fn draw_oak_speech(state: &OakSpeechState, fb: &mut FrameBuffer) {
-    fb.clear(Rgba::WHITE);
-    draw_text("OAK'S SPEECH", 40, 10, Rgba::BLACK, fb);
-    if let Some(naming) = &state.naming_screen {
-        draw_text("NAME ENTRY", 45, 30, Rgba::BLACK, fb);
-        let name_text = format!("Name: {}_", naming.name());
-        draw_text(&name_text, 30, 50, Rgba::BLACK, fb);
-        let alphabet = naming.current_alphabet();
-        for (row_i, row) in alphabet.iter().enumerate() {
-            let y = 70 + (row_i as u32 * 12);
-            let row_str: String = row.iter().map(|c| format!("{} ", c)).collect();
-            draw_text(&row_str, 10, y, Rgba::BLACK, fb);
-        }
-    } else if let Some(text) = state.current_intro_text() {
-        draw_text(&text, 20, 60, Rgba::BLACK, fb);
-    } else {
-        let phase_text = format!("{:?}", state.phase);
-        draw_text(&phase_text, 10, 60, Rgba::BLACK, fb);
-    }
-}
-
-fn draw_overworld(screen: &OverworldScreen, fb: &mut FrameBuffer) {
-    fb.clear(Rgba::WHITE);
-    let pos_text = format!(
-        "Map: {:?}  Pos: ({}, {})",
-        screen.state.current_map, screen.state.player.x, screen.state.player.y
-    );
-    draw_text(&pos_text, 5, 10, Rgba::BLACK, fb);
-    let facing_text = format!("Facing: {:?}", screen.state.player.facing);
-    draw_text(&facing_text, 5, 30, Rgba::BLACK, fb);
-    draw_text("OVERWORLD", 50, 60, Rgba::BLACK, fb);
-    draw_text("[Web Build]", 10, 130, Rgba::BLACK, fb);
-}
-
-fn draw_battle(screen: &BattleScreen, fb: &mut FrameBuffer) {
-    fb.clear(Rgba::WHITE);
-    draw_text("BATTLE", 55, 10, Rgba::BLACK, fb);
-    let phase_text = format!("Phase: {:?}", screen.phase);
-    draw_text(&phase_text, 10, 30, Rgba::BLACK, fb);
-    if matches!(screen.phase, pokered_core::battle::BattlePhase::PlayerMenu) {
-        let labels = ["FIGHT", "BAG", "POKeMON", "RUN"];
-        for (i, label) in labels.iter().enumerate() {
-            let row = i / 2;
-            let col = i % 2;
-            let x = 20 + (col as u32 * 70);
-            let y = 100 + (row as u32 * 20);
-            let sel = screen.battle_menu.row() == row && screen.battle_menu.col() == col;
-            let prefix = if sel { ">" } else { " " };
-            draw_text(&format!("{}{}", prefix, label), x, y, Rgba::BLACK, fb);
-        }
-    }
-}
-
-fn draw_start_menu(state: &StartMenuState, player_name: &str, fb: &mut FrameBuffer) {
-    draw_text("START MENU", 50, 10, Rgba::BLACK, fb);
-    let labels = state.item_labels(player_name);
-    for (i, label) in labels.iter().enumerate() {
-        let y = 30 + (i as u32 * 16);
-        let prefix = if i == state.cursor() { "> " } else { "  " };
-        draw_text(&format!("{}{}", prefix, label.as_str()), 20, y, Rgba::BLACK, fb);
-    }
-}
-
-fn draw_options_menu(state: &OptionsMenuState, fb: &mut FrameBuffer) {
-    fb.clear(Rgba::WHITE);
-    draw_text("OPTIONS", 55, 10, Rgba::BLACK, fb);
-    draw_text(&format!("TEXT SPEED: {:?}", state.options.text_speed), 10, 40, Rgba::BLACK, fb);
-    draw_text(&format!("BATTLE ANIM: {:?}", state.options.battle_animation), 10, 60, Rgba::BLACK, fb);
-    draw_text(&format!("BATTLE STYLE: {:?}", state.options.battle_style), 10, 80, Rgba::BLACK, fb);
-    draw_text(&format!("Cursor: {:?}", state.row), 10, 110, Rgba::BLACK, fb);
-}
-
-fn draw_save_menu(state: &SaveMenuState, fb: &mut FrameBuffer) {
-    draw_text("SAVE GAME", 50, 10, Rgba::BLACK, fb);
-    draw_text(&format!("Phase: {:?}", state.phase), 10, 40, Rgba::BLACK, fb);
-    draw_text(&format!("Cursor: {:?}", state.cursor), 10, 60, Rgba::BLACK, fb);
-    draw_text(
-        &format!("{} Badges:{}", state.info.player_name, state.info.num_badges),
-        10, 80, Rgba::BLACK, fb,
-    );
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -465,24 +385,43 @@ fn get_window_size() -> LogicalSize<f64> {
     LogicalSize::new(w, h)
 }
 
-fn main() {
-    #[cfg(target_arch = "wasm32")]
-    {
-        std::panic::set_hook(Box::new(console_error_panic_hook::hook));
-        console_log::init_with_level(log::Level::Info).expect("error initializing logger");
-        wasm_bindgen_futures::spawn_local(run());
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen(start)]
+pub async fn start() {
+    std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+    
+    if let Err(e) = console_log::init_with_level(log::Level::Info) {
+        web_sys::console::error_1(&format!("Failed to initialize logger: {}", e).into());
     }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        env_logger::init();
-        pollster::block_on(run());
+    
+    if let Err(e) = run().await {
+        web_sys::console::error_1(&format!("Game initialization failed: {}", e).into());
+        
+        let document = web_sys::window()
+            .and_then(|w| w.document())
+            .expect("no document");
+        
+let error_div = document.get_element_by_id("error")
+            .expect("no error div");
+        error_div.set_attribute("class", "").ok();
+        
+        let loading = document.get_element_by_id("loading")
+            .expect("no loading div");
+        loading.set_attribute("class", "hidden").ok();
     }
 }
 
-async fn run() {
+#[cfg(not(target_arch = "wasm32"))]
+pub fn main() {
+    env_logger::init();
+    if let Err(e) = pollster::block_on(run()) {
+        eprintln!("Game initialization failed: {}", e);
+    }
+}
+
+async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let version = GameVersion::Red;
-    let event_loop = EventLoop::new().unwrap();
+    let event_loop = EventLoop::new()?;
 
     let window = {
         let size = LogicalSize::new(
@@ -507,8 +446,7 @@ async fn run() {
                             SCREEN_HEIGHT as f64,
                         ))
                         .with_resizable(true),
-                )
-                .unwrap(),
+                )?,
         )
     };
 
@@ -517,14 +455,18 @@ async fn run() {
         use wasm_bindgen::JsCast;
         use winit::platform::web::WindowExtWebSys;
 
-        web_sys::window()
+        let game_canvas = window.canvas().unwrap();
+        game_canvas.set_id("game-canvas");
+        
+        let old_canvas = web_sys::window()
             .and_then(|win| win.document())
-            .and_then(|doc| doc.body())
-            .and_then(|body| {
-                body.append_child(&web_sys::Element::from(window.canvas().unwrap()))
-                    .ok()
-            })
-            .expect("couldn't append canvas to document body");
+            .and_then(|doc| doc.get_element_by_id("game-canvas"))
+            .expect("couldn't find canvas with id 'game-canvas'");
+        
+        let parent = old_canvas.parent_node().expect("canvas has no parent");
+        parent
+            .replace_child(&web_sys::Element::from(game_canvas), &old_canvas)
+            .expect("couldn't replace canvas element");
 
         let resize_window = Arc::clone(&window);
         let closure = wasm_bindgen::closure::Closure::wrap(Box::new(
@@ -554,13 +496,20 @@ async fn run() {
 
         #[cfg(target_arch = "wasm32")]
         let builder = {
+            use pixels::wgpu::Backends;
+            
             let texture_format = pixels::wgpu::TextureFormat::Rgba8Unorm;
+            
             builder
                 .texture_format(texture_format)
                 .surface_texture_format(texture_format)
+                // Some browsers expose partial WebGPU limits and return
+                // `undefined` for numeric fields, which can panic in wasm-bindgen.
+                // Keep wasm on WebGL for broad compatibility.
+                .wgpu_backend(Backends::GL)
         };
 
-        builder.build_async().await.expect("Pixels error")
+        builder.build_async().await?
     };
 
     let mut game = PokemonGame::new(version);
@@ -573,8 +522,7 @@ async fn run() {
     #[cfg(not(target_arch = "wasm32"))]
     let mut next_frame_time = Instant::now();
 
-    #[allow(deprecated)]
-    let res = event_loop.run(move |event, elwt| match event {
+    let event_handler = move |event, elwt: &winit::event_loop::ActiveEventLoop| match event {
         Event::WindowEvent { event, .. } => match event {
             WindowEvent::CloseRequested => elwt.exit(),
             WindowEvent::RedrawRequested => {
@@ -633,9 +581,23 @@ async fn run() {
             }
         }
         _ => {}
-    });
+    };
 
-    res.unwrap();
+    #[cfg(target_arch = "wasm32")]
+    {
+        use winit::platform::web::EventLoopExtWebSys;
+
+        #[allow(deprecated)]
+        event_loop.spawn(event_handler);
+        Ok(())
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let res = event_loop.run(event_handler);
+        res?;
+        Ok(())
+    }
 }
 
 fn log_error<E: std::error::Error + 'static>(method_name: &str, err: E) {
