@@ -10,11 +10,23 @@ const { currentMap } = storeToRefs(store)
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const hoveredLocation = ref<TownMapCoord | null>(null)
 const tooltipPos = ref({ x: 0, y: 0 })
+const townMapImage = ref<HTMLImageElement | null>(null)
 
 const CELL_SIZE = 16
 const MAP_WIDTH = 16
 const MAP_HEIGHT = 16
 const PADDING = 4
+
+async function loadTownMapImage() {
+  try {
+    const img = new Image()
+    img.src = '/gfx/town_map/town_map.png'
+    await img.decode()
+    townMapImage.value = img
+  } catch {
+    console.warn('Could not load town_map.png')
+  }
+}
 
 function getMapColor(coord: TownMapCoord, isCurrentMap: boolean): string {
   if (isCurrentMap) return '#e74c3c'
@@ -44,23 +56,33 @@ function render() {
   ctx.fillStyle = '#1a1a2e'
   ctx.fillRect(0, 0, width, height)
 
-  ctx.strokeStyle = '#2d2d44'
-  ctx.lineWidth = 0.5
-  for (let x = 0; x <= MAP_WIDTH; x++) {
-    ctx.beginPath()
-    ctx.moveTo(PADDING + x * CELL_SIZE, PADDING)
-    ctx.lineTo(PADDING + x * CELL_SIZE, PADDING + MAP_HEIGHT * CELL_SIZE)
-    ctx.stroke()
-  }
-  for (let y = 0; y <= MAP_HEIGHT; y++) {
-    ctx.beginPath()
-    ctx.moveTo(PADDING, PADDING + y * CELL_SIZE)
-    ctx.lineTo(PADDING + MAP_WIDTH * CELL_SIZE, PADDING + y * CELL_SIZE)
-    ctx.stroke()
+  // Draw town map image as background
+  // town_map.png is 32x32 pixels, scale to 256x256 (8x scale) to fit the 16x16 grid
+  if (townMapImage.value) {
+    ctx.imageSmoothingEnabled = false
+    const targetSize = 32 * 8 // 256 pixels
+    ctx.drawImage(townMapImage.value, PADDING, PADDING, targetSize, targetSize)
+  } else {
+    // Fallback: draw grid
+    ctx.strokeStyle = '#2d2d44'
+    ctx.lineWidth = 0.5
+    for (let x = 0; x <= MAP_WIDTH; x++) {
+      ctx.beginPath()
+      ctx.moveTo(PADDING + x * CELL_SIZE, PADDING)
+      ctx.lineTo(PADDING + x * CELL_SIZE, PADDING + MAP_HEIGHT * CELL_SIZE)
+      ctx.stroke()
+    }
+    for (let y = 0; y <= MAP_HEIGHT; y++) {
+      ctx.beginPath()
+      ctx.moveTo(PADDING, PADDING + y * CELL_SIZE)
+      ctx.lineTo(PADDING + MAP_WIDTH * CELL_SIZE, PADDING + y * CELL_SIZE)
+      ctx.stroke()
+    }
   }
 
   const currentCoord = getCurrentMapCoord()
 
+  // Draw location markers
   TOWN_MAP_COORDS.forEach(coord => {
     if (coord.mapName === 'UnusedMap0B') return
 
@@ -81,6 +103,7 @@ function render() {
     }
   })
 
+  // Draw pulse ring around current location
   if (currentCoord && currentCoord.mapName !== 'UnusedMap0B') {
     const px = PADDING + currentCoord.x * CELL_SIZE + CELL_SIZE / 2
     const py = PADDING + currentCoord.y * CELL_SIZE + CELL_SIZE / 2
@@ -121,7 +144,8 @@ function handleClick() {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await loadTownMapImage()
   render()
 })
 
