@@ -1,0 +1,17 @@
+{
+  "mapScripts": [
+    "enterMap"
+  ],
+  "npcs": [
+    {
+      "id": 1,
+      "talk": "talkGranny"
+    },
+    {
+      "id": 2,
+      "talk": "talkGambler"
+    }
+  ],
+  "signs": [],
+  "coordEvents": []
+}

@@ -1,0 +1,58 @@
+{
+  "mapScripts": [
+    "enterMap"
+  ],
+  "npcs": [
+    {
+      "id": 1,
+      "talk": "talkSnorlax"
+    },
+    {
+      "id": 2,
+      "talk": "talkFisher"
+    },
+    {
+      "id": 3,
+      "talk": "talkFisher1"
+    },
+    {
+      "id": 4,
+      "talk": "talkCooltrainerM"
+    },
+    {
+      "id": 5,
+      "talk": "talkSuperNerd"
+    },
+    {
+      "id": 6,
+      "talk": "talkFisher2"
+    },
+    {
+      "id": 7,
+      "talk": "talkFisher3"
+    },
+    {
+      "id": 8,
+      "talk": "talkFisher4"
+    },
+    {
+      "id": 9,
+      "talk": "talkPokeBall"
+    },
+    {
+      "id": 10,
+      "talk": "talkPokeBall1"
+    }
+  ],
+  "signs": [
+    {
+      "id": 1,
+      "talk": "sign1"
+    },
+    {
+      "id": 2,
+      "talk": "sign2"
+    }
+  ],
+  "coordEvents": []
+}

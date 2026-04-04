@@ -1,0 +1,53 @@
+{
+  "mapScripts": [
+    "enterMap"
+  ],
+  "npcs": [
+    {
+      "id": 1,
+      "talk": "talkSilphWorkerM"
+    },
+    {
+      "id": 2,
+      "talk": "talkSilphWorkerM1"
+    },
+    {
+      "id": 3,
+      "talk": "talkSilphWorkerM2"
+    },
+    {
+      "id": 4,
+      "talk": "talkSilphWorkerF"
+    },
+    {
+      "id": 5,
+      "talk": "talkRocket"
+    },
+    {
+      "id": 6,
+      "talk": "talkScientist"
+    },
+    {
+      "id": 7,
+      "talk": "talkRocket1"
+    },
+    {
+      "id": 8,
+      "talk": "talkRocket2"
+    },
+    {
+      "id": 9,
+      "talk": "talkBlue"
+    },
+    {
+      "id": 10,
+      "talk": "talkPokeBall"
+    },
+    {
+      "id": 11,
+      "talk": "talkPokeBall1"
+    }
+  ],
+  "signs": [],
+  "coordEvents": []
+}

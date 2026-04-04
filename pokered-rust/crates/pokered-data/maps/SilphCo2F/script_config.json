@@ -1,0 +1,29 @@
+{
+  "mapScripts": [
+    "enterMap"
+  ],
+  "npcs": [
+    {
+      "id": 1,
+      "talk": "talkSilphWorkerF"
+    },
+    {
+      "id": 2,
+      "talk": "talkScientist"
+    },
+    {
+      "id": 3,
+      "talk": "talkScientist1"
+    },
+    {
+      "id": 4,
+      "talk": "talkRocket"
+    },
+    {
+      "id": 5,
+      "talk": "talkRocket1"
+    }
+  ],
+  "signs": [],
+  "coordEvents": []
+}

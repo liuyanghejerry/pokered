@@ -1,0 +1,42 @@
+{
+  "mapScripts": [
+    "enterMap"
+  ],
+  "npcs": [
+    {
+      "id": 1,
+      "talk": "talkHiker"
+    },
+    {
+      "id": 2,
+      "talk": "talkHiker1"
+    },
+    {
+      "id": 3,
+      "talk": "talkHiker2"
+    },
+    {
+      "id": 4,
+      "talk": "talkSuperNerd"
+    },
+    {
+      "id": 5,
+      "talk": "talkCooltrainerF"
+    },
+    {
+      "id": 6,
+      "talk": "talkCooltrainerF1"
+    },
+    {
+      "id": 7,
+      "talk": "talkCooltrainerF2"
+    }
+  ],
+  "signs": [
+    {
+      "id": 1,
+      "talk": "sign1"
+    }
+  ],
+  "coordEvents": []
+}

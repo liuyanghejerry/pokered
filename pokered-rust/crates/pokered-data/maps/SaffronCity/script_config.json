@@ -1,0 +1,110 @@
+{
+  "mapScripts": [
+    "enterMap"
+  ],
+  "npcs": [
+    {
+      "id": 1,
+      "talk": "talkRocket"
+    },
+    {
+      "id": 2,
+      "talk": "talkRocket1"
+    },
+    {
+      "id": 3,
+      "talk": "talkRocket2"
+    },
+    {
+      "id": 4,
+      "talk": "talkRocket3"
+    },
+    {
+      "id": 5,
+      "talk": "talkRocket4"
+    },
+    {
+      "id": 6,
+      "talk": "talkRocket5"
+    },
+    {
+      "id": 7,
+      "talk": "talkRocket6"
+    },
+    {
+      "id": 8,
+      "talk": "talkScientist"
+    },
+    {
+      "id": 9,
+      "talk": "talkSilphWorkerM"
+    },
+    {
+      "id": 10,
+      "talk": "talkSilphWorkerF"
+    },
+    {
+      "id": 11,
+      "talk": "talkGentleman"
+    },
+    {
+      "id": 12,
+      "talk": "talkBird"
+    },
+    {
+      "id": 13,
+      "talk": "talkRocker"
+    },
+    {
+      "id": 14,
+      "talk": "talkRocket7"
+    },
+    {
+      "id": 15,
+      "talk": "talkRocket8"
+    }
+  ],
+  "signs": [
+    {
+      "id": 1,
+      "talk": "sign1"
+    },
+    {
+      "id": 2,
+      "talk": "sign2"
+    },
+    {
+      "id": 3,
+      "talk": "sign3"
+    },
+    {
+      "id": 4,
+      "talk": "sign4"
+    },
+    {
+      "id": 5,
+      "talk": "sign5"
+    },
+    {
+      "id": 6,
+      "talk": "sign6"
+    },
+    {
+      "id": 7,
+      "talk": "sign7"
+    },
+    {
+      "id": 8,
+      "talk": "sign8"
+    },
+    {
+      "id": 9,
+      "talk": "sign9"
+    },
+    {
+      "id": 10,
+      "talk": "sign10"
+    }
+  ],
+  "coordEvents": []
+}

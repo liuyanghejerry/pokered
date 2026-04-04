@@ -1,0 +1,49 @@
+{
+  "mapScripts": [
+    "enterMap"
+  ],
+  "npcs": [
+    {
+      "id": 1,
+      "talk": "talkCooltrainerM"
+    },
+    {
+      "id": 2,
+      "talk": "talkCooltrainerF"
+    },
+    {
+      "id": 3,
+      "talk": "talkCooltrainerM1"
+    },
+    {
+      "id": 4,
+      "talk": "talkCooltrainerF1"
+    },
+    {
+      "id": 5,
+      "talk": "talkPokeBall"
+    },
+    {
+      "id": 6,
+      "talk": "talkPokeBall1"
+    },
+    {
+      "id": 7,
+      "talk": "talkBoulder"
+    },
+    {
+      "id": 8,
+      "talk": "talkBoulder1"
+    },
+    {
+      "id": 9,
+      "talk": "talkBoulder2"
+    },
+    {
+      "id": 10,
+      "talk": "talkBoulder3"
+    }
+  ],
+  "signs": [],
+  "coordEvents": []
+}

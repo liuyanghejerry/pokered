@@ -1,0 +1,65 @@
+{
+  "mapScripts": [
+    "enterMap"
+  ],
+  "npcs": [
+    {
+      "id": 1,
+      "talk": "talkPokeBall"
+    },
+    {
+      "id": 2,
+      "talk": "talkPokeBall1"
+    },
+    {
+      "id": 3,
+      "talk": "talkPokeBall2"
+    },
+    {
+      "id": 4,
+      "talk": "talkPokeBall3"
+    },
+    {
+      "id": 5,
+      "talk": "talkPokeBall4"
+    },
+    {
+      "id": 6,
+      "talk": "talkPokeBall5"
+    },
+    {
+      "id": 7,
+      "talk": "talkPokeBall6"
+    },
+    {
+      "id": 8,
+      "talk": "talkPokeBall7"
+    },
+    {
+      "id": 9,
+      "talk": "talkBird"
+    },
+    {
+      "id": 10,
+      "talk": "talkPokeBall8"
+    },
+    {
+      "id": 11,
+      "talk": "talkPokeBall9"
+    },
+    {
+      "id": 12,
+      "talk": "talkPokeBall10"
+    },
+    {
+      "id": 13,
+      "talk": "talkPokeBall11"
+    },
+    {
+      "id": 14,
+      "talk": "talkPokeBall12"
+    }
+  ],
+  "signs": [],
+  "coordEvents": []
+}
