@@ -18,6 +18,9 @@ use winit::window::Window;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::{Duration, Instant};
 
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
 use pokered_core::battle::{BattleInput, BattleScreen};
 use pokered_core::data::maps::MapId;
 use pokered_core::data::wild_data::GameVersion;
@@ -465,19 +468,18 @@ fn get_window_size() -> LogicalSize<f64> {
     LogicalSize::new(w, h)
 }
 
-fn main() {
-    #[cfg(target_arch = "wasm32")]
-    {
-        std::panic::set_hook(Box::new(console_error_panic_hook::hook));
-        console_log::init_with_level(log::Level::Info).expect("error initializing logger");
-        wasm_bindgen_futures::spawn_local(run());
-    }
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen(start)]
+pub async fn start() {
+    std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+    console_log::init_with_level(log::Level::Info).expect("error initializing logger");
+    run().await;
+}
 
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        env_logger::init();
-        pollster::block_on(run());
-    }
+#[cfg(not(target_arch = "wasm32"))]
+pub fn main() {
+    env_logger::init();
+    pollster::block_on(run());
 }
 
 async fn run() {
@@ -517,14 +519,18 @@ async fn run() {
         use wasm_bindgen::JsCast;
         use winit::platform::web::WindowExtWebSys;
 
-        web_sys::window()
+        let game_canvas = window.canvas().unwrap();
+        game_canvas.set_id("game-canvas");
+        
+        let old_canvas = web_sys::window()
             .and_then(|win| win.document())
-            .and_then(|doc| doc.body())
-            .and_then(|body| {
-                body.append_child(&web_sys::Element::from(window.canvas().unwrap()))
-                    .ok()
-            })
-            .expect("couldn't append canvas to document body");
+            .and_then(|doc| doc.get_element_by_id("game-canvas"))
+            .expect("couldn't find canvas with id 'game-canvas'");
+        
+        let parent = old_canvas.parent_node().expect("canvas has no parent");
+        parent
+            .replace_child(&web_sys::Element::from(game_canvas), &old_canvas)
+            .expect("couldn't replace canvas element");
 
         let resize_window = Arc::clone(&window);
         let closure = wasm_bindgen::closure::Closure::wrap(Box::new(
