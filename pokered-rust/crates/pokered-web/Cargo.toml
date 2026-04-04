@@ -17,6 +17,7 @@ pokered-core = { path = "../pokered-core" }
 pokered-data = { path = "../pokered-data" }
 pokered-renderer = { path = "../pokered-renderer" }
 pokered-audio = { path = "../pokered-audio" }
+pokered-app = { path = "../pokered-app" }
 error-iter = "0.4"
 log = "0.4"
 pixels = "0.15"

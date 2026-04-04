@@ -1,28 +1,46 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
+#[cfg(not(target_arch = "wasm32"))]
+use std::path::Path;
+
+#[cfg(not(target_arch = "wasm32"))]
 use pokered_audio::music_data::MusicId;
+
+#[cfg(not(target_arch = "wasm32"))]
 use pokered_audio::sfx_data::SfxId;
 use pokered_core::battle::{BattleInput, BattleScreen};
 use pokered_core::data::maps::MapId;
 use pokered_core::data::wild_data::GameVersion;
 use pokered_core::game_state::{GameScreen, GameState, SaveFileSummary, ScreenAction};
-use pokered_core::intro_scene::{IntroSceneState, IntroSfxEvent};
+use pokered_core::intro_scene::IntroSceneState;
+
+#[cfg(not(target_arch = "wasm32"))]
+use pokered_core::intro_scene::IntroSfxEvent;
 use pokered_core::main_menu::{MainMenuState, MenuInput};
 use pokered_core::naming_screen::NamingInput;
 use pokered_core::oak_speech::{OakSpeechInput, OakSpeechPhase, OakSpeechResult, OakSpeechState};
 use pokered_core::options_menu::{GameOptions, OptionsInput, OptionsMenuResult, OptionsMenuState};
 use pokered_core::overworld::{OverworldInput, OverworldScreen};
+#[cfg(not(target_arch = "wasm32"))]
 use pokered_core::save::sram_export::export_sram;
+
+#[cfg(not(target_arch = "wasm32"))]
 use pokered_core::save::sram_import::import_sram;
 use pokered_core::save::SaveData;
 use pokered_core::save_menu::{SaveMenuResult, SaveMenuState, SaveScreenInfo, YesNoInput};
 use pokered_core::start_menu::{StartMenuAction, StartMenuInput, StartMenuState};
 use pokered_core::title_screen::{TitlePhase, TitleScreenState};
 use pokered_renderer::input::{GbButton, InputState};
-use pokered_renderer::resource::{AssetRoot, ResourceManager};
+use pokered_renderer::resource::ResourceManager;
+
+#[cfg(not(target_arch = "wasm32"))]
+use pokered_renderer::resource::AssetRoot;
+
+#[cfg(not(target_arch = "wasm32"))]
 use pokered_renderer::window::GameLoop;
 use pokered_renderer::{FrameBuffer, Rgba};
 
+#[cfg(not(target_arch = "wasm32"))]
 use crate::audio::{species_to_cry, AudioOutput};
 use crate::render::{
     draw_battle, draw_intro_scene, draw_main_menu, draw_oak_speech, draw_options_menu,
@@ -48,6 +66,7 @@ fn oak_phase_tag(phase: &OakSpeechPhase) -> u8 {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn save_file_path() -> std::path::PathBuf {
     std::env::current_exe()
         .ok()
@@ -94,7 +113,17 @@ pub struct PokemonGame {
 }
 
 impl PokemonGame {
-    pub fn new(
+    /// Creates a new game with default settings (no save file, no scripts dir).
+    /// This is the primary constructor used by both web and native builds.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn new(version: GameVersion) -> Self {
+        Self::new_with_options(version, None, None, None)
+    }
+
+    /// Creates a new game with optional save file, snapshot, and scripts directory.
+    /// Only available for native builds (wasm doesn't support file system operations).
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn new_with_options(
         version: GameVersion,
         save_path: Option<PathBuf>,
         snapshot_path: Option<PathBuf>,
@@ -144,7 +173,6 @@ impl PokemonGame {
             }
         };
 
-        #[cfg(not(target_arch = "wasm32"))]
         let audio = match AudioOutput::new() {
             Some(ao) => {
                 eprintln!("Audio output initialized (cpal 44100 Hz stereo)");
@@ -179,11 +207,68 @@ impl PokemonGame {
             black_screen_frames: 0,
             pending_screen: None,
             scripts_dir,
-            #[cfg(not(target_arch = "wasm32"))]
             audio,
         }
     }
 
+    #[cfg(target_arch = "wasm32")]
+    pub fn new(version: GameVersion) -> Self {
+        let save_data = SaveData::new();
+        let save_summary = None;
+        let state = GameState {
+            screen: GameScreen::CopyrightSplash,
+            config: pokered_core::game_state::GameConfig::new(version),
+            save_summary: save_summary.clone(),
+        };
+        let title_screen = TitleScreenState::new(version);
+        let main_menu = MainMenuState::new(save_summary);
+        let oak_speech = OakSpeechState::new();
+        let overworld = OverworldScreen::new(MapId::PalletTown, None);
+        let battle = BattleScreen::new(true);
+        let battle_vfx = BattleVisualEffects::default();
+        let start_menu = StartMenuState::new(false, false, false);
+        let options_menu = OptionsMenuState::new(GameOptions::default());
+        let save_menu = SaveMenuState::new(
+            SaveScreenInfo {
+                player_name: "RED".to_string(),
+                num_badges: 0,
+                pokedex_owned: 0,
+                play_time_hours: 0,
+                play_time_minutes: 0,
+            },
+            false,
+            false,
+        );
+
+        let resources = None;
+
+        Self {
+            state,
+            title_screen,
+            intro_scene: IntroSceneState::new(),
+            main_menu,
+            oak_speech,
+            overworld,
+            battle,
+            battle_vfx,
+            start_menu,
+            options_menu,
+            save_menu,
+            save_data,
+            player_name: "RED".to_string(),
+            rival_name: "BLUE".to_string(),
+            frame_count: 0,
+            exit_requested: false,
+            resources,
+            prev_title_phase: None,
+            prev_oak_phase_tag: 0,
+            black_screen_frames: 0,
+            pending_screen: None,
+            scripts_dir: None,
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
     fn try_load_default_save() -> (SaveData, Option<SaveFileSummary>) {
         let path = save_file_path();
         match std::fs::read(&path) {
@@ -192,6 +277,7 @@ impl PokemonGame {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn load_sram_from_path(path: &Path) -> (SaveData, Option<SaveFileSummary>) {
         match std::fs::read(path) {
             Ok(data) => Self::parse_sram(path, &data),
@@ -202,6 +288,7 @@ impl PokemonGame {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn load_snapshot_from_path(path: &Path) -> (SaveData, Option<SaveFileSummary>) {
         match std::fs::read(path) {
             Ok(data) => match serde_json::from_slice::<SaveData>(&data) {
@@ -222,6 +309,7 @@ impl PokemonGame {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn parse_sram(path: &Path, data: &[u8]) -> (SaveData, Option<SaveFileSummary>) {
         match import_sram(data) {
             Ok(save) => {
@@ -243,6 +331,7 @@ impl PokemonGame {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn export_snapshot_from_sav(
         input_path: Option<&Path>,
         output_path: &Path,
@@ -319,6 +408,7 @@ impl PokemonGame {
         save
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn save_to_file(&mut self) {
         let save = self.build_save_data();
         let sram = export_sram(&save);
@@ -332,6 +422,11 @@ impl PokemonGame {
                 eprintln!("Error: failed to write save file: {}", e);
             }
         }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn save_to_file(&mut self) {
+        // Save file persistence not supported on wasm32
     }
 
     pub fn handle_transition(&mut self, screen: GameScreen) {
@@ -475,12 +570,9 @@ impl PokemonGame {
         }
         self.state.transition_to(screen);
     }
-}
 
-const BLACK_SCREEN_DURATION: u32 = 30;
-
-impl GameLoop for PokemonGame {
-    fn update(&mut self, input: &InputState) {
+    /// Update game state for one frame. Available for both wasm and native builds.
+    pub fn update(&mut self, input: &InputState) {
         self.frame_count += 1;
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -734,7 +826,8 @@ impl GameLoop for PokemonGame {
         }
     }
 
-    fn draw(&mut self, frame_buffer: &mut FrameBuffer) {
+    /// Draw game state to frame buffer. Available for both wasm and native builds.
+    pub fn draw(&mut self, frame_buffer: &mut FrameBuffer) {
         if self.black_screen_frames > 0 {
             frame_buffer.clear(Rgba::BLACK);
             return;
@@ -783,7 +876,25 @@ impl GameLoop for PokemonGame {
         }
     }
 
-    fn should_exit(&self) -> bool {
+    /// Check if game should exit. Available for both wasm and native builds.
+    pub fn should_exit(&self) -> bool {
         self.exit_requested
+    }
+}
+
+const BLACK_SCREEN_DURATION: u32 = 30;
+
+#[cfg(not(target_arch = "wasm32"))]
+impl GameLoop for PokemonGame {
+    fn update(&mut self, input: &InputState) {
+        self.update(input);
+    }
+
+    fn draw(&mut self, frame_buffer: &mut FrameBuffer) {
+        self.draw(frame_buffer);
+    }
+
+    fn should_exit(&self) -> bool {
+        self.should_exit()
     }
 }
