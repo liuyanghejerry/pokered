@@ -405,6 +405,14 @@ impl Sequencer {
         start_channel: usize,
         tempo: u16,
     ) {
+        // Match the original game's behavior: if this SFX is already playing,
+        // don't restart it. The original checks wChannelSoundIDs + CHAN5 and
+        // skips PlaySound if it matches (e.g. SFX_COLLISION dedup in
+        // home/overworld.asm lines 1245-1247).
+        if self.sfx_playing && self.current_sfx_id == sound_id {
+            return;
+        }
+
         self.current_sfx_id = sound_id;
         self.sfx_tempo = tempo;
         self.sfx_playing = true;
