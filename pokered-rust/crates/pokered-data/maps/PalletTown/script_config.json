@@ -9,17 +9,46 @@
     "palletTownNoop"
   ],
   "npcs": [
-    { "id": 1, "talk": "talkOak" },
-    { "id": 2, "talk": "talkGirl" },
-    { "id": 3, "talk": "talkFisher" }
+    {
+      "id": 1,
+      "talk": "talkOak",
+      "toggleId": "PALLET_TOWN_OBJ_1",
+      "defaultHidden": true
+    },
+    {
+      "id": 2,
+      "talk": "talkGirl"
+    },
+    {
+      "id": 3,
+      "talk": "talkFisher"
+    }
   ],
   "signs": [
-    { "id": 1, "talk": "signOakLab" },
-    { "id": 2, "talk": "signPalletTown" },
-    { "id": 3, "talk": "signPlayersHouse" },
-    { "id": 4, "talk": "signRivalsHouse" }
+    {
+      "id": 1,
+      "talk": "signOakLab"
+    },
+    {
+      "id": 2,
+      "talk": "signPalletTown"
+    },
+    {
+      "id": 3,
+      "talk": "signPlayersHouse"
+    },
+    {
+      "id": 4,
+      "talk": "signRivalsHouse"
+    }
   ],
   "coordEvents": [
-    { "position": [0, 1], "trigger": "coordNorthExit" }
+    {
+      "position": [
+        0,
+        1
+      ],
+      "trigger": "coordNorthExit"
+    }
   ]
 }

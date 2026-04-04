@@ -1,9 +1,22 @@
 {
   "mapScripts": [],
   "npcs": [
-    { "id": 1, "talk": "talkDaisySitting" },
-    { "id": 2, "talk": "talkDaisyWalking" },
-    { "id": 3, "talk": "talkTownMap" }
+    {
+      "id": 1,
+      "talk": "talkDaisySitting",
+      "toggleId": "BLUES_HOUSE_OBJ_1"
+    },
+    {
+      "id": 2,
+      "talk": "talkDaisyWalking",
+      "toggleId": "BLUES_HOUSE_OBJ_2",
+      "defaultHidden": true
+    },
+    {
+      "id": 3,
+      "talk": "talkTownMap",
+      "toggleId": "BLUES_HOUSE_OBJ_3"
+    }
   ],
   "signs": [],
   "coordEvents": []

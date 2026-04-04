@@ -17,7 +17,8 @@
     },
     {
       "id": 4,
-      "talk": "talkPokeBall"
+      "talk": "talkPokeBall",
+      "toggleId": "POKEMON_TOWER_3F_OBJ_4"
     }
   ],
   "signs": [],

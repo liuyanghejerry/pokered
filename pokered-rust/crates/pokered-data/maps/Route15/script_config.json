@@ -45,7 +45,8 @@
     },
     {
       "id": 11,
-      "talk": "talkPokeBall"
+      "talk": "talkPokeBall",
+      "toggleId": "ROUTE_15_OBJ_11"
     }
   ],
   "signs": [

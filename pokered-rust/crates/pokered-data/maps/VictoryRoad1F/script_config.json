@@ -13,11 +13,13 @@
     },
     {
       "id": 3,
-      "talk": "talkPokeBall"
+      "talk": "talkPokeBall",
+      "toggleId": "VICTORY_ROAD_1F_OBJ_3"
     },
     {
       "id": 4,
-      "talk": "talkPokeBall1"
+      "talk": "talkPokeBall1",
+      "toggleId": "VICTORY_ROAD_1F_OBJ_4"
     },
     {
       "id": 5,

@@ -5,19 +5,23 @@
   "npcs": [
     {
       "id": 1,
-      "talk": "talkPokeBall"
+      "talk": "talkPokeBall",
+      "toggleId": "SAFARI_ZONE_WEST_OBJ_1"
     },
     {
       "id": 2,
-      "talk": "talkPokeBall1"
+      "talk": "talkPokeBall1",
+      "toggleId": "SAFARI_ZONE_WEST_OBJ_2"
     },
     {
       "id": 3,
-      "talk": "talkPokeBall2"
+      "talk": "talkPokeBall2",
+      "toggleId": "SAFARI_ZONE_WEST_OBJ_3"
     },
     {
       "id": 4,
-      "talk": "talkPokeBall3"
+      "talk": "talkPokeBall3",
+      "toggleId": "SAFARI_ZONE_WEST_OBJ_4"
     }
   ],
   "signs": [

@@ -5,19 +5,23 @@
   "npcs": [
     {
       "id": 1,
-      "talk": "talkRocket"
+      "talk": "talkRocket",
+      "toggleId": "POKEMON_TOWER_7F_OBJ_1"
     },
     {
       "id": 2,
-      "talk": "talkRocket1"
+      "talk": "talkRocket1",
+      "toggleId": "POKEMON_TOWER_7F_OBJ_2"
     },
     {
       "id": 3,
-      "talk": "talkRocket2"
+      "talk": "talkRocket2",
+      "toggleId": "POKEMON_TOWER_7F_OBJ_3"
     },
     {
       "id": 4,
-      "talk": "talkMrFuji"
+      "talk": "talkMrFuji",
+      "toggleId": "POKEMON_TOWER_7F_OBJ_4"
     }
   ],
   "signs": [],

@@ -5,7 +5,8 @@
   "npcs": [
     {
       "id": 1,
-      "talk": "talkCooltrainerM"
+      "talk": "talkCooltrainerM",
+      "toggleId": "ROUTE_24_OBJ_1"
     },
     {
       "id": 2,
@@ -33,7 +34,8 @@
     },
     {
       "id": 8,
-      "talk": "talkPokeBall"
+      "talk": "talkPokeBall",
+      "toggleId": "ROUTE_24_OBJ_8"
     }
   ],
   "signs": [],

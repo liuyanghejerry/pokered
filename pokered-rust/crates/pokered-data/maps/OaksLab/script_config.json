@@ -21,17 +21,60 @@
     "scriptNoop"
   ],
   "npcs": [
-    { "id": 1, "talk": "talkRival" },
-    { "id": 2, "talk": "talkCharmanderBall" },
-    { "id": 3, "talk": "talkSquirtleBall" },
-    { "id": 4, "talk": "talkBulbasaurBall" },
-    { "id": 5, "talk": "talkOak1" },
-    { "id": 6, "talk": "talkPokedex" },
-    { "id": 7, "talk": "talkPokedex" },
-    { "id": 8, "talk": "talkOak2" },
-    { "id": 9, "talk": "talkLabGirl" },
-    { "id": 10, "talk": "talkScientist" },
-    { "id": 11, "talk": "talkScientist" }
+    {
+      "id": 1,
+      "talk": "talkRival",
+      "toggleId": "OAKS_LAB_OBJ_1"
+    },
+    {
+      "id": 2,
+      "talk": "talkCharmanderBall",
+      "toggleId": "OAKS_LAB_OBJ_2"
+    },
+    {
+      "id": 3,
+      "talk": "talkSquirtleBall",
+      "toggleId": "OAKS_LAB_OBJ_3"
+    },
+    {
+      "id": 4,
+      "talk": "talkBulbasaurBall",
+      "toggleId": "OAKS_LAB_OBJ_4"
+    },
+    {
+      "id": 5,
+      "talk": "talkOak1",
+      "toggleId": "OAKS_LAB_OBJ_5",
+      "defaultHidden": true
+    },
+    {
+      "id": 6,
+      "talk": "talkPokedex",
+      "toggleId": "OAKS_LAB_OBJ_6"
+    },
+    {
+      "id": 7,
+      "talk": "talkPokedex",
+      "toggleId": "OAKS_LAB_OBJ_7"
+    },
+    {
+      "id": 8,
+      "talk": "talkOak2",
+      "toggleId": "OAKS_LAB_OBJ_8",
+      "defaultHidden": true
+    },
+    {
+      "id": 9,
+      "talk": "talkLabGirl"
+    },
+    {
+      "id": 10,
+      "talk": "talkScientist"
+    },
+    {
+      "id": 11,
+      "talk": "talkScientist"
+    }
   ],
   "signs": [],
   "coordEvents": []

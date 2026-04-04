@@ -21,15 +21,18 @@
     },
     {
       "id": 5,
-      "talk": "talkPokeBall"
+      "talk": "talkPokeBall",
+      "toggleId": "VIRIDIAN_FOREST_OBJ_5"
     },
     {
       "id": 6,
-      "talk": "talkPokeBall1"
+      "talk": "talkPokeBall1",
+      "toggleId": "VIRIDIAN_FOREST_OBJ_6"
     },
     {
       "id": 7,
-      "talk": "talkPokeBall2"
+      "talk": "talkPokeBall2",
+      "toggleId": "VIRIDIAN_FOREST_OBJ_7"
     },
     {
       "id": 8,

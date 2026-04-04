@@ -13,7 +13,8 @@
     },
     {
       "id": 3,
-      "talk": "talkSuperNerd"
+      "talk": "talkSuperNerd",
+      "toggleId": "PEWTER_CITY_OBJ_3"
     },
     {
       "id": 4,
@@ -21,7 +22,8 @@
     },
     {
       "id": 5,
-      "talk": "talkYoungster"
+      "talk": "talkYoungster",
+      "toggleId": "PEWTER_CITY_OBJ_5"
     }
   ],
   "signs": [

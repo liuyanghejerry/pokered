@@ -9,7 +9,8 @@
     },
     {
       "id": 2,
-      "talk": "talkPokeBall"
+      "talk": "talkPokeBall",
+      "toggleId": "POKEMON_MANSION_2F_OBJ_2"
     },
     {
       "id": 3,

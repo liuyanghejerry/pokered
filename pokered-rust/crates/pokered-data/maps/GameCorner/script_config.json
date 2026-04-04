@@ -45,7 +45,8 @@
     },
     {
       "id": 11,
-      "talk": "talkRocket"
+      "talk": "talkRocket",
+      "toggleId": "GAME_CORNER_OBJ_11"
     }
   ],
   "signs": [

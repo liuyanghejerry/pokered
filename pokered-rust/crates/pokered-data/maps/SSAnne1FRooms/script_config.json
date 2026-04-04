@@ -41,7 +41,8 @@
     },
     {
       "id": 10,
-      "talk": "talkPokeBall"
+      "talk": "talkPokeBall",
+      "toggleId": "SS_ANNE_1F_ROOMS_OBJ_10"
     },
     {
       "id": 11,

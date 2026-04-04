@@ -5,23 +5,28 @@
   "npcs": [
     {
       "id": 1,
-      "talk": "talkSilphWorkerF"
+      "talk": "talkSilphWorkerF",
+      "toggleId": "SILPH_CO_2F_OBJ_1"
     },
     {
       "id": 2,
-      "talk": "talkScientist"
+      "talk": "talkScientist",
+      "toggleId": "SILPH_CO_2F_OBJ_2"
     },
     {
       "id": 3,
-      "talk": "talkScientist1"
+      "talk": "talkScientist1",
+      "toggleId": "SILPH_CO_2F_OBJ_3"
     },
     {
       "id": 4,
-      "talk": "talkRocket"
+      "talk": "talkRocket",
+      "toggleId": "SILPH_CO_2F_OBJ_4"
     },
     {
       "id": 5,
-      "talk": "talkRocket1"
+      "talk": "talkRocket1",
+      "toggleId": "SILPH_CO_2F_OBJ_5"
     }
   ],
   "signs": [],

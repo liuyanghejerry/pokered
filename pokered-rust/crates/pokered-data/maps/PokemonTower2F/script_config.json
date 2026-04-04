@@ -5,7 +5,8 @@
   "npcs": [
     {
       "id": 1,
-      "talk": "talkBlue"
+      "talk": "talkBlue",
+      "toggleId": "POKEMON_TOWER_2F_OBJ_1"
     },
     {
       "id": 2,

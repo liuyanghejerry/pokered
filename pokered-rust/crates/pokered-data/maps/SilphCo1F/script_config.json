@@ -5,7 +5,9 @@
   "npcs": [
     {
       "id": 1,
-      "talk": "talkLinkReceptionist"
+      "talk": "talkLinkReceptionist",
+      "toggleId": "SILPH_CO_1F_OBJ_1",
+      "defaultHidden": true
     }
   ],
   "signs": [],

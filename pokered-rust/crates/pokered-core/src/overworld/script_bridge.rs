@@ -32,6 +32,12 @@ pub enum ScriptEffect {
     HideObject {
         object_index: u8,
     },
+    ShowObjectByName {
+        toggle_id: String,
+    },
+    HideObjectByName {
+        toggle_id: String,
+    },
     MoveNpc {
         npc_id: String,
         path: Vec<(u8, u8)>,
@@ -112,6 +118,12 @@ pub fn dispatch_command(cmd: &ScriptCommand) -> ScriptEffect {
         },
         ScriptCommand::HideObject { object_index } => ScriptEffect::HideObject {
             object_index: *object_index,
+        },
+        ScriptCommand::ShowObjectByName { toggle_id } => ScriptEffect::ShowObjectByName {
+            toggle_id: toggle_id.clone(),
+        },
+        ScriptCommand::HideObjectByName { toggle_id } => ScriptEffect::HideObjectByName {
+            toggle_id: toggle_id.clone(),
         },
         ScriptCommand::MoveNpc { npc_id, path } => ScriptEffect::MoveNpc {
             npc_id: npc_id.clone(),

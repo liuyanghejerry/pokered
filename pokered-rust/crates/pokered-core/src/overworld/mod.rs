@@ -448,28 +448,34 @@ fn resolve_placeholders(text: &str, player_name: &str, rival_name: &str) -> Stri
         .replace("<RIVAL>", rival_name)
 }
 
-fn build_npc_runtime_states(npcs: &[NpcDefinition]) -> Vec<npc_movement::NpcRuntimeState> {
+fn build_npc_runtime_states(
+    npcs: &[NpcDefinition],
+    hidden_npc_ids: &[u8],
+) -> Vec<npc_movement::NpcRuntimeState> {
     npcs.iter()
         .enumerate()
-        .map(|(i, npc)| npc_movement::NpcRuntimeState {
-            npc_index: i as u8,
-            sprite_id: npc.sprite_id,
-            x: npc.x as u16,
-            y: npc.y as u16,
-            home_x: npc.x as u16,
-            home_y: npc.y as u16,
-            facing: npc.facing,
-            movement_type: npc.movement,
-            range: npc.range,
-            walk_counter: 0,
-            delay_counter: 0,
-            text_id: npc.text_id,
-            is_trainer: npc.is_trainer,
-            trainer_class: npc.trainer_class,
-            trainer_set: npc.trainer_set,
-            item_id: npc.item_id,
-            defeated: false,
-            visible: true,
+        .map(|(i, npc)| {
+            let visible = !hidden_npc_ids.contains(&npc.text_id);
+            npc_movement::NpcRuntimeState {
+                npc_index: i as u8,
+                sprite_id: npc.sprite_id,
+                x: npc.x as u16,
+                y: npc.y as u16,
+                home_x: npc.x as u16,
+                home_y: npc.y as u16,
+                facing: npc.facing,
+                movement_type: npc.movement,
+                range: npc.range,
+                walk_counter: 0,
+                delay_counter: 0,
+                text_id: npc.text_id,
+                is_trainer: npc.is_trainer,
+                trainer_class: npc.trainer_class,
+                trainer_set: npc.trainer_set,
+                item_id: npc.item_id,
+                defeated: false,
+                visible,
+            }
         })
         .collect()
 }
@@ -521,10 +527,6 @@ const MAP_NAME_DISPLAY_FRAMES: u8 = 120;
 impl OverworldScreen {
     pub fn new(start_map: MapId, scripts_dir: Option<std::path::PathBuf>) -> Self {
         let map_data = Some(map_data_loading::load_full_map_data(start_map));
-        let npc_states = map_data
-            .as_ref()
-            .map(|md| build_npc_runtime_states(&md.npcs))
-            .unwrap_or_default();
 
         let mut script_loader = ScriptLoader::new();
         match script_loader.load_auto(scripts_dir.as_deref()) {
@@ -540,6 +542,12 @@ impl OverworldScreen {
         let map_script_config = script_loader
             .get_config(&map_key)
             .cloned()
+            .unwrap_or_default();
+
+        let hidden_npc_ids = map_script_config.hidden_npc_ids();
+        let npc_states = map_data
+            .as_ref()
+            .map(|md| build_npc_runtime_states(&md.npcs, &hidden_npc_ids))
             .unwrap_or_default();
 
         Self {
@@ -596,12 +604,13 @@ impl OverworldScreen {
             self.state.player.x = warp.dest_x as u16;
             self.state.player.y = warp.dest_y as u16;
             self.map_data = Some(map_data_loading::load_full_map_data(warp.dest_map));
+            self.load_map_script(warp.dest_map);
+            let hidden_npc_ids = self.map_script_config.hidden_npc_ids();
             self.npc_states = self
                 .map_data
                 .as_ref()
-                .map(|md| build_npc_runtime_states(&md.npcs))
+                .map(|md| build_npc_runtime_states(&md.npcs, &hidden_npc_ids))
                 .unwrap_or_default();
-            self.load_map_script(warp.dest_map);
             if !warp.dest_map.is_indoor() {
                 self.map_name_timer = MAP_NAME_DISPLAY_FRAMES;
             }
@@ -901,14 +910,15 @@ impl OverworldScreen {
                             }
                             self.state.current_map = new_map;
                             self.map_data = Some(map_data_loading::load_full_map_data(new_map));
+                            self.load_map_script(new_map);
+                            let hidden_npc_ids = self.map_script_config.hidden_npc_ids();
                             self.npc_states = self
                                 .map_data
                                 .as_ref()
-                                .map(|md| build_npc_runtime_states(&md.npcs))
+                                .map(|md| build_npc_runtime_states(&md.npcs, &hidden_npc_ids))
                                 .unwrap_or_default();
                             self.state.player.x = transition.new_x;
                             self.state.player.y = transition.new_y;
-                            self.load_map_script(new_map);
 
                             if !new_map.is_indoor() {
                                 self.map_name_timer = MAP_NAME_DISPLAY_FRAMES;
@@ -1072,6 +1082,22 @@ impl OverworldScreen {
                         .find(|n| n.npc_index == object_index)
                     {
                         npc.visible = false;
+                    }
+                }
+                script_bridge::ScriptEffect::ShowObjectByName { toggle_id } => {
+                    if let Some(npc_id) = self.map_script_config.npc_id_by_toggle(&toggle_id) {
+                        if let Some(npc) = self.npc_states.iter_mut().find(|n| n.text_id == npc_id)
+                        {
+                            npc.visible = true;
+                        }
+                    }
+                }
+                script_bridge::ScriptEffect::HideObjectByName { toggle_id } => {
+                    if let Some(npc_id) = self.map_script_config.npc_id_by_toggle(&toggle_id) {
+                        if let Some(npc) = self.npc_states.iter_mut().find(|n| n.text_id == npc_id)
+                        {
+                            npc.visible = false;
+                        }
                     }
                 }
                 _ => {}

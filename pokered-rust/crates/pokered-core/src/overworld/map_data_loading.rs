@@ -8,7 +8,6 @@ use pokered_data::map_json::{ConnectionEntryJson, ConnectionsJson, NpcJson, Sign
 use pokered_data::maps::MapId;
 use pokered_data::music::MusicId;
 use pokered_data::tilesets::TilesetId;
-use pokered_data::toggleable_objects;
 
 use super::{
     Direction, MapConnection, MapConnections, MapData, NpcDefinition, NpcMovementType, Sign,
@@ -40,7 +39,6 @@ pub fn load_full_map_data(map_id: MapId) -> MapData {
         .collect();
 
     // Convert NPCs
-    let _toggle_entries = toggleable_objects::toggleable_objects_for_map(map_id);
     let npcs: Vec<NpcDefinition> = map_json.npcs.iter().map(convert_npc).collect();
 
     // Convert signs

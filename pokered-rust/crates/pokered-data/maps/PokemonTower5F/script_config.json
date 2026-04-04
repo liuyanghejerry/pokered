@@ -25,7 +25,8 @@
     },
     {
       "id": 6,
-      "talk": "talkPokeBall"
+      "talk": "talkPokeBall",
+      "toggleId": "POKEMON_TOWER_5F_OBJ_6"
     }
   ],
   "signs": [],

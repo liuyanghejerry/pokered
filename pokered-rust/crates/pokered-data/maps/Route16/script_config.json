@@ -29,7 +29,8 @@
     },
     {
       "id": 7,
-      "talk": "talkSnorlax"
+      "talk": "talkSnorlax",
+      "toggleId": "ROUTE_16_OBJ_7"
     }
   ],
   "signs": [

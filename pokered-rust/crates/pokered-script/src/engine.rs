@@ -74,10 +74,9 @@ impl ScriptEngine {
 
         #[cfg(not(target_arch = "wasm32"))]
         let mut context = Context::builder()
-            .module_loader(Rc::new(
-                SimpleModuleLoader::new(".")
-                    .expect("failed to create module loader (current directory must exist)"),
-            ))
+            .module_loader(Rc::new(SimpleModuleLoader::new(".").expect(
+                "failed to create module loader (current directory must exist)",
+            )))
             .build()
             .expect("failed to build JS context");
         let bridge = Rc::new(RefCell::new(SharedBridge::new()));
@@ -599,27 +598,39 @@ fn register_game_api(context: &mut Context, bridge: Rc<RefCell<SharedBridge>>) {
         }
     );
 
-    // game.showObject(objectIndex: number) -> Promise<void>
+    // game.showObject(objectIndexOrToggleId: number | string) -> Promise<void>
     register_async_command!(
         "showObject",
         bridge,
         context,
         game_obj,
         |args: &[JsValue], ctx: &mut Context| -> JsResult<ScriptCommand> {
-            let object_index = args.get_or_undefined(0).to_u32(ctx)? as u8;
-            Ok(ScriptCommand::ShowObject { object_index })
+            let arg = args.get_or_undefined(0);
+            if arg.is_string() {
+                let toggle_id = arg.to_string(ctx)?.to_std_string_lossy();
+                Ok(ScriptCommand::ShowObjectByName { toggle_id })
+            } else {
+                let object_index = arg.to_u32(ctx)? as u8;
+                Ok(ScriptCommand::ShowObject { object_index })
+            }
         }
     );
 
-    // game.hideObject(objectIndex: number) -> Promise<void>
+    // game.hideObject(objectIndexOrToggleId: number | string) -> Promise<void>
     register_async_command!(
         "hideObject",
         bridge,
         context,
         game_obj,
         |args: &[JsValue], ctx: &mut Context| -> JsResult<ScriptCommand> {
-            let object_index = args.get_or_undefined(0).to_u32(ctx)? as u8;
-            Ok(ScriptCommand::HideObject { object_index })
+            let arg = args.get_or_undefined(0);
+            if arg.is_string() {
+                let toggle_id = arg.to_string(ctx)?.to_std_string_lossy();
+                Ok(ScriptCommand::HideObjectByName { toggle_id })
+            } else {
+                let object_index = arg.to_u32(ctx)? as u8;
+                Ok(ScriptCommand::HideObject { object_index })
+            }
         }
     );
 

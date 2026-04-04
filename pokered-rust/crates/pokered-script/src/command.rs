@@ -12,6 +12,8 @@ pub enum ScriptCommand {
     CheckFlag { flag: String },
     ShowObject { object_index: u8 },
     HideObject { object_index: u8 },
+    ShowObjectByName { toggle_id: String },
+    HideObjectByName { toggle_id: String },
     MoveNpc { npc_id: String, path: Vec<(u8, u8)> },
     FaceNpc { npc_id: String, direction: String },
     FacePlayer { direction: String },

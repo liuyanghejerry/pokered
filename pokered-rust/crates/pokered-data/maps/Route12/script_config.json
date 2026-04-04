@@ -5,7 +5,8 @@
   "npcs": [
     {
       "id": 1,
-      "talk": "talkSnorlax"
+      "talk": "talkSnorlax",
+      "toggleId": "ROUTE_12_OBJ_1"
     },
     {
       "id": 2,
@@ -37,11 +38,13 @@
     },
     {
       "id": 9,
-      "talk": "talkPokeBall"
+      "talk": "talkPokeBall",
+      "toggleId": "ROUTE_12_OBJ_9"
     },
     {
       "id": 10,
-      "talk": "talkPokeBall1"
+      "talk": "talkPokeBall1",
+      "toggleId": "ROUTE_12_OBJ_10"
     }
   ],
   "signs": [

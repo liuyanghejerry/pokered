@@ -13,7 +13,8 @@
     },
     {
       "id": 3,
-      "talk": "talkPokeBall"
+      "talk": "talkPokeBall",
+      "toggleId": "ROUTE_4_OBJ_3"
     }
   ],
   "signs": [

@@ -21,7 +21,9 @@
     },
     {
       "id": 5,
-      "talk": "talkMrFuji"
+      "talk": "talkMrFuji",
+      "toggleId": "MR_FUJIS_HOUSE_OBJ_5",
+      "defaultHidden": true
     },
     {
       "id": 6,

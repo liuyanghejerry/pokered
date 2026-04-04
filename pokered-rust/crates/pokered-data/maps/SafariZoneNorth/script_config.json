@@ -5,11 +5,13 @@
   "npcs": [
     {
       "id": 1,
-      "talk": "talkPokeBall"
+      "talk": "talkPokeBall",
+      "toggleId": "SAFARI_ZONE_NORTH_OBJ_1"
     },
     {
       "id": 2,
-      "talk": "talkPokeBall1"
+      "talk": "talkPokeBall1",
+      "toggleId": "SAFARI_ZONE_NORTH_OBJ_2"
     }
   ],
   "signs": [

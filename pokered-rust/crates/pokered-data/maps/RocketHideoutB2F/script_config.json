@@ -9,19 +9,23 @@
     },
     {
       "id": 2,
-      "talk": "talkPokeBall"
+      "talk": "talkPokeBall",
+      "toggleId": "ROCKET_HIDEOUT_B2F_OBJ_2"
     },
     {
       "id": 3,
-      "talk": "talkPokeBall1"
+      "talk": "talkPokeBall1",
+      "toggleId": "ROCKET_HIDEOUT_B2F_OBJ_3"
     },
     {
       "id": 4,
-      "talk": "talkPokeBall2"
+      "talk": "talkPokeBall2",
+      "toggleId": "ROCKET_HIDEOUT_B2F_OBJ_4"
     },
     {
       "id": 5,
-      "talk": "talkPokeBall3"
+      "talk": "talkPokeBall3",
+      "toggleId": "ROCKET_HIDEOUT_B2F_OBJ_5"
     }
   ],
   "signs": [],

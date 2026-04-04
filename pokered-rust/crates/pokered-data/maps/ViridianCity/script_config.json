@@ -1,21 +1,65 @@
 {
-  "mapScripts": ["scriptDefault"],
+  "mapScripts": [
+    "scriptDefault"
+  ],
   "npcs": [
-    { "id": 1, "talk": "talkYoungster" },
-    { "id": 2, "talk": "talkGambler" },
-    { "id": 3, "talk": "talkYoungster1" },
-    { "id": 4, "talk": "talkGirl" },
-    { "id": 5, "talk": "talkGamblerAsleep" },
-    { "id": 6, "talk": "talkFisher" },
-    { "id": 7, "talk": "talkGambler1" }
+    {
+      "id": 1,
+      "talk": "talkYoungster"
+    },
+    {
+      "id": 2,
+      "talk": "talkGambler"
+    },
+    {
+      "id": 3,
+      "talk": "talkYoungster1"
+    },
+    {
+      "id": 4,
+      "talk": "talkGirl"
+    },
+    {
+      "id": 5,
+      "talk": "talkGamblerAsleep",
+      "toggleId": "VIRIDIAN_CITY_OBJ_5"
+    },
+    {
+      "id": 6,
+      "talk": "talkFisher"
+    },
+    {
+      "id": 7,
+      "talk": "talkGambler1",
+      "toggleId": "VIRIDIAN_CITY_OBJ_7",
+      "defaultHidden": true
+    }
   ],
   "signs": [
-    { "id": 1, "talk": "sign1" },
-    { "id": 2, "talk": "sign2" },
-    { "id": 3, "talk": "sign3" },
-    { "id": 4, "talk": "sign4" },
-    { "id": 5, "talk": "sign5" },
-    { "id": 6, "talk": "sign6" }
+    {
+      "id": 1,
+      "talk": "sign1"
+    },
+    {
+      "id": 2,
+      "talk": "sign2"
+    },
+    {
+      "id": 3,
+      "talk": "sign3"
+    },
+    {
+      "id": 4,
+      "talk": "sign4"
+    },
+    {
+      "id": 5,
+      "talk": "sign5"
+    },
+    {
+      "id": 6,
+      "talk": "sign6"
+    }
   ],
   "coordEvents": []
 }

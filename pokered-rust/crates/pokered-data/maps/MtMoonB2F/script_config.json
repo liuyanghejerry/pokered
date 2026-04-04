@@ -25,19 +25,23 @@
     },
     {
       "id": 6,
-      "talk": "talkFossil"
+      "talk": "talkFossil",
+      "toggleId": "MT_MOON_B2F_OBJ_6"
     },
     {
       "id": 7,
-      "talk": "talkFossil1"
+      "talk": "talkFossil1",
+      "toggleId": "MT_MOON_B2F_OBJ_7"
     },
     {
       "id": 8,
-      "talk": "talkPokeBall"
+      "talk": "talkPokeBall",
+      "toggleId": "MT_MOON_B2F_OBJ_8"
     },
     {
       "id": 9,
-      "talk": "talkPokeBall1"
+      "talk": "talkPokeBall1",
+      "toggleId": "MT_MOON_B2F_OBJ_9"
     }
   ],
   "signs": [],

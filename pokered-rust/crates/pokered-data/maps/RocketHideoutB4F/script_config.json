@@ -5,7 +5,8 @@
   "npcs": [
     {
       "id": 1,
-      "talk": "talkGiovanni"
+      "talk": "talkGiovanni",
+      "toggleId": "ROCKET_HIDEOUT_B4F_OBJ_1"
     },
     {
       "id": 2,
@@ -21,23 +22,30 @@
     },
     {
       "id": 5,
-      "talk": "talkPokeBall"
+      "talk": "talkPokeBall",
+      "toggleId": "ROCKET_HIDEOUT_B4F_OBJ_5"
     },
     {
       "id": 6,
-      "talk": "talkPokeBall1"
+      "talk": "talkPokeBall1",
+      "toggleId": "ROCKET_HIDEOUT_B4F_OBJ_6"
     },
     {
       "id": 7,
-      "talk": "talkPokeBall2"
+      "talk": "talkPokeBall2",
+      "toggleId": "ROCKET_HIDEOUT_B4F_OBJ_7"
     },
     {
       "id": 8,
-      "talk": "talkPokeBall3"
+      "talk": "talkPokeBall3",
+      "toggleId": "ROCKET_HIDEOUT_B4F_OBJ_8",
+      "defaultHidden": true
     },
     {
       "id": 9,
-      "talk": "talkPokeBall4"
+      "talk": "talkPokeBall4",
+      "toggleId": "ROCKET_HIDEOUT_B4F_OBJ_9",
+      "defaultHidden": true
     }
   ],
   "signs": [],

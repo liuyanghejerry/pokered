@@ -14,9 +14,17 @@ pub struct MapScriptConfig {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NpcBinding {
     pub id: u8,
-    pub talk: String,
+    #[serde(default)]
+    pub talk: Option<String>,
+    /// Named toggle identifier for script showObject/hideObject (e.g. "PALLET_TOWN_OAK").
+    #[serde(default)]
+    pub toggle_id: Option<String>,
+    /// If true, this NPC is hidden when the map first loads (until a script shows it).
+    #[serde(default)]
+    pub default_hidden: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -44,7 +52,7 @@ impl MapScriptConfig {
         self.npcs
             .iter()
             .find(|n| n.id == npc_text_id)
-            .map(|n| n.talk.as_str())
+            .and_then(|n| n.talk.as_deref())
     }
 
     pub fn sign_talk_fn(&self, sign_text_id: u8) -> Option<&str> {
@@ -59,5 +67,20 @@ impl MapScriptConfig {
             .iter()
             .find(|c| c.position == (x, y))
             .map(|c| c.trigger.as_str())
+    }
+
+    pub fn hidden_npc_ids(&self) -> Vec<u8> {
+        self.npcs
+            .iter()
+            .filter(|n| n.default_hidden)
+            .map(|n| n.id)
+            .collect()
+    }
+
+    pub fn npc_id_by_toggle(&self, toggle_id: &str) -> Option<u8> {
+        self.npcs
+            .iter()
+            .find(|n| n.toggle_id.as_deref() == Some(toggle_id))
+            .map(|n| n.id)
     }
 }

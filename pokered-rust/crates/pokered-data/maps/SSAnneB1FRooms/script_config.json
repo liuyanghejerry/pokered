@@ -37,15 +37,18 @@
     },
     {
       "id": 9,
-      "talk": "talkPokeBall"
+      "talk": "talkPokeBall",
+      "toggleId": "SS_ANNE_B1F_ROOMS_OBJ_9"
     },
     {
       "id": 10,
-      "talk": "talkPokeBall1"
+      "talk": "talkPokeBall1",
+      "toggleId": "SS_ANNE_B1F_ROOMS_OBJ_10"
     },
     {
       "id": 11,
-      "talk": "talkPokeBall2"
+      "talk": "talkPokeBall2",
+      "toggleId": "SS_ANNE_B1F_ROOMS_OBJ_11"
     }
   ],
   "signs": [],

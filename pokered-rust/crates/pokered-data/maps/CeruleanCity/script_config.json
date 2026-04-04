@@ -5,11 +5,14 @@
   "npcs": [
     {
       "id": 1,
-      "talk": "talkBlue"
+      "talk": "talkBlue",
+      "toggleId": "CERULEAN_CITY_OBJ_1",
+      "defaultHidden": true
     },
     {
       "id": 2,
-      "talk": "talkRocket"
+      "talk": "talkRocket",
+      "toggleId": "CERULEAN_CITY_OBJ_2"
     },
     {
       "id": 3,
@@ -25,7 +28,9 @@
     },
     {
       "id": 6,
-      "talk": "talkGuard"
+      "talk": "talkGuard",
+      "toggleId": "CERULEAN_CITY_OBJ_6",
+      "defaultHidden": true
     },
     {
       "id": 7,
@@ -41,11 +46,13 @@
     },
     {
       "id": 10,
-      "talk": "talkSuperNerd2"
+      "talk": "talkSuperNerd2",
+      "toggleId": "CERULEAN_CITY_OBJ_10"
     },
     {
       "id": 11,
-      "talk": "talkGuard1"
+      "talk": "talkGuard1",
+      "toggleId": "CERULEAN_CITY_OBJ_11"
     }
   ],
   "signs": [

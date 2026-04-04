@@ -13,15 +13,18 @@
     },
     {
       "id": 3,
-      "talk": "talkGiovanni"
+      "talk": "talkGiovanni",
+      "toggleId": "SILPH_CO_11F_OBJ_3"
     },
     {
       "id": 4,
-      "talk": "talkRocket"
+      "talk": "talkRocket",
+      "toggleId": "SILPH_CO_11F_OBJ_4"
     },
     {
       "id": 5,
-      "talk": "talkRocket1"
+      "talk": "talkRocket1",
+      "toggleId": "SILPH_CO_11F_OBJ_5"
     }
   ],
   "signs": [],

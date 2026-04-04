@@ -9,11 +9,13 @@
     },
     {
       "id": 2,
-      "talk": "talkBoulder1"
+      "talk": "talkBoulder1",
+      "toggleId": "SEAFOAM_ISLANDS_B3F_OBJ_2"
     },
     {
       "id": 3,
-      "talk": "talkBoulder2"
+      "talk": "talkBoulder2",
+      "toggleId": "SEAFOAM_ISLANDS_B3F_OBJ_3"
     },
     {
       "id": 4,
@@ -21,11 +23,15 @@
     },
     {
       "id": 5,
-      "talk": "talkBoulder4"
+      "talk": "talkBoulder4",
+      "toggleId": "SEAFOAM_ISLANDS_B3F_OBJ_5",
+      "defaultHidden": true
     },
     {
       "id": 6,
-      "talk": "talkBoulder5"
+      "talk": "talkBoulder5",
+      "toggleId": "SEAFOAM_ISLANDS_B3F_OBJ_6",
+      "defaultHidden": true
     }
   ],
   "signs": [],

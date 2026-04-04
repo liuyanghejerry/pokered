@@ -21,7 +21,8 @@
     },
     {
       "id": 5,
-      "talk": "talkOldAmber"
+      "talk": "talkOldAmber",
+      "toggleId": "MUSEUM_1F_OBJ_5"
     }
   ],
   "signs": [],

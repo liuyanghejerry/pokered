@@ -5,63 +5,85 @@
   "npcs": [
     {
       "id": 1,
-      "talk": "talkRocket"
+      "talk": "talkRocket",
+      "toggleId": "SAFFRON_CITY_OBJ_1"
     },
     {
       "id": 2,
-      "talk": "talkRocket1"
+      "talk": "talkRocket1",
+      "toggleId": "SAFFRON_CITY_OBJ_2"
     },
     {
       "id": 3,
-      "talk": "talkRocket2"
+      "talk": "talkRocket2",
+      "toggleId": "SAFFRON_CITY_OBJ_3"
     },
     {
       "id": 4,
-      "talk": "talkRocket3"
+      "talk": "talkRocket3",
+      "toggleId": "SAFFRON_CITY_OBJ_4"
     },
     {
       "id": 5,
-      "talk": "talkRocket4"
+      "talk": "talkRocket4",
+      "toggleId": "SAFFRON_CITY_OBJ_5"
     },
     {
       "id": 6,
-      "talk": "talkRocket5"
+      "talk": "talkRocket5",
+      "toggleId": "SAFFRON_CITY_OBJ_6"
     },
     {
       "id": 7,
-      "talk": "talkRocket6"
+      "talk": "talkRocket6",
+      "toggleId": "SAFFRON_CITY_OBJ_7"
     },
     {
       "id": 8,
-      "talk": "talkScientist"
+      "talk": "talkScientist",
+      "toggleId": "SAFFRON_CITY_OBJ_8",
+      "defaultHidden": true
     },
     {
       "id": 9,
-      "talk": "talkSilphWorkerM"
+      "talk": "talkSilphWorkerM",
+      "toggleId": "SAFFRON_CITY_OBJ_9",
+      "defaultHidden": true
     },
     {
       "id": 10,
-      "talk": "talkSilphWorkerF"
+      "talk": "talkSilphWorkerF",
+      "toggleId": "SAFFRON_CITY_OBJ_10",
+      "defaultHidden": true
     },
     {
       "id": 11,
-      "talk": "talkGentleman"
+      "talk": "talkGentleman",
+      "toggleId": "SAFFRON_CITY_OBJ_11",
+      "defaultHidden": true
     },
     {
       "id": 12,
-      "talk": "talkBird"
+      "talk": "talkBird",
+      "toggleId": "SAFFRON_CITY_OBJ_12",
+      "defaultHidden": true
     },
     {
       "id": 13,
-      "talk": "talkRocker"
+      "talk": "talkRocker",
+      "toggleId": "SAFFRON_CITY_OBJ_13",
+      "defaultHidden": true
     },
     {
       "id": 14,
-      "talk": "talkRocket7"
+      "talk": "talkRocket7",
+      "toggleId": "SAFFRON_CITY_OBJ_14"
     },
     {
       "id": 15,
-      "talk": "talkRocket8"
+      "talk": "talkRocket8",
+      "toggleId": "SAFFRON_CITY_OBJ_15",
+      "defaultHidden": true
     }
   ],
   "signs": [

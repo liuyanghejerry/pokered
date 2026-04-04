@@ -31,7 +31,6 @@ pub mod text_commands;
 pub mod text_scripts;
 pub mod tileset_data;
 pub mod tilesets;
-pub mod toggleable_objects;
 pub mod town_map_data;
 pub mod trainer_data;
 pub mod trainer_headers;

@@ -21,11 +21,13 @@
     },
     {
       "id": 5,
-      "talk": "talkPokeBall"
+      "talk": "talkPokeBall",
+      "toggleId": "VICTORY_ROAD_3F_OBJ_5"
     },
     {
       "id": 6,
-      "talk": "talkPokeBall1"
+      "talk": "talkPokeBall1",
+      "toggleId": "VICTORY_ROAD_3F_OBJ_6"
     },
     {
       "id": 7,
@@ -41,7 +43,8 @@
     },
     {
       "id": 10,
-      "talk": "talkBoulder3"
+      "talk": "talkBoulder3",
+      "toggleId": "VICTORY_ROAD_3F_OBJ_10"
     }
   ],
   "signs": [],

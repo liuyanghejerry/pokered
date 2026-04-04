@@ -5,15 +5,20 @@
   "npcs": [
     {
       "id": 1,
-      "talk": "talkMonster"
+      "talk": "talkMonster",
+      "toggleId": "BILLS_HOUSE_OBJ_1"
     },
     {
       "id": 2,
-      "talk": "talkSuperNerd"
+      "talk": "talkSuperNerd",
+      "toggleId": "BILLS_HOUSE_OBJ_2",
+      "defaultHidden": true
     },
     {
       "id": 3,
-      "talk": "talkSuperNerd1"
+      "talk": "talkSuperNerd1",
+      "toggleId": "BILLS_HOUSE_OBJ_3",
+      "defaultHidden": true
     }
   ],
   "signs": [],

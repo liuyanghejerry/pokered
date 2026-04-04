@@ -9,7 +9,6 @@ use pokered_data::map_names::{self, MapNameId};
 use pokered_data::maps::{MapId, NUM_MAPS};
 use pokered_data::music::MusicId;
 use pokered_data::tilesets::TilesetId;
-use pokered_data::toggleable_objects::{self, ToggleEntry};
 
 /// Get the map dimensions in blocks (width, height).
 pub fn get_map_dimensions(map: MapId) -> (u8, u8) {
@@ -114,7 +113,7 @@ pub fn connected_outdoor_maps() -> Vec<MapId> {
         .collect()
 }
 
-// ── M4.10: Map names, flags, and toggleable objects ────────────────
+// ── M4.10: Map names and flags ─────────────────────────────────────
 
 pub fn get_map_name(map: MapId) -> &'static str {
     map_names::map_name_for_map(map)
@@ -138,8 +137,4 @@ pub fn is_safari_rest_house(map: MapId) -> bool {
 
 pub fn badge_for_gym(map: MapId) -> Option<u8> {
     map_flags::badge_for_gym(map)
-}
-
-pub fn get_toggleable_objects(map: MapId) -> &'static [ToggleEntry] {
-    toggleable_objects::toggleable_objects_for_map(map)
 }

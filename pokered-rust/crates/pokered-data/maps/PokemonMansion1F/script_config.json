@@ -9,11 +9,13 @@
     },
     {
       "id": 2,
-      "talk": "talkPokeBall"
+      "talk": "talkPokeBall",
+      "toggleId": "POKEMON_MANSION_1F_OBJ_2"
     },
     {
       "id": 3,
-      "talk": "talkPokeBall1"
+      "talk": "talkPokeBall1",
+      "toggleId": "POKEMON_MANSION_1F_OBJ_3"
     }
   ],
   "signs": [],

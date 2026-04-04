@@ -5,15 +5,18 @@
   "npcs": [
     {
       "id": 1,
-      "talk": "talkPokeBall"
+      "talk": "talkPokeBall",
+      "toggleId": "CERULEAN_CAVE_2F_OBJ_1"
     },
     {
       "id": 2,
-      "talk": "talkPokeBall1"
+      "talk": "talkPokeBall1",
+      "toggleId": "CERULEAN_CAVE_2F_OBJ_2"
     },
     {
       "id": 3,
-      "talk": "talkPokeBall2"
+      "talk": "talkPokeBall2",
+      "toggleId": "CERULEAN_CAVE_2F_OBJ_3"
     }
   ],
   "signs": [],

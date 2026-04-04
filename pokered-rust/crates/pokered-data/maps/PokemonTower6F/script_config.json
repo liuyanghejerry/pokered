@@ -17,11 +17,13 @@
     },
     {
       "id": 4,
-      "talk": "talkPokeBall"
+      "talk": "talkPokeBall",
+      "toggleId": "POKEMON_TOWER_6F_OBJ_4"
     },
     {
       "id": 5,
-      "talk": "talkPokeBall1"
+      "talk": "talkPokeBall1",
+      "toggleId": "POKEMON_TOWER_6F_OBJ_5"
     }
   ],
   "signs": [],

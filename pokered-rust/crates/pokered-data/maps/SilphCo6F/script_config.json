@@ -25,23 +25,28 @@
     },
     {
       "id": 6,
-      "talk": "talkRocket"
+      "talk": "talkRocket",
+      "toggleId": "SILPH_CO_6F_OBJ_6"
     },
     {
       "id": 7,
-      "talk": "talkScientist"
+      "talk": "talkScientist",
+      "toggleId": "SILPH_CO_6F_OBJ_7"
     },
     {
       "id": 8,
-      "talk": "talkRocket1"
+      "talk": "talkRocket1",
+      "toggleId": "SILPH_CO_6F_OBJ_8"
     },
     {
       "id": 9,
-      "talk": "talkPokeBall"
+      "talk": "talkPokeBall",
+      "toggleId": "SILPH_CO_6F_OBJ_9"
     },
     {
       "id": 10,
-      "talk": "talkPokeBall1"
+      "talk": "talkPokeBall1",
+      "toggleId": "SILPH_CO_6F_OBJ_10"
     }
   ],
   "signs": [],

@@ -5,11 +5,15 @@
   "npcs": [
     {
       "id": 1,
-      "talk": "talkBlue"
+      "talk": "talkBlue",
+      "toggleId": "ROUTE_22_OBJ_1",
+      "defaultHidden": true
     },
     {
       "id": 2,
-      "talk": "talkBlue1"
+      "talk": "talkBlue1",
+      "toggleId": "ROUTE_22_OBJ_2",
+      "defaultHidden": true
     }
   ],
   "signs": [

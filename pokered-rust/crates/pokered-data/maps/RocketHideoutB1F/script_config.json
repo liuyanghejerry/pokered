@@ -25,11 +25,13 @@
     },
     {
       "id": 6,
-      "talk": "talkPokeBall"
+      "talk": "talkPokeBall",
+      "toggleId": "ROCKET_HIDEOUT_B1F_OBJ_6"
     },
     {
       "id": 7,
-      "talk": "talkPokeBall1"
+      "talk": "talkPokeBall1",
+      "toggleId": "ROCKET_HIDEOUT_B1F_OBJ_7"
     }
   ],
   "signs": [],

@@ -5,59 +5,73 @@
   "npcs": [
     {
       "id": 1,
-      "talk": "talkPokeBall"
+      "talk": "talkPokeBall",
+      "toggleId": "POWER_PLANT_OBJ_1"
     },
     {
       "id": 2,
-      "talk": "talkPokeBall1"
+      "talk": "talkPokeBall1",
+      "toggleId": "POWER_PLANT_OBJ_2"
     },
     {
       "id": 3,
-      "talk": "talkPokeBall2"
+      "talk": "talkPokeBall2",
+      "toggleId": "POWER_PLANT_OBJ_3"
     },
     {
       "id": 4,
-      "talk": "talkPokeBall3"
+      "talk": "talkPokeBall3",
+      "toggleId": "POWER_PLANT_OBJ_4"
     },
     {
       "id": 5,
-      "talk": "talkPokeBall4"
+      "talk": "talkPokeBall4",
+      "toggleId": "POWER_PLANT_OBJ_5"
     },
     {
       "id": 6,
-      "talk": "talkPokeBall5"
+      "talk": "talkPokeBall5",
+      "toggleId": "POWER_PLANT_OBJ_6"
     },
     {
       "id": 7,
-      "talk": "talkPokeBall6"
+      "talk": "talkPokeBall6",
+      "toggleId": "POWER_PLANT_OBJ_7"
     },
     {
       "id": 8,
-      "talk": "talkPokeBall7"
+      "talk": "talkPokeBall7",
+      "toggleId": "POWER_PLANT_OBJ_8"
     },
     {
       "id": 9,
-      "talk": "talkBird"
+      "talk": "talkBird",
+      "toggleId": "POWER_PLANT_OBJ_9"
     },
     {
       "id": 10,
-      "talk": "talkPokeBall8"
+      "talk": "talkPokeBall8",
+      "toggleId": "POWER_PLANT_OBJ_10"
     },
     {
       "id": 11,
-      "talk": "talkPokeBall9"
+      "talk": "talkPokeBall9",
+      "toggleId": "POWER_PLANT_OBJ_11"
     },
     {
       "id": 12,
-      "talk": "talkPokeBall10"
+      "talk": "talkPokeBall10",
+      "toggleId": "POWER_PLANT_OBJ_12"
     },
     {
       "id": 13,
-      "talk": "talkPokeBall11"
+      "talk": "talkPokeBall11",
+      "toggleId": "POWER_PLANT_OBJ_13"
     },
     {
       "id": 14,
-      "talk": "talkPokeBall12"
+      "talk": "talkPokeBall12",
+      "toggleId": "POWER_PLANT_OBJ_14"
     }
   ],
   "signs": [],

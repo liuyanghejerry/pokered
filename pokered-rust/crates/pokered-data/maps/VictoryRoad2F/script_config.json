@@ -25,23 +25,28 @@
     },
     {
       "id": 6,
-      "talk": "talkBird"
+      "talk": "talkBird",
+      "toggleId": "VICTORY_ROAD_2F_OBJ_6"
     },
     {
       "id": 7,
-      "talk": "talkPokeBall"
+      "talk": "talkPokeBall",
+      "toggleId": "VICTORY_ROAD_2F_OBJ_7"
     },
     {
       "id": 8,
-      "talk": "talkPokeBall1"
+      "talk": "talkPokeBall1",
+      "toggleId": "VICTORY_ROAD_2F_OBJ_8"
     },
     {
       "id": 9,
-      "talk": "talkPokeBall2"
+      "talk": "talkPokeBall2",
+      "toggleId": "VICTORY_ROAD_2F_OBJ_9"
     },
     {
       "id": 10,
-      "talk": "talkPokeBall3"
+      "talk": "talkPokeBall3",
+      "toggleId": "VICTORY_ROAD_2F_OBJ_10"
     },
     {
       "id": 11,
@@ -53,7 +58,8 @@
     },
     {
       "id": 13,
-      "talk": "talkBoulder2"
+      "talk": "talkBoulder2",
+      "toggleId": "VICTORY_ROAD_2F_OBJ_13"
     }
   ],
   "signs": [],

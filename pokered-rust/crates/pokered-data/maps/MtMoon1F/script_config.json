@@ -33,27 +33,33 @@
     },
     {
       "id": 8,
-      "talk": "talkPokeBall"
+      "talk": "talkPokeBall",
+      "toggleId": "MT_MOON_1F_OBJ_8"
     },
     {
       "id": 9,
-      "talk": "talkPokeBall1"
+      "talk": "talkPokeBall1",
+      "toggleId": "MT_MOON_1F_OBJ_9"
     },
     {
       "id": 10,
-      "talk": "talkPokeBall2"
+      "talk": "talkPokeBall2",
+      "toggleId": "MT_MOON_1F_OBJ_10"
     },
     {
       "id": 11,
-      "talk": "talkPokeBall3"
+      "talk": "talkPokeBall3",
+      "toggleId": "MT_MOON_1F_OBJ_11"
     },
     {
       "id": 12,
-      "talk": "talkPokeBall4"
+      "talk": "talkPokeBall4",
+      "toggleId": "MT_MOON_1F_OBJ_12"
     },
     {
       "id": 13,
-      "talk": "talkPokeBall5"
+      "talk": "talkPokeBall5",
+      "toggleId": "MT_MOON_1F_OBJ_13"
     }
   ],
   "signs": [
