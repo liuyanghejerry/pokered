@@ -13,6 +13,13 @@ fn input_a() -> BattleMenuInput {
     }
 }
 
+fn input_b() -> BattleMenuInput {
+    BattleMenuInput {
+        b: true,
+        ..BattleMenuInput::none()
+    }
+}
+
 fn input_up() -> BattleMenuInput {
     BattleMenuInput {
         up: true,
@@ -401,4 +408,64 @@ fn move_menu_single_move_wraps() {
     assert_eq!(menu.cursor(), 0);
     menu.update_frame(menu_up());
     assert_eq!(menu.cursor(), 0);
+}
+
+// =============================================================
+// PartySubMenuState tests
+// =============================================================
+
+use crate::battle::menu::PartySubMenuAction;
+use crate::battle::menu::PartySubMenuState;
+
+#[test]
+fn party_submenu_initial_cursor_at_switch() {
+    let menu = PartySubMenuState::new();
+    assert_eq!(menu.cursor(), 0);
+    assert_eq!(menu.current_action(), PartySubMenuAction::Switch);
+}
+
+#[test]
+fn party_submenu_navigate_down_to_stats() {
+    let mut menu = PartySubMenuState::new();
+    assert!(menu.update_frame(input_down()).is_none());
+    assert_eq!(menu.current_action(), PartySubMenuAction::Stats);
+}
+
+#[test]
+fn party_submenu_navigate_down_to_cancel() {
+    let mut menu = PartySubMenuState::new();
+    menu.update_frame(input_down());
+    assert!(menu.update_frame(input_down()).is_none());
+    assert_eq!(menu.current_action(), PartySubMenuAction::Cancel);
+}
+
+#[test]
+fn party_submenu_clamp_at_bottom() {
+    let mut menu = PartySubMenuState::new();
+    menu.update_frame(input_down());
+    menu.update_frame(input_down());
+    menu.update_frame(input_down()); // should stay at Cancel
+    assert_eq!(menu.current_action(), PartySubMenuAction::Cancel);
+}
+
+#[test]
+fn party_submenu_clamp_at_top() {
+    let mut menu = PartySubMenuState::new();
+    menu.update_frame(input_up()); // should stay at Switch
+    assert_eq!(menu.current_action(), PartySubMenuAction::Switch);
+}
+
+#[test]
+fn party_submenu_a_selects_current() {
+    let mut menu = PartySubMenuState::new();
+    menu.update_frame(input_down()); // cursor at Stats
+    let result = menu.update_frame(input_a());
+    assert_eq!(result, Some(PartySubMenuAction::Stats));
+}
+
+#[test]
+fn party_submenu_b_returns_cancel() {
+    let mut menu = PartySubMenuState::new();
+    let result = menu.update_frame(input_b());
+    assert_eq!(result, Some(PartySubMenuAction::Cancel));
 }

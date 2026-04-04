@@ -40,6 +40,8 @@ fn phase_tag(phase: &BattlePhase) -> u8 {
         BattlePhase::MoveSelect => 3,
         BattlePhase::ShowingText { .. } => 4,
         BattlePhase::PartySelect => 5,
+        BattlePhase::PartySubMenu { .. } => 9,
+        BattlePhase::PartyStats { .. } => 10,
         BattlePhase::EnemySendingNext { .. } => 6,
         BattlePhase::PlayerFaintSwitch => 7,
         BattlePhase::BattleOver { .. } => 8,

@@ -323,3 +323,60 @@ impl MoveMenuState {
             .any(|m| m.current_pp > 0 && !m.is_disabled)
     }
 }
+
+/// Actions available in the party submenu after selecting a Pokemon.
+/// Matches SWITCH/STATS/CANCEL menu from original game (text_boxes.asm).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PartySubMenuAction {
+    Switch,
+    Stats,
+    Cancel,
+}
+
+/// Party submenu state for SWITCH/STATS/CANCEL selection.
+#[derive(Debug, Clone)]
+pub struct PartySubMenuState {
+    cursor: usize,
+}
+
+impl PartySubMenuState {
+    pub fn new() -> Self {
+        Self { cursor: 0 }
+    }
+
+    pub fn cursor(&self) -> usize {
+        self.cursor
+    }
+
+    pub fn current_action(&self) -> PartySubMenuAction {
+        match self.cursor {
+            0 => PartySubMenuAction::Switch,
+            1 => PartySubMenuAction::Stats,
+            _ => PartySubMenuAction::Cancel,
+        }
+    }
+
+    pub fn update_frame(&mut self, input: BattleMenuInput) -> Option<PartySubMenuAction> {
+        if input.up && self.cursor > 0 {
+            self.cursor -= 1;
+        } else if input.down && self.cursor < 2 {
+            self.cursor += 1;
+        }
+
+        if input.a {
+            return Some(self.current_action());
+        }
+
+        if input.b {
+            return Some(PartySubMenuAction::Cancel);
+        }
+
+        None
+    }
+}
+
+impl Default for PartySubMenuState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
