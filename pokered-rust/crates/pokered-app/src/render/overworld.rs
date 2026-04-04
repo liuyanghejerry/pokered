@@ -195,10 +195,18 @@ pub fn draw_overworld(
         if let Ok(cached) = rm.load_sprite("red") {
             let ts = cached.tileset.clone();
 
-            let (frame, flip_h) = if screen.state.player.movement_state == MovementState::Walking {
-                // Original game uses separate anim counter updated every 4 frames
-                // walk_counter goes 8->0, so split into two halves: 8-5 (walk) and 4-1 (stand)
+            let (frame, flip_h) = if screen.state.player.movement_state == MovementState::Walking
+                || screen.state.player.movement_state == MovementState::Jumping
+            {
                 let walk_frame = screen.state.walk_counter > 4;
+                match screen.state.player.facing {
+                    Direction::Down => (if walk_frame { 3 } else { 0 }, false),
+                    Direction::Up => (if walk_frame { 4 } else { 1 }, false),
+                    Direction::Left => (if walk_frame { 5 } else { 2 }, false),
+                    Direction::Right => (if walk_frame { 5 } else { 2 }, true),
+                }
+            } else if screen.bump_anim_counter > 0 {
+                let walk_frame = (screen.bump_anim_counter / 4) % 2 == 1;
                 match screen.state.player.facing {
                     Direction::Down => (if walk_frame { 3 } else { 0 }, false),
                     Direction::Up => (if walk_frame { 4 } else { 1 }, false),

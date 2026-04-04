@@ -502,6 +502,7 @@ pub struct OverworldScreen {
     pub warp_fade_state: WarpFadeState,
     pub pending_warp: Option<PendingWarp>,
     pub sfx_event: OverworldSfxEvent,
+    pub bump_anim_counter: u8,
     pub player_name: String,
     pub rival_name: String,
     pub frame_counter: u32,
@@ -551,6 +552,7 @@ impl OverworldScreen {
             warp_fade_state: WarpFadeState::Idle,
             pending_warp: None,
             sfx_event: OverworldSfxEvent::None,
+            bump_anim_counter: 0,
             player_name: "RED".to_string(),
             rival_name: "BLUE".to_string(),
             frame_counter: 0,
@@ -916,11 +918,15 @@ impl OverworldScreen {
                 }
                 MoveResult::Blocked(_) => {
                     self.sfx_event = OverworldSfxEvent::Collision;
+                    self.bump_anim_counter = self.bump_anim_counter.wrapping_add(1);
                 }
                 MoveResult::LedgeJump => {
                     self.sfx_event = OverworldSfxEvent::Ledge;
+                    self.bump_anim_counter = 0;
                 }
-                _ => {}
+                _ => {
+                    self.bump_anim_counter = 0;
+                }
             }
 
             if self.map_name_timer > 0 {
