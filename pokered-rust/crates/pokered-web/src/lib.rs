@@ -586,7 +586,10 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
             builder
                 .texture_format(texture_format)
                 .surface_texture_format(texture_format)
-                .wgpu_backend(Backends::GL | Backends::BROWSER_WEBGPU)
+                // Some browsers expose partial WebGPU limits and return
+                // `undefined` for numeric fields, which can panic in wasm-bindgen.
+                // Keep wasm on WebGL for broad compatibility.
+                .wgpu_backend(Backends::GL)
         };
 
         builder.build_async().await?
@@ -602,8 +605,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(not(target_arch = "wasm32"))]
     let mut next_frame_time = Instant::now();
 
-    #[allow(deprecated)]
-    let res = event_loop.run(move |event, elwt| match event {
+    let event_handler = move |event, elwt: &winit::event_loop::ActiveEventLoop| match event {
         Event::WindowEvent { event, .. } => match event {
             WindowEvent::CloseRequested => elwt.exit(),
             WindowEvent::RedrawRequested => {
@@ -662,10 +664,23 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         _ => {}
-    });
+    };
 
-    res?;
-    Ok(())
+    #[cfg(target_arch = "wasm32")]
+    {
+        use winit::platform::web::EventLoopExtWebSys;
+
+        #[allow(deprecated)]
+        event_loop.spawn(event_handler);
+        Ok(())
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let res = event_loop.run(event_handler);
+        res?;
+        Ok(())
+    }
 }
 
 fn log_error<E: std::error::Error + 'static>(method_name: &str, err: E) {

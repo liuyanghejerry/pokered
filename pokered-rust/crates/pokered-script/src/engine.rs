@@ -3,6 +3,9 @@ use std::path::Path;
 use std::rc::Rc;
 
 use boa_engine::builtins::promise::PromiseState;
+#[cfg(target_arch = "wasm32")]
+use boa_engine::module::IdleModuleLoader;
+#[cfg(not(target_arch = "wasm32"))]
 use boa_engine::module::SimpleModuleLoader;
 use boa_engine::object::builtins::{JsFunction, JsPromise};
 use boa_engine::property::Attribute;
@@ -57,23 +60,24 @@ pub struct ScriptEngine {
     context: Context,
     bridge: Rc<RefCell<SharedBridge>>,
     state: EngineState,
-    /// The module loader shared with the context (needed to insert modules).
-    loader: Rc<SimpleModuleLoader>,
     /// The currently loaded ES6 module (holds exported function bindings).
     current_module: Option<Module>,
 }
 
 impl ScriptEngine {
     pub fn new() -> Self {
-        // SimpleModuleLoader requires a real directory path.
-        // We use the current directory; it only matters for relative imports
-        // which we don't use (all modules are loaded from in-memory strings).
-        let loader = Rc::new(
-            SimpleModuleLoader::new(".")
-                .expect("failed to create module loader (current directory must exist)"),
-        );
+        #[cfg(target_arch = "wasm32")]
         let mut context = Context::builder()
-            .module_loader(loader.clone())
+            .module_loader(Rc::new(IdleModuleLoader))
+            .build()
+            .expect("failed to build JS context");
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let mut context = Context::builder()
+            .module_loader(Rc::new(
+                SimpleModuleLoader::new(".")
+                    .expect("failed to create module loader (current directory must exist)"),
+            ))
             .build()
             .expect("failed to build JS context");
         let bridge = Rc::new(RefCell::new(SharedBridge::new()));
@@ -84,7 +88,6 @@ impl ScriptEngine {
             context,
             bridge,
             state: EngineState::Idle,
-            loader,
             current_module: None,
         }
     }
@@ -118,16 +121,14 @@ impl ScriptEngine {
     }
 
     pub fn load_script(&mut self, source: &str) -> Result<(), ScriptEngineError> {
-        let src = Source::from_reader(source.as_bytes(), Some(Path::new("./script.mjs")));
+        let src = Source::from_reader(source.as_bytes(), Some(Path::new("script.mjs")));
         let module = Module::parse(src, None, &mut self.context)
             .map_err(|e| ScriptEngineError::JsError(e.to_string()))?;
 
-        // Register in the loader (required by Boa even for in-memory modules)
-        let canonical = Path::new(".")
-            .canonicalize()
-            .unwrap_or_default()
-            .join("script.mjs");
-        self.loader.insert(canonical, module.clone());
+        // Register in the loader (required by Boa even for in-memory modules).
+        self.context
+            .module_loader()
+            .register_module(js_string!("script.mjs"), module.clone());
 
         let promise = module.load_link_evaluate(&mut self.context);
         self.context.run_jobs();
