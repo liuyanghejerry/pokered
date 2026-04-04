@@ -224,6 +224,7 @@ impl BattleVisualEffects {
     }
 
     fn run_applying_attack_feedback(&mut self, anim_type: AnimationType, attacker_is_player: bool) {
+        let target_is_player = !attacker_is_player;
         match anim_type {
             AnimationType::None => {}
             AnimationType::ShakeScreenVertically => {
@@ -232,7 +233,7 @@ impl BattleVisualEffects {
                     frames: 8,
                 });
                 self.hit_flash = Some(HitFlash {
-                    target_is_player: true,
+                    target_is_player,
                     frame: 0,
                     duration: 8,
                 });
@@ -243,7 +244,7 @@ impl BattleVisualEffects {
                     frames: 10,
                 });
                 self.hit_flash = Some(HitFlash {
-                    target_is_player: true,
+                    target_is_player,
                     frame: 0,
                     duration: 8,
                 });
@@ -255,14 +256,22 @@ impl BattleVisualEffects {
                 });
             }
             AnimationType::BlinkEnemyMonSprite => {
-                self.apply_anim_effect(AnimEffect::BlinkEnemyMon { times: 6 });
+                if attacker_is_player {
+                    self.apply_anim_effect(AnimEffect::BlinkEnemyMon { times: 6 });
+                } else {
+                    self.apply_anim_effect(AnimEffect::BlinkPlayerMon { times: 6 });
+                }
             }
             AnimationType::ShakeScreenHorizontallyLight => {
                 self.apply_anim_effect(AnimEffect::ShakeScreenH {
                     pixels: 2,
                     frames: 8,
                 });
-                self.apply_anim_effect(AnimEffect::BlinkEnemyMon { times: 3 });
+                if attacker_is_player {
+                    self.apply_anim_effect(AnimEffect::BlinkEnemyMon { times: 3 });
+                } else {
+                    self.apply_anim_effect(AnimEffect::BlinkPlayerMon { times: 3 });
+                }
             }
             AnimationType::ShakeScreenHorizontallySlow2 => {
                 self.apply_anim_effect(AnimEffect::ShakeScreenH {
@@ -277,19 +286,31 @@ impl BattleVisualEffects {
         }
     }
 
+    fn is_no_hit_feedback_message(message: &str) -> bool {
+        let msg = message.to_ascii_lowercase();
+        msg.contains("missed")
+            || msg.contains("avoided")
+            || msg.contains("no effect")
+            || msg.contains("had no effect")
+            || msg.contains("doesn't affect")
+            || msg.contains("does not affect")
+            || msg.contains("unaffected")
+    }
+
     fn trigger_from_message(&mut self, screen: &BattleScreen, message: &str) {
         let normalized = message.replace('\n', " ");
+
+        if Self::is_no_hit_feedback_message(&normalized) {
+            // Miss / no-effect messages should not produce hit flash feedback.
+            self.pending_applying = None;
+            self.hit_flash = None;
+        }
 
         if normalized.contains(" used ") && normalized.ends_with('!') {
             let enemy_attacker = normalized.starts_with("Enemy ");
             self.attack_lunge = Some(AttackLunge {
                 attacker_is_player: !enemy_attacker,
                 frame: 0,
-            });
-            self.hit_flash = Some(HitFlash {
-                target_is_player: enemy_attacker,
-                frame: 0,
-                duration: 10,
             });
 
             if let Some((anim_id, player_is_attacker, move_id)) =
