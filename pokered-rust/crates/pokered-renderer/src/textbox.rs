@@ -2,7 +2,7 @@ use crate::text_renderer::ScreenTileBuffer;
 
 pub const TILE_TOP_LEFT: u8 = 0x79;
 pub const TILE_TOP_RIGHT: u8 = 0x7B;
-pub const TILE_BOTTOM_LEFT: u8 = 0x7C;
+pub const TILE_BOTTOM_LEFT: u8 = 0x7D;
 pub const TILE_BOTTOM_RIGHT: u8 = 0x7E;
 pub const TILE_HORIZONTAL: u8 = 0x7A;
 pub const TILE_VERTICAL: u8 = 0x7C;
