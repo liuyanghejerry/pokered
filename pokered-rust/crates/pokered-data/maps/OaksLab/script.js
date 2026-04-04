@@ -33,13 +33,15 @@ const STARTER = { CHARMANDER: "CHARMANDER", SQUIRTLE: "SQUIRTLE", BULBASAUR: "BU
 
 // ── Script State Functions (named for JSON binding) ──────────────────
 
-export async function scriptDefault() {
+export async function oaksLabOnLoad() {
   if (!game.getFlag(EVENT.OAK_APPEARED_IN_PALLET)) {
     return;
   }
   await game.showObject(TOGGLE.OAK2);
   await game.setMapScript("scriptOakEntersLab");
 }
+
+export async function scriptDefault() {}
 
 export async function scriptOakEntersLab() {
   await game.moveNpc(NPC.OAK2, ["up", "up", "up"]);
@@ -86,10 +88,6 @@ export async function scriptOakChooseMonSpeech() {
 }
 
 export async function scriptPlayerDontGoAway() {
-  const pos = game.getPlayerPos ? game.getPlayerPos() : null;
-  if (!pos || pos.y !== 6) {
-    return;
-  }
   await game.faceNpc(NPC.OAK1, "down");
   await game.faceNpc(NPC.RIVAL, "down");
   await game.showText("OAK: Hey! Don't\ngo away yet!");
@@ -150,10 +148,6 @@ export async function scriptRivalChoosesStarter() {
 }
 
 export async function scriptRivalChallengesPlayer() {
-  const pos = game.getPlayerPos ? game.getPlayerPos() : null;
-  if (!pos || pos.y !== 6) {
-    return;
-  }
   await game.faceNpc(NPC.RIVAL, "down");
   await game.facePlayer("up");
   await game.playMusic("MUSIC_MEET_RIVAL");
@@ -277,6 +271,19 @@ export async function scriptNoop() {
   // Do nothing
 }
 
+
+// ── Coord event handlers (bound via coordEvents[] in OaksLab.json) ───
+
+export async function coordExitRow() {
+  if (game.getFlag(EVENT.OAK_ASKED_TO_CHOOSE_MON) && !game.getFlag(EVENT.GOT_STARTER)) {
+    await game.setMapScript("scriptPlayerDontGoAway");
+    return;
+  }
+  if (game.getFlag(EVENT.GOT_STARTER) && !game.getFlag(EVENT.BATTLED_RIVAL_IN_OAKS_LAB)) {
+    await game.setMapScript("scriptRivalChallengesPlayer");
+    return;
+  }
+}
 
 // ── NPC Talk Handlers (named for JSON binding) ───────────────────────
 
@@ -412,5 +419,3 @@ export async function talkLabGirl() {
 export async function talkScientist() {
   await game.showText("I study POKeMON\nas PROF.OAK's\nAIDE.");
 }
-
-// OaksLab has no signs or coord events in JSON-binding architecture

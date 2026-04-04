@@ -4,6 +4,8 @@ use serde::Deserialize;
 #[serde(rename_all = "camelCase")]
 pub struct MapScriptConfig {
     #[serde(default)]
+    pub on_load: Option<String>,
+    #[serde(default)]
     pub map_scripts: Vec<String>,
     #[serde(default)]
     pub npcs: Vec<NpcBinding>,
@@ -40,6 +42,10 @@ pub struct CoordEventBinding {
 }
 
 impl MapScriptConfig {
+    pub fn on_load(&self) -> Option<&str> {
+        self.on_load.as_deref()
+    }
+
     pub fn map_script_fn_name(&self, index: usize) -> Option<&str> {
         self.map_scripts.get(index).map(|s| s.as_str())
     }

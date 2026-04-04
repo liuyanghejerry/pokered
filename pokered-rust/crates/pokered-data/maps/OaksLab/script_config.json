@@ -1,4 +1,5 @@
 {
+  "onLoad": "oaksLabOnLoad",
   "mapScripts": [
     "scriptDefault",
     "scriptOakEntersLab",
@@ -77,5 +78,11 @@
     }
   ],
   "signs": [],
-  "coordEvents": []
+  "coordEvents": [
+    { "position": [0, 6], "trigger": "coordExitRow" },
+    { "position": [1, 6], "trigger": "coordExitRow" },
+    { "position": [2, 6], "trigger": "coordExitRow" },
+    { "position": [3, 6], "trigger": "coordExitRow" },
+    { "position": [4, 6], "trigger": "coordExitRow" }
+  ]
 }

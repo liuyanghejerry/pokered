@@ -1,4 +1,5 @@
 {
+  "onLoad": "palletTownOnLoad",
   "mapScripts": [
     "palletTownDefault",
     "palletTownOakHeyWait",

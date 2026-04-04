@@ -692,20 +692,6 @@ impl OverworldScreen {
             return ScreenAction::Continue;
         }
 
-        // Per-frame map script dispatch (mirrors CallFunctionInTable in the original).
-        if let Some(fn_name) = self
-            .map_script_config
-            .map_script_fn_name(self.map_script_index as usize)
-        {
-            let fn_name = fn_name.to_string();
-            if self.script_engine.has_function(&fn_name) {
-                if let Ok(Some(cmd)) = self.script_engine.call_function_no_args(&fn_name) {
-                    self.active_script_effect = Some(script_bridge::dispatch_command(&cmd));
-                    return ScreenAction::Continue;
-                }
-            }
-        }
-
         // Door exit auto-step (PlayerStepOutFromDoor / BIT_EXITING_DOOR).
         // When exiting_door is active, advance the walk animation ignoring real input.
         if self.state.exiting_door {
@@ -1090,6 +1076,17 @@ impl OverworldScreen {
                     if let Some(idx) = self.map_script_config.resolve_map_script_index(&state_name)
                     {
                         self.map_script_index = idx as u8;
+                        if let Some(fn_name) = self.map_script_config.map_script_fn_name(idx) {
+                            let fn_name = fn_name.to_string();
+                            if self.script_engine.has_function(&fn_name) {
+                                if let Ok(Some(cmd)) =
+                                    self.script_engine.call_function_no_args(&fn_name)
+                                {
+                                    self.active_script_effect =
+                                        Some(script_bridge::dispatch_command(&cmd));
+                                }
+                            }
+                        }
                     } else {
                         log::warn!("SetMapScript: unknown state '{}'", state_name);
                     }
@@ -1157,8 +1154,7 @@ impl OverworldScreen {
         self.active_script_effect = None;
         self.map_script_index = 0;
 
-        // Auto-call the first mapScript function (if any)
-        if let Some(fn_name) = self.map_script_config.map_script_fn_name(0) {
+        if let Some(fn_name) = self.map_script_config.on_load() {
             if self.script_engine.has_function(fn_name) {
                 if let Ok(Some(cmd)) = self.script_engine.call_function_no_args(fn_name) {
                     self.active_script_effect = Some(script_bridge::dispatch_command(&cmd));

@@ -28,16 +28,17 @@ const PAD = {
   BUTTONS: 0x0F,
 };
 
-// ── Map Script States (bound via mapScripts[] in PalletTown.json) ────
+// ── onLoad callback (called once on map entry) ──────────────────────
 
-export async function palletTownDefault() {
-  // Per-frame housekeeping only (mirrors PalletTown_Script preamble).
-  // The cutscene trigger lives in coordNorthExit(), fired by the coord
-  // event at (0,1) when the player walks to the north exit.
+export async function palletTownOnLoad() {
   if (game.getFlag(EVENT.GOT_POKEBALLS_FROM_OAK)) {
     game.setFlag(EVENT.PALLET_AFTER_GETTING_POKEBALLS);
   }
 }
+
+// ── Map Script States (bound via mapScripts[] in PalletTown.json) ────
+
+export async function palletTownDefault() {}
 
 export async function palletTownOakHeyWait() {
   await game.showText("OAK: Hey! Wait!\nDon't go out!");
