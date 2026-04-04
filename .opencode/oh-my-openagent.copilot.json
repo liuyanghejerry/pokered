@@ -1,0 +1,61 @@
+{
+  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-opencode/master/assets/oh-my-opencode.schema.json",
+  "agents": {
+    "sisyphus": {
+      "model": "github-copilot/claude-opus-4.6"
+    },
+    "hephaestus": {
+      "model": "github-copilot/gpt-5.3-codex"
+    },
+    "oracle": {
+      "model": "github-copilot/claude-opus-4.6"
+    },
+    "librarian": {
+      "model": "github-copilot/claude-sonnet-4.6"
+    },
+    "explore": {
+      "model": "github-copilot/gpt-5-mini"
+    },
+    "multimodal-looker": {
+      "model": "github-copilot/gpt-4o"
+    },
+    "prometheus": {
+      "model": "github-copilot/claude-sonnet-4.6"
+    },
+    "metis": {
+      "model": "github-copilot/claude-sonnet-4.6"
+    },
+    "momus": {
+      "model": "github-copilot/claude-sonnet-4.6"
+    },
+    "atlas": {
+      "model": "github-copilot/claude-sonnet-4.6"
+    }
+  },
+  "categories": {
+    "visual-engineering": {
+      "model": "github-copilot/gpt-4o"
+    },
+    "ultrabrain": {
+      "model": "github-copilot/gpt-5"
+    },
+    "deep": {
+      "model": "github-copilot/gpt-5"
+    },
+    "artistry": {
+      "model": "github-copilot/gpt-4o"
+    },
+    "quick": {
+      "model": "github-copilot/gpt-5-mini"
+    },
+    "unspecified-low": {
+      "model": "github-copilot/gpt-4o"
+    },
+    "unspecified-high": {
+      "model": "github-copilot/gpt-5"
+    },
+    "writing": {
+      "model": "github-copilot/gpt-4o"
+    }
+  }
+}

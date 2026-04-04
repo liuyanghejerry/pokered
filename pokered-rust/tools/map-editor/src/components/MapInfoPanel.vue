@@ -49,23 +49,6 @@ function isSelected(type: string, index: number): boolean {
       <p class="my-0.5">Size: {{ currentMap.header.width }}x{{ currentMap.header.height }} blocks</p>
       <p class="my-0.5">Tiles: {{ currentMap.header.width * 4 }}x{{ currentMap.header.height * 4 }}</p>
       <p class="my-0.5">Tileset: {{ currentMap.header.tileset }}</p>
-      <p class="my-0.5">Music: {{ currentMap.header.music }}</p>
-
-      <template v-if="currentMap.connections">
-        <p class="my-0.5"><b>Connections:</b></p>
-        <p v-if="currentMap.connections.north" class="my-0.5 ml-2.5 cursor-pointer hover:text-accent transition-colors" @click="store.navigateToMap(currentMap.connections.north!.targetMap)">
-          North → {{ currentMap.connections.north.targetMap }} (offset: {{ currentMap.connections.north.offset }})
-        </p>
-        <p v-if="currentMap.connections.south" class="my-0.5 ml-2.5 cursor-pointer hover:text-accent transition-colors" @click="store.navigateToMap(currentMap.connections.south!.targetMap)">
-          South → {{ currentMap.connections.south.targetMap }} (offset: {{ currentMap.connections.south.offset }})
-        </p>
-        <p v-if="currentMap.connections.west" class="my-0.5 ml-2.5 cursor-pointer hover:text-accent transition-colors" @click="store.navigateToMap(currentMap.connections.west!.targetMap)">
-          West → {{ currentMap.connections.west.targetMap }} (offset: {{ currentMap.connections.west.offset }})
-        </p>
-        <p v-if="currentMap.connections.east" class="my-0.5 ml-2.5 cursor-pointer hover:text-accent transition-colors" @click="store.navigateToMap(currentMap.connections.east!.targetMap)">
-          East → {{ currentMap.connections.east.targetMap }} (offset: {{ currentMap.connections.east.offset }})
-        </p>
-      </template>
 
       <template v-if="currentMap.warps && currentMap.warps.length > 0">
         <p class="my-0.5"><b>Warps ({{ currentMap.warps.length }}):</b></p>

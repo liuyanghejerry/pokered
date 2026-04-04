@@ -28,6 +28,7 @@ use effects::EffectRandoms;
 use escape::{try_run_from_battle, RunResult};
 use menu::{
     BattleMenuAction, BattleMenuInput, BattleMenuState, MoveMenuResult, MoveMenuState, MoveSlot,
+    PartySubMenuAction, PartySubMenuState,
 };
 use move_execution::MoveRandoms;
 use pokered_data::move_data::MoveData;
@@ -61,6 +62,10 @@ pub enum BattlePhase {
     },
     /// Player chooses which party member to switch to.
     PartySelect,
+    /// Player selected a party member, showing SWITCH/STATS/CANCEL menu.
+    PartySubMenu { selected_index: usize },
+    /// Viewing a party member's stats screen.
+    PartyStats { pokemon_index: usize },
     /// Enemy trainer sends out next Pokémon after one faints.
     EnemySendingNext { wait_frames: u16 },
     /// Player must choose replacement after their Pokémon faints.
@@ -210,6 +215,7 @@ fn format_cannot_move(reason: &CannotMoveReason) -> &'static str {
 pub struct BattleScreen {
     pub phase: BattlePhase,
     pub battle_menu: BattleMenuState,
+    pub party_submenu: Option<PartySubMenuState>,
     pub is_wild: bool,
     /// Trainer class for AI move selection (None for wild battles).
     pub trainer_class: Option<TrainerClass>,
@@ -240,6 +246,7 @@ impl BattleScreen {
         Self {
             phase: BattlePhase::Intro { wait_frames: 90 },
             battle_menu: BattleMenuState::new(),
+            party_submenu: None,
             is_wild,
             trainer_class: None,
             enemy_species: Species::Pikachu,
@@ -278,6 +285,7 @@ impl BattleScreen {
         Self {
             phase: BattlePhase::Intro { wait_frames: 90 },
             battle_menu: BattleMenuState::new(),
+            party_submenu: None,
             is_wild,
             trainer_class,
             enemy_species: enemy.species,
@@ -570,15 +578,71 @@ impl BattleScreen {
                     }
                     if input.a {
                         let chosen = self.party_cursor;
-                        let active = bs.player.active_pokemon_index;
-                        if chosen == active {
-                            self.current_message = Some("Already out!".to_string());
-                        } else if bs.player.party[chosen].hp == 0 {
-                            self.current_message = Some("No energy left!".to_string());
-                        } else {
-                            self.switch_player_pokemon(chosen);
+                        self.party_submenu = Some(PartySubMenuState::new());
+                        self.phase = BattlePhase::PartySubMenu {
+                            selected_index: chosen,
+                        };
+                    }
+                }
+                ScreenAction::Continue
+            }
+            BattlePhase::PartySubMenu { selected_index } => {
+                if let Some(ref mut submenu) = self.party_submenu {
+                    let menu_input = BattleMenuInput {
+                        up: input.up,
+                        down: input.down,
+                        left: false,
+                        right: false,
+                        a: input.a,
+                        b: input.b,
+                    };
+                    if let Some(action) = submenu.update_frame(menu_input) {
+                        match action {
+                            PartySubMenuAction::Switch => {
+                                if let Some(ref bs) = self.battle_state {
+                                    let active = bs.player.active_pokemon_index;
+                                    if selected_index == active {
+                                        let name =
+                                            format!("{}", bs.player.party[selected_index].species)
+                                                .to_uppercase();
+                                        self.show_text_then(
+                                            vec![
+                                                format!("{} is", name),
+                                                "already out!".to_string(),
+                                            ],
+                                            BattlePhase::PartySelect,
+                                        );
+                                    } else if bs.player.party[selected_index].hp == 0 {
+                                        self.show_text_then(
+                                            vec![
+                                                "There's no will".to_string(),
+                                                "to fight!".to_string(),
+                                            ],
+                                            BattlePhase::PartySelect,
+                                        );
+                                    } else {
+                                        self.party_submenu = None;
+                                        self.switch_player_pokemon(selected_index);
+                                    }
+                                }
+                            }
+                            PartySubMenuAction::Stats => {
+                                self.phase = BattlePhase::PartyStats {
+                                    pokemon_index: selected_index,
+                                };
+                            }
+                            PartySubMenuAction::Cancel => {
+                                self.party_submenu = None;
+                                self.phase = BattlePhase::PartySelect;
+                            }
                         }
                     }
+                }
+                ScreenAction::Continue
+            }
+            BattlePhase::PartyStats { pokemon_index } => {
+                if input.a || input.b {
+                    self.phase = BattlePhase::PartySelect;
                 }
                 ScreenAction::Continue
             }
@@ -609,7 +673,10 @@ impl BattleScreen {
                     if input.a {
                         let chosen = self.party_cursor;
                         if bs.player.party[chosen].hp == 0 {
-                            self.current_message = Some("No energy left!".to_string());
+                            self.show_text_then(
+                                vec!["There's no will".to_string(), "to fight!".to_string()],
+                                BattlePhase::PlayerFaintSwitch,
+                            );
                         } else {
                             self.force_switch_player(chosen);
                         }
