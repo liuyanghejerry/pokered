@@ -1037,6 +1037,10 @@ impl OverworldScreen {
                 {
                     let fn_name = fn_name.to_string();
                     if self.script_engine.has_function(&fn_name) {
+                        self.script_engine.set_player_position(
+                            self.state.player.x as u8,
+                            self.state.player.y as u8,
+                        );
                         if let Ok(Some(cmd)) = self.script_engine.call_function_no_args(&fn_name) {
                             self.active_script_effect = Some(script_bridge::dispatch_command(&cmd));
                         }
@@ -1269,6 +1273,8 @@ impl OverworldScreen {
 
         if let Some(fn_name) = self.map_script_config.on_load() {
             if self.script_engine.has_function(fn_name) {
+                self.script_engine
+                    .set_player_position(self.state.player.x as u8, self.state.player.y as u8);
                 if let Ok(Some(cmd)) = self.script_engine.call_function_no_args(fn_name) {
                     self.active_script_effect = Some(script_bridge::dispatch_command(&cmd));
                 }
@@ -1279,6 +1285,8 @@ impl OverworldScreen {
     fn try_call_script_npc_talk(&mut self, text_id: u8) -> bool {
         if let Some(fn_name) = self.map_script_config.npc_talk_fn(text_id) {
             if self.script_engine.has_function(fn_name) {
+                self.script_engine
+                    .set_player_position(self.state.player.x as u8, self.state.player.y as u8);
                 if let Ok(Some(cmd)) = self.script_engine.call_function_no_args(fn_name) {
                     self.active_script_effect = Some(script_bridge::dispatch_command(&cmd));
                     return true;
@@ -1291,6 +1299,8 @@ impl OverworldScreen {
     fn try_call_script_sign_talk(&mut self, text_id: u8) -> bool {
         if let Some(fn_name) = self.map_script_config.sign_talk_fn(text_id) {
             if self.script_engine.has_function(fn_name) {
+                self.script_engine
+                    .set_player_position(self.state.player.x as u8, self.state.player.y as u8);
                 if let Ok(Some(cmd)) = self.script_engine.call_function_no_args(fn_name) {
                     self.active_script_effect = Some(script_bridge::dispatch_command(&cmd));
                     return true;

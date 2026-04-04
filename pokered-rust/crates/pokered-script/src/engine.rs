@@ -44,6 +44,9 @@ struct SharedBridge {
     pending_command: Option<ScriptCommand>,
     pending_resolve: Option<PendingResolve>,
     flags: std::collections::HashMap<String, bool>,
+    /// Player position in the current map (tile coordinates).
+    player_x: u8,
+    player_y: u8,
 }
 
 impl SharedBridge {
@@ -52,6 +55,8 @@ impl SharedBridge {
             pending_command: None,
             pending_resolve: None,
             flags: std::collections::HashMap::new(),
+            player_x: 0,
+            player_y: 0,
         }
     }
 }
@@ -117,6 +122,11 @@ impl ScriptEngine {
             .get(flag)
             .copied()
             .unwrap_or(false)
+    }
+
+    pub fn set_player_position(&mut self, x: u8, y: u8) {
+        self.bridge.borrow_mut().player_x = x;
+        self.bridge.borrow_mut().player_y = y;
     }
 
     pub fn load_script(&mut self, source: &str) -> Result<(), ScriptEngineError> {
@@ -789,6 +799,37 @@ fn register_game_api(context: &mut Context, bridge: Rc<RefCell<SharedBridge>>) {
                 context,
             )
             .expect("failed to register game.resetFlag");
+    }
+
+    // game.getPlayerPosition() -> {x: number, y: number}
+    {
+        let bridge = bridge.clone();
+        let func = unsafe {
+            NativeFunction::from_closure(move |_this, _args, ctx| {
+                let b = bridge.borrow();
+                let pos = boa_engine::object::ObjectInitializer::new(ctx)
+                    .property(
+                        js_string!("x"),
+                        JsValue::from(b.player_x as i32),
+                        Attribute::all(),
+                    )
+                    .property(
+                        js_string!("y"),
+                        JsValue::from(b.player_y as i32),
+                        Attribute::all(),
+                    )
+                    .build();
+                Ok(pos.into())
+            })
+        };
+        game_obj
+            .set(
+                js_string!("getPlayerPosition"),
+                func.to_js_function(context.realm()),
+                true,
+                context,
+            )
+            .expect("failed to register game.getPlayerPosition");
     }
 
     context

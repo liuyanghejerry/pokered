@@ -28,6 +28,10 @@ const PAD = {
   BUTTONS: 0x0F,
 };
 
+// Lab entrance coordinates (where Oak and player end up)
+const LAB_ENTRANCE_X = 12;
+const LAB_ENTRANCE_Y = 11;
+
 // ── onLoad callback (called once on map entry) ──────────────────────
 
 export async function palletTownOnLoad() {
@@ -48,9 +52,15 @@ async function palletTownOakHeyWait() {
 }
 
 async function palletTownOakWalksToPlayer() {
+  const pos = game.getPlayerPosition();
+  const oakTargetX = pos.x;
+  const oakTargetY = pos.y + 1;
+
   await game.faceNpc(NPC.OAK, "up");
   await game.delay(3);
-  await game.moveNpc(NPC.OAK, [[8, 2], [10, 2]]);
+  const oakSpawnX = 8;
+  const oakSpawnY = 2;
+  await game.moveNpc(NPC.OAK, [[oakSpawnX, oakSpawnY], [oakTargetX, oakTargetY]]);
   await game.setJoyIgnore(PAD.BUTTONS | PAD.DPAD);
   await palletTownOakNotSafe();
 }
@@ -66,24 +76,42 @@ async function palletTownOakNotSafe() {
 }
 
 async function palletTownPlayerFollowsOak() {
-  // Oak walks to lab: down 5, left 1, down 5, right 3, up 1 (original RLE)
-  // Oak is at (10,2) after walking to the player.
-  const oakPath = [
-    [10, 3], [10, 4], [10, 5], [10, 6], [10, 7],
-    [9, 7],
-    [9, 8], [9, 9], [9, 10], [9, 11], [9, 12],
-    [10, 12], [11, 12], [12, 12],
-    [12, 11],
-  ];
-  // Player walks to lab: adapted from original RLE (up 1, right 3, down 7, left 1, down 4)
-  // Player is at (10,1) when the walk-to-lab sequence starts.
-  const playerPath = [
-    [10, 0],
-    [11, 0], [12, 0], [13, 0],
-    [13, 1], [13, 2], [13, 3], [13, 4], [13, 5], [13, 6], [13, 7],
-    [12, 7],
-    [12, 8], [12, 9], [12, 10], [12, 11],
-  ];
+  const pos = game.getPlayerPosition();
+  const playerX = pos.x;
+  const playerY = pos.y;
+  const oakX = playerX;
+  const oakY = playerY + 1;
+
+  const oakPath = [];
+  for (let y = oakY + 1; y <= 7; y++) {
+    oakPath.push([oakX, y]);
+  }
+  if (oakX > 9) {
+    for (let x = oakX - 1; x >= 9; x--) {
+      oakPath.push([x, 7]);
+    }
+  }
+  for (let y = 8; y <= 12; y++) {
+    oakPath.push([9, y]);
+  }
+  for (let x = 10; x <= LAB_ENTRANCE_X; x++) {
+    oakPath.push([x, 12]);
+  }
+  oakPath.push([LAB_ENTRANCE_X, LAB_ENTRANCE_Y]);
+
+  const playerPath = [];
+  playerPath.push([playerX, playerY - 1]);
+  for (let x = playerX + 1; x <= 13; x++) {
+    playerPath.push([x, 0]);
+  }
+  for (let y = 1; y <= 7; y++) {
+    playerPath.push([13, y]);
+  }
+  playerPath.push([12, 7]);
+  for (let y = 8; y <= LAB_ENTRANCE_Y; y++) {
+    playerPath.push([12, y]);
+  }
+
   game.startNpcMove(NPC.OAK, oakPath);
   await game.movePlayer(playerPath);
   await game.awaitNpcMove(NPC.OAK);

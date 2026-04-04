@@ -234,6 +234,17 @@ interface GameAPI {
   setMapScript(stateName: string): Promise<void>;
 
   // -----------------------------------------------------------------------
+  // Player Position
+  // -----------------------------------------------------------------------
+
+  /**
+   * Get the player's current tile position in the overworld.
+   *
+   * @returns An object with `x` and `y` tile coordinates.
+   */
+  getPlayerPosition(): { x: number; y: number };
+
+  // -----------------------------------------------------------------------
   // Input Control
   // -----------------------------------------------------------------------
 
