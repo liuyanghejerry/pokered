@@ -3,8 +3,8 @@
 //! Replicates `engine/battle/core.asm` DisplayBattleMenu + MoveSelectionMenu:
 //!
 //! **Main battle menu** — 2×2 grid navigated with D-pad:
-//!   FIGHT   | BAG
-//!   POKéMON | RUN
+//!   FIGHT   | POKeMON
+//!   BAG     | RUN
 //!
 //! **Safari battle menu** — 2×2 grid:
 //!   BALL | BAIT
@@ -27,9 +27,9 @@ pub enum BattleMenuAction {
 
 /// 2×2 grid position: row (0=top, 1=bottom) × col (0=left, 1=right).
 ///
-/// Layout per `core.asm` (English version with swap):
-///   (0,0)=FIGHT   (0,1)=BAG
-///   (1,0)=POKéMON (1,1)=RUN
+/// Layout used by renderer/menu UI:
+///   (0,0)=FIGHT   (0,1)=POKeMON
+///   (1,0)=BAG     (1,1)=RUN
 #[derive(Debug, Clone)]
 pub struct BattleMenuState {
     row: usize,
@@ -70,8 +70,8 @@ impl BattleMenuState {
     fn grid_to_action(row: usize, col: usize) -> BattleMenuAction {
         match (row, col) {
             (0, 0) => BattleMenuAction::Fight,
-            (0, 1) => BattleMenuAction::Bag,
-            (1, 0) => BattleMenuAction::Pokemon,
+            (0, 1) => BattleMenuAction::Pokemon,
+            (1, 0) => BattleMenuAction::Bag,
             (1, 1) => BattleMenuAction::Run,
             _ => BattleMenuAction::Fight,
         }

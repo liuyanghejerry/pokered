@@ -543,7 +543,10 @@ impl BattleVisualEffects {
                 }
             }
             AnimTickResult::WaitDelay(frames) => {
-                self.anim_wait = frames.max(1);
+                // AnimationPlayer already decrements subanimation delays internally.
+                // Do not add extra renderer delay, otherwise pacing is effectively doubled.
+                let _ = frames;
+                self.anim_wait = 0;
             }
             AnimTickResult::Effect(effect) => {
                 self.apply_anim_effect(AnimationPlayer::apply_effect(effect));
@@ -1029,8 +1032,8 @@ fn build_battle_tileset(rm: &mut ResourceManager) -> TileSet {
 /// Original layout (from DisplayBattleMenu in engine/battle/core.asm):
 ///   The battle menu is in the right half of the bottom text box.
 ///   In this Rust port, action mapping is:
-///   Row 14: "FIGHT" at left, "ITEM" at right
-///   Row 16: "PKMN" at left, "RUN" at right
+///   Row 14: "FIGHT" at left, "PKMN" at right
+///   Row 16: "ITEM" at left, "RUN" at right
 fn draw_battle_menu(buf: &mut ScreenTileBuffer, selected_row: usize, selected_col: usize) {
     // Battle menu inner box border (right half of dialog area)
     // From DrawPlayerBattleMenu: a 2-column wide inner box at (8,12) 12×6
@@ -1044,8 +1047,8 @@ fn draw_battle_menu(buf: &mut ScreenTileBuffer, selected_row: usize, selected_co
     let run_tiles = ascii_to_tiles("RUN");
 
     write_tiles_at(buf, 10, 14, &fight_tiles);
-    write_tiles_at(buf, 16, 14, &item_tiles);
-    write_tiles_at(buf, 10, 16, &pkmn_tiles);
+    write_tiles_at(buf, 16, 14, &pkmn_tiles);
+    write_tiles_at(buf, 10, 16, &item_tiles);
     write_tiles_at(buf, 16, 16, &run_tiles);
 
     // Selection cursor (▶ = $ED in charmap)
@@ -1364,6 +1367,9 @@ pub fn draw_battle(
         if matches!(screen.phase, BattlePhase::MoveSelect) {
             tile_buf.render_region(fb, &battle_ts, pal, 0, 8, 11, 5);
         }
+
+        // Keep the bottom dialog/menu box in front of sprites and animation overlays.
+        tile_buf.render_region(fb, &battle_ts, pal, 0, 12, 20, 6);
 
         effects.apply_post_effects(fb);
 
