@@ -606,6 +606,14 @@ impl OverworldScreen {
     pub fn update_frame(&mut self, input: OverworldInput) -> ScreenAction {
         self.frame_counter = self.frame_counter.wrapping_add(1);
 
+        // Edge detection for the A button must be computed BEFORE any early-return
+        // paths (warp fade, script effects, door auto-step, etc.) so that
+        // `prev_a_pressed` stays in sync with the physical key state every frame.
+        // Without this, holding A across a dialogue-creation boundary causes the
+        // first page to be skipped because the held state is mistaken for a new press.
+        let a_just_pressed = input.a && !self.prev_a_pressed;
+        self.prev_a_pressed = input.a;
+
         match self.warp_fade_state {
             WarpFadeState::FadingOut { frames_remaining } => {
                 if frames_remaining <= 1 {
@@ -639,7 +647,7 @@ impl OverworldScreen {
 
         // ── Script engine tick ────────────────────────────────────────
         if let Some(ref mut effect) = self.active_script_effect {
-            let done = Self::tick_active_effect(effect, &input, &mut self.pending_dialogue);
+            let done = Self::tick_active_effect(effect, a_just_pressed, &mut self.pending_dialogue);
             if done {
                 let result = Self::finish_effect(effect);
                 let effect_done = self.active_script_effect.take();
@@ -678,9 +686,6 @@ impl OverworldScreen {
             self.state.exiting_door = true;
             return ScreenAction::Continue;
         }
-
-        let a_just_pressed = input.a && !self.prev_a_pressed;
-        self.prev_a_pressed = input.a;
 
         // While a dialogue box is active, consume A-button to advance pages;
         // block all movement and Start input.
@@ -939,7 +944,7 @@ impl OverworldScreen {
 
     fn tick_active_effect(
         effect: &mut script_bridge::ScriptEffect,
-        input: &OverworldInput,
+        a_just_pressed: bool,
         pending_dialogue: &mut Option<BedroomDialogue>,
     ) -> bool {
         match effect {
@@ -951,7 +956,7 @@ impl OverworldScreen {
                     *pending_dialogue = None;
                     true
                 } else {
-                    if input.a {
+                    if a_just_pressed {
                         if let Some(ref mut dlg) = pending_dialogue {
                             if !dlg.advance() {
                                 *pending_dialogue = None;

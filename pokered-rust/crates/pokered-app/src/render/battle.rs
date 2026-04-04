@@ -694,7 +694,11 @@ impl BattleVisualEffects {
             }
         }
         self.particles.retain(|p| {
-            p.life > 0 && p.x >= -8 && p.y >= -8 && p.x < SCREEN_WIDTH as i32 + 8 && p.y < SCREEN_HEIGHT as i32 + 8
+            p.life > 0
+                && p.x >= -8
+                && p.y >= -8
+                && p.x < SCREEN_WIDTH as i32 + 8
+                && p.y < SCREEN_HEIGHT as i32 + 8
         });
     }
 
@@ -1354,11 +1358,11 @@ pub fn draw_battle(
         let (enemy_dx, enemy_dy) = effects.enemy_offset();
         if effects.enemy_visible_now() {
             if let Ok(cached) = rm.load_pokemon_front(&enemy_sprite) {
-            let ts = cached.tileset.clone();
-            let w_tiles = cached.source_size.0 / TILE_SIZE;
-            let h_tiles = cached.source_size.1 / TILE_SIZE;
-            let x_off = ((8 - w_tiles) / 2) * TILE_SIZE;
-            let y_off = (7 - h_tiles) * TILE_SIZE;
+                let ts = cached.tileset.clone();
+                let w_tiles = cached.source_size.0 / TILE_SIZE;
+                let h_tiles = cached.source_size.1 / TILE_SIZE;
+                let x_off = ((8 - w_tiles) / 2) * TILE_SIZE;
+                let y_off = (7 - h_tiles) * TILE_SIZE;
                 let ex = apply_offset(12 * TILE_SIZE + x_off, enemy_dx);
                 let ey = apply_offset(y_off, enemy_dy);
                 blit_tileset(fb, &ts, ex, ey, w_tiles, pal);
@@ -1371,9 +1375,9 @@ pub fn draw_battle(
         let (player_dx, player_dy) = effects.player_offset();
         if effects.player_visible_now() {
             if let Ok(cached) = rm.load_pokemon_back(&back_sprite_name) {
-            let ts = cached.tileset.clone();
-            let src_tpr = (cached.source_size.0 / TILE_SIZE) as usize;
-            let scaled = scale_sprite_by_two(&ts, src_tpr);
+                let ts = cached.tileset.clone();
+                let src_tpr = (cached.source_size.0 / TILE_SIZE) as usize;
+                let scaled = scale_sprite_by_two(&ts, src_tpr);
                 let px = apply_offset(1 * TILE_SIZE, player_dx);
                 let py = apply_offset(5 * TILE_SIZE, player_dy);
                 blit_tileset(fb, &scaled, px, py, 7, pal);
