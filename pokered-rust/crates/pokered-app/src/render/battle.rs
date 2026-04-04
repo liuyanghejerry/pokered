@@ -101,6 +101,7 @@ pub struct BattleVisualEffects {
     anim_tileset: u8,
     anim_layer: SpriteLayer,
     pending_applying: Option<PendingApplying>,
+    suppress_hit_flash: bool,
     flash_frames: u8,
     screen_shake: Option<ScreenShake>,
     screen_tint: Option<ScreenTint>,
@@ -127,6 +128,7 @@ impl Default for BattleVisualEffects {
             anim_tileset: 0,
             anim_layer: SpriteLayer::new(),
             pending_applying: None,
+            suppress_hit_flash: false,
             flash_frames: 0,
             screen_shake: None,
             screen_tint: None,
@@ -288,9 +290,11 @@ impl BattleVisualEffects {
             // Miss / no-effect messages should not produce hit flash feedback.
             self.pending_applying = None;
             self.hit_flash = None;
+            self.suppress_hit_flash = true;
         }
 
         if normalized.contains(" used ") && normalized.ends_with('!') {
+            self.suppress_hit_flash = false;
             let enemy_attacker = normalized.starts_with("Enemy ");
             self.attack_lunge = Some(AttackLunge {
                 attacker_is_player: !enemy_attacker,
@@ -386,32 +390,40 @@ impl BattleVisualEffects {
                 });
             }
             AnimEffect::BlinkEnemyMon { times } => {
-                self.hit_flash = Some(HitFlash {
-                    target_is_player: false,
-                    frame: 0,
-                    duration: times.saturating_mul(2).max(6),
-                });
+                if !self.suppress_hit_flash {
+                    self.hit_flash = Some(HitFlash {
+                        target_is_player: false,
+                        frame: 0,
+                        duration: times.saturating_mul(2).max(6),
+                    });
+                }
             }
             AnimEffect::BlinkPlayerMon { times } => {
-                self.hit_flash = Some(HitFlash {
-                    target_is_player: true,
-                    frame: 0,
-                    duration: times.saturating_mul(2).max(6),
-                });
+                if !self.suppress_hit_flash {
+                    self.hit_flash = Some(HitFlash {
+                        target_is_player: true,
+                        frame: 0,
+                        duration: times.saturating_mul(2).max(6),
+                    });
+                }
             }
             AnimEffect::FlashEnemyMonPic => {
-                self.hit_flash = Some(HitFlash {
-                    target_is_player: false,
-                    frame: 0,
-                    duration: 8,
-                });
+                if !self.suppress_hit_flash {
+                    self.hit_flash = Some(HitFlash {
+                        target_is_player: false,
+                        frame: 0,
+                        duration: 8,
+                    });
+                }
             }
             AnimEffect::FlashPlayerMonPic => {
-                self.hit_flash = Some(HitFlash {
-                    target_is_player: true,
-                    frame: 0,
-                    duration: 8,
-                });
+                if !self.suppress_hit_flash {
+                    self.hit_flash = Some(HitFlash {
+                        target_is_player: true,
+                        frame: 0,
+                        duration: 8,
+                    });
+                }
             }
             AnimEffect::DarkScreenPalette => {
                 self.screen_tint = Some(ScreenTint {
@@ -585,11 +597,15 @@ impl BattleVisualEffects {
             }
             AnimTickResult::Done => {
                 self.anim_layer.clear();
-                if let Some(pending) = self.pending_applying.take() {
-                    self.run_applying_attack_feedback(
-                        pending.anim_type,
-                        pending.attacker_is_player,
-                    );
+                if !self.suppress_hit_flash {
+                    if let Some(pending) = self.pending_applying.take() {
+                        self.run_applying_attack_feedback(
+                            pending.anim_type,
+                            pending.attacker_is_player,
+                        );
+                    }
+                } else {
+                    self.pending_applying = None;
                 }
             }
         }
@@ -1285,10 +1301,8 @@ pub fn draw_battle(
             screen.player_hp,
             screen.player_max_hp,
         );
-        // Pokeball party indicators
-        let player_balls = build_party_pokeballs(screen.player_party_size);
+        // Player pokeballs share tile row 10 with HP numbers; skip (original uses OAM layer)
         let enemy_balls = build_party_pokeballs(screen.enemy_party_size);
-        PokeballIndicators::draw_player(&mut tile_buf, &player_balls);
         PokeballIndicators::draw_enemy(&mut tile_buf, &enemy_balls);
 
         // ── Bottom area (text box + menu or message) ─────────────────
