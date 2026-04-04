@@ -10,22 +10,36 @@ const { currentMap } = storeToRefs(store)
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const hoveredLocation = ref<TownMapCoord | null>(null)
 const tooltipPos = ref({ x: 0, y: 0 })
-const townMapImage = ref<HTMLImageElement | null>(null)
 
 const CELL_SIZE = 16
 const MAP_WIDTH = 16
 const MAP_HEIGHT = 16
 const PADDING = 4
 
-async function loadTownMapImage() {
-  try {
-    const img = new Image()
-    img.src = '/gfx/town_map/town_map.png'
-    await img.decode()
-    townMapImage.value = img
-  } catch {
-    console.warn('Could not load town_map.png')
-  }
+// Kanto region terrain map (16x16 grid)
+// 0 = water, 1 = land, 2 = forest, 3 = mountains
+const KANTO_TERRAIN: number[][] = [
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0],
+  [1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0],
+  [1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 1],
+  [1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1],
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
+  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
+  [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
+  [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+  [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+  [0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1],
+  [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0],
+  [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+]
+
+function getCurrentMapCoord(): TownMapCoord | undefined {
+  if (!currentMap.value) return undefined
+  return TOWN_MAP_COORDS.find(c => c.mapName === currentMap.value?.name)
 }
 
 function getMapColor(coord: TownMapCoord, isCurrentMap: boolean): string {
@@ -34,11 +48,6 @@ function getMapColor(coord: TownMapCoord, isCurrentMap: boolean): string {
   if (coord.mapName.includes('Route')) return '#2ecc71'
   if (coord.mapName === 'IndigoPlateau') return '#9b59b6'
   return '#3498db'
-}
-
-function getCurrentMapCoord(): TownMapCoord | undefined {
-  if (!currentMap.value) return undefined
-  return TOWN_MAP_COORDS.find(c => c.mapName === currentMap.value?.name)
 }
 
 function render() {
@@ -53,30 +62,55 @@ function render() {
   canvas.width = width
   canvas.height = height
 
-  ctx.fillStyle = '#1a1a2e'
+  // Background
+  ctx.fillStyle = '#0a1628'
   ctx.fillRect(0, 0, width, height)
 
-  // Draw town map image as background
-  // town_map.png is 32x32 pixels, scale to 256x256 (8x scale) to fit the 16x16 grid
-  if (townMapImage.value) {
-    ctx.imageSmoothingEnabled = false
-    const targetSize = 32 * 8 // 256 pixels
-    ctx.drawImage(townMapImage.value, PADDING, PADDING, targetSize, targetSize)
-  } else {
-    // Fallback: draw grid
-    ctx.strokeStyle = '#2d2d44'
-    ctx.lineWidth = 0.5
-    for (let x = 0; x <= MAP_WIDTH; x++) {
-      ctx.beginPath()
-      ctx.moveTo(PADDING + x * CELL_SIZE, PADDING)
-      ctx.lineTo(PADDING + x * CELL_SIZE, PADDING + MAP_HEIGHT * CELL_SIZE)
-      ctx.stroke()
+  // Draw terrain
+  for (let y = 0; y < MAP_HEIGHT; y++) {
+    for (let x = 0; x < MAP_WIDTH; x++) {
+      const terrain = KANTO_TERRAIN[y]?.[x] ?? 0
+      const px = PADDING + x * CELL_SIZE
+      const py = PADDING + y * CELL_SIZE
+
+      if (terrain === 0) {
+        // Water
+        ctx.fillStyle = '#1a3a5c'
+      } else if (terrain === 1) {
+        // Land
+        ctx.fillStyle = '#2d5a3d'
+      } else if (terrain === 2) {
+        // Forest/mountain
+        ctx.fillStyle = '#1e4a2e'
+      } else {
+        ctx.fillStyle = '#3a6a4d'
+      }
+      ctx.fillRect(px, py, CELL_SIZE, CELL_SIZE)
     }
-    for (let y = 0; y <= MAP_HEIGHT; y++) {
-      ctx.beginPath()
-      ctx.moveTo(PADDING, PADDING + y * CELL_SIZE)
-      ctx.lineTo(PADDING + MAP_WIDTH * CELL_SIZE, PADDING + y * CELL_SIZE)
-      ctx.stroke()
+  }
+
+  // Draw terrain border lines
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)'
+  ctx.lineWidth = 0.5
+  for (let y = 0; y < MAP_HEIGHT; y++) {
+    for (let x = 0; x < MAP_WIDTH; x++) {
+      const terrain = KANTO_TERRAIN[y]?.[x] ?? 0
+      const px = PADDING + x * CELL_SIZE
+      const py = PADDING + y * CELL_SIZE
+
+      // Check neighbors and draw borders
+      if (x > 0 && KANTO_TERRAIN[y]?.[x - 1] !== terrain) {
+        ctx.beginPath()
+        ctx.moveTo(px, py)
+        ctx.lineTo(px, py + CELL_SIZE)
+        ctx.stroke()
+      }
+      if (y > 0 && KANTO_TERRAIN[y - 1]?.[x] !== terrain) {
+        ctx.beginPath()
+        ctx.moveTo(px, py)
+        ctx.lineTo(px + CELL_SIZE, py)
+        ctx.stroke()
+      }
     }
   }
 
@@ -144,8 +178,7 @@ function handleClick() {
   }
 }
 
-onMounted(async () => {
-  await loadTownMapImage()
+onMounted(() => {
   render()
 })
 
