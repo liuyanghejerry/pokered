@@ -1,38 +1,43 @@
-// Museum2F.js — Museum2F map script
-
-export async function enterMap() {
-  // Called when entering the map
-}
-
-// NPC Handlers
+// Museum2F.js — Museum 2F map script (JSON-bound architecture)
 
 export async function talkYoungster() {
-  await game.showText("TODO: Youngster dialog");
+  await game.showText(
+    "MOON STONE?\n\nWhat's so special\nabout it?"
+  );
 }
 
 export async function talkGramps() {
-  await game.showText("TODO: Gramps dialog");
+  await game.showText(
+    "July 20, 1969!\n\nThe 1st lunar\nlanding!\n\nI bought a color\nTV to watch it!"
+  );
 }
 
 export async function talkScientist() {
-  await game.showText("TODO: Scientist dialog");
+  await game.showText(
+    "We have a space\nexhibit now."
+  );
 }
 
 export async function talkBrunetteGirl() {
-  await game.showText("TODO: BrunetteGirl dialog");
+  await game.showText(
+    "I want a PIKACHU!\nIt's so cute!\n\nI asked my Daddy\nto catch me one!"
+  );
 }
 
 export async function talkHiker() {
-  await game.showText("TODO: Hiker dialog");
+  await game.showText(
+    "Yeah, a PIKACHU\nsoon, I promise!"
+  );
 }
 
-// Sign Handlers
-
 export async function sign1() {
-  await game.showText("TODO: Sign text");
+  await game.showText(
+    "SPACE SHUTTLE\nCOLUMBIA"
+  );
 }
 
 export async function sign2() {
-  await game.showText("TODO: Sign text");
+  await game.showText(
+    "Meteorite that\nfell on MT.MOON.\n(MOON STONE?)"
+  );
 }
-
