@@ -6,8 +6,6 @@ pub struct MapScriptConfig {
     #[serde(default)]
     pub on_load: Option<String>,
     #[serde(default)]
-    pub map_scripts: Vec<String>,
-    #[serde(default)]
     pub npcs: Vec<NpcBinding>,
     #[serde(default)]
     pub signs: Vec<SignBinding>,
@@ -24,6 +22,9 @@ pub struct NpcBinding {
     /// Named toggle identifier for script showObject/hideObject (e.g. "PALLET_TOWN_OAK").
     #[serde(default)]
     pub toggle_id: Option<String>,
+    /// Script-facing NPC identifier used by moveNpc/startNpcMove (e.g. "PALLETTOWN_OAK").
+    #[serde(default)]
+    pub script_id: Option<String>,
     /// If true, this NPC is hidden when the map first loads (until a script shows it).
     #[serde(default)]
     pub default_hidden: bool,
@@ -44,14 +45,6 @@ pub struct CoordEventBinding {
 impl MapScriptConfig {
     pub fn on_load(&self) -> Option<&str> {
         self.on_load.as_deref()
-    }
-
-    pub fn map_script_fn_name(&self, index: usize) -> Option<&str> {
-        self.map_scripts.get(index).map(|s| s.as_str())
-    }
-
-    pub fn resolve_map_script_index(&self, state_name: &str) -> Option<usize> {
-        self.map_scripts.iter().position(|s| s == state_name)
     }
 
     pub fn npc_talk_fn(&self, npc_text_id: u8) -> Option<&str> {
@@ -87,6 +80,13 @@ impl MapScriptConfig {
         self.npcs
             .iter()
             .find(|n| n.toggle_id.as_deref() == Some(toggle_id))
+            .map(|n| n.id)
+    }
+
+    pub fn npc_id_by_script_id(&self, script_id: &str) -> Option<u8> {
+        self.npcs
+            .iter()
+            .find(|n| n.script_id.as_deref() == Some(script_id))
             .map(|n| n.id)
     }
 }

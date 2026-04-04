@@ -381,28 +381,6 @@ fn test_reset_flag() {
 }
 
 #[test]
-fn test_set_map_script() {
-    let mut engine = ScriptEngine::new();
-    engine
-        .load_script(
-            r#"
-        export async function onEnter() {
-            await game.setMapScript("scriptFollowedOak");
-        }
-    "#,
-        )
-        .unwrap();
-
-    let cmd = engine.call_function("onEnter", &[]).unwrap();
-    assert_eq!(
-        cmd,
-        Some(ScriptCommand::SetMapScript {
-            state_name: "scriptFollowedOak".to_string()
-        })
-    );
-}
-
-#[test]
 fn test_set_joy_ignore() {
     let mut engine = ScriptEngine::new();
     engine

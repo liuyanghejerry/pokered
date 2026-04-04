@@ -48,6 +48,8 @@ use pokered_data::music::MusicId;
 use pokered_data::tileset_data;
 use pokered_data::tilesets::TilesetId;
 
+use std::collections::VecDeque;
+
 // ── Direction ──────────────────────────────────────────────────────
 
 /// Cardinal direction for movement and connections.
@@ -475,9 +477,45 @@ fn build_npc_runtime_states(
                 item_id: npc.item_id,
                 defeated: false,
                 visible,
+                scripted_path: std::collections::VecDeque::new(),
             }
         })
         .collect()
+}
+
+fn resolve_npc_index(
+    npc_id: &str,
+    npc_states: &[npc_movement::NpcRuntimeState],
+    config: &MapScriptConfig,
+) -> Option<usize> {
+    if let Some(idx) = script_bridge::find_npc_index_by_id(npc_states, npc_id) {
+        return Some(idx);
+    }
+    if let Some(npc_text_id) = config.npc_id_by_script_id(npc_id) {
+        return npc_states.iter().position(|n| n.text_id == npc_text_id);
+    }
+    None
+}
+
+fn direction_toward_player(from_x: u16, from_y: u16, to_x: u16, to_y: u16) -> Option<Direction> {
+    let dx = to_x as i32 - from_x as i32;
+    let dy = to_y as i32 - from_y as i32;
+    if dx == 0 && dy == 0 {
+        return None;
+    }
+    if dx.abs() > dy.abs() {
+        Some(if dx > 0 {
+            Direction::Right
+        } else {
+            Direction::Left
+        })
+    } else {
+        Some(if dy > 0 {
+            Direction::Down
+        } else {
+            Direction::Up
+        })
+    }
 }
 
 fn get_npc_text_from_json(
@@ -518,8 +556,8 @@ pub struct OverworldScreen {
     map_script_config: MapScriptConfig,
     active_script_effect: Option<script_bridge::ScriptEffect>,
     joy_ignore_mask: u8,
-    map_script_index: u8,
     scripts_dir: Option<std::path::PathBuf>,
+    scripted_player_path: VecDeque<(u16, u16)>,
 }
 
 const MAP_NAME_DISPLAY_FRAMES: u8 = 120;
@@ -570,8 +608,8 @@ impl OverworldScreen {
             map_script_config,
             active_script_effect: None,
             joy_ignore_mask: 0,
-            map_script_index: 0,
             scripts_dir,
+            scripted_player_path: VecDeque::new(),
         }
     }
 
@@ -676,7 +714,15 @@ impl OverworldScreen {
 
         // ── Script engine tick ────────────────────────────────────────
         if let Some(ref mut effect) = self.active_script_effect {
-            let done = Self::tick_active_effect(effect, a_just_pressed, &mut self.pending_dialogue);
+            let done = Self::tick_active_effect(
+                effect,
+                a_just_pressed,
+                &mut self.pending_dialogue,
+                &mut self.npc_states,
+                &self.state.player,
+                &mut self.scripted_player_path,
+                &self.map_script_config,
+            );
             if done {
                 let result = Self::finish_effect(effect);
                 let effect_done = self.active_script_effect.take();
@@ -685,6 +731,9 @@ impl OverworldScreen {
                     self.active_script_effect = Some(script_bridge::dispatch_command(&next_cmd));
                 }
             }
+            // NPC movement must continue during script effects so that
+            // MoveNpc / StartNpcMove / AwaitNpcMove effects can complete.
+            self.run_npc_movement_tick();
             return ScreenAction::Continue;
         }
         if let Some(cmd) = self.script_engine.tick() {
@@ -713,6 +762,38 @@ impl OverworldScreen {
             self.state.player.movement_state = MovementState::Walking;
             self.state.walk_counter = player_movement::WALK_COUNTER_INIT;
             self.state.exiting_door = true;
+            return ScreenAction::Continue;
+        }
+
+        // Scripted player movement — follow path ignoring real input.
+        if !self.scripted_player_path.is_empty() {
+            if self.state.player.movement_state == MovementState::Idle {
+                let &(tx, ty) = self.scripted_player_path.front().unwrap();
+                if self.state.player.x == tx && self.state.player.y == ty {
+                    self.scripted_player_path.pop_front();
+                    if self.scripted_player_path.is_empty() {
+                        self.run_npc_movement_tick();
+                        return ScreenAction::Continue;
+                    }
+                    let &(tx, ty) = self.scripted_player_path.front().unwrap();
+                    if let Some(dir) =
+                        direction_toward_player(self.state.player.x, self.state.player.y, tx, ty)
+                    {
+                        self.state.player.facing = dir;
+                        self.state.player.movement_state = MovementState::Walking;
+                        self.state.walk_counter = player_movement::WALK_COUNTER_INIT;
+                    }
+                } else if let Some(dir) =
+                    direction_toward_player(self.state.player.x, self.state.player.y, tx, ty)
+                {
+                    self.state.player.facing = dir;
+                    self.state.player.movement_state = MovementState::Walking;
+                    self.state.walk_counter = player_movement::WALK_COUNTER_INIT;
+                }
+            } else {
+                player_movement::advance_step(&mut self.state);
+            }
+            self.run_npc_movement_tick();
             return ScreenAction::Continue;
         }
 
@@ -980,42 +1061,50 @@ impl OverworldScreen {
         // (UpdateSpriteFacingOffsetAndDelayMovement sets delay to $7F).
         // We skip the entire NPC update when dialogue is active.
         if self.pending_dialogue.is_none() {
-            if let Some(ref map) = self.map_data {
-                let rng_value = (self
-                    .frame_counter
-                    .wrapping_mul(1103515245)
-                    .wrapping_add(12345)
-                    >> 16) as u8;
-                let player_dest = if self.state.player.movement_state != MovementState::Idle {
-                    let (dx, dy) = player_movement::direction_delta(self.state.player.facing);
-                    Some((
-                        (self.state.player.x as i32 + dx as i32).max(0) as u16,
-                        (self.state.player.y as i32 + dy as i32).max(0) as u16,
-                    ))
-                } else {
-                    None
-                };
-                npc_movement::update_npc_movement(
-                    &mut self.npc_states,
-                    self.state.player.x,
-                    self.state.player.y,
-                    player_dest,
-                    map.width,
-                    map.height,
-                    rng_value,
-                    &map.blocks,
-                    map.tileset,
-                );
-            }
+            self.run_npc_movement_tick();
         }
 
         ScreenAction::Continue
+    }
+
+    fn run_npc_movement_tick(&mut self) {
+        if let Some(ref map) = self.map_data {
+            let rng_value = (self
+                .frame_counter
+                .wrapping_mul(1103515245)
+                .wrapping_add(12345)
+                >> 16) as u8;
+            let player_dest = if self.state.player.movement_state != MovementState::Idle {
+                let (dx, dy) = player_movement::direction_delta(self.state.player.facing);
+                Some((
+                    (self.state.player.x as i32 + dx as i32).max(0) as u16,
+                    (self.state.player.y as i32 + dy as i32).max(0) as u16,
+                ))
+            } else {
+                None
+            };
+            npc_movement::update_npc_movement(
+                &mut self.npc_states,
+                self.state.player.x,
+                self.state.player.y,
+                player_dest,
+                map.width,
+                map.height,
+                rng_value,
+                &map.blocks,
+                map.tileset,
+            );
+        }
     }
 
     fn tick_active_effect(
         effect: &mut script_bridge::ScriptEffect,
         a_just_pressed: bool,
         pending_dialogue: &mut Option<BedroomDialogue>,
+        npc_states: &mut [npc_movement::NpcRuntimeState],
+        player_state: &PlayerState,
+        scripted_player_path: &mut VecDeque<(u16, u16)>,
+        map_script_config: &MapScriptConfig,
     ) -> bool {
         match effect {
             script_bridge::ScriptEffect::ShowDialogue { text } => {
@@ -1050,7 +1139,51 @@ impl OverworldScreen {
             script_bridge::ScriptEffect::Immediate { .. } => true,
             script_bridge::ScriptEffect::SetJoyIgnore { .. } => true,
             script_bridge::ScriptEffect::ClearJoyIgnore => true,
-            script_bridge::ScriptEffect::SetMapScript { .. } => true,
+            script_bridge::ScriptEffect::StartNpcMove { npc_id, path } => {
+                if let Some(idx) = resolve_npc_index(npc_id, npc_states, map_script_config) {
+                    npc_movement::start_scripted_move(&mut npc_states[idx], path);
+                }
+                true
+            }
+            script_bridge::ScriptEffect::MoveNpc {
+                npc_id,
+                path,
+                started,
+            } => {
+                if !*started {
+                    if let Some(idx) = resolve_npc_index(npc_id, npc_states, map_script_config) {
+                        npc_movement::start_scripted_move(&mut npc_states[idx], path);
+                    }
+                    *started = true;
+                    false
+                } else {
+                    let npc_idx = resolve_npc_index(npc_id, npc_states, map_script_config);
+                    match npc_idx {
+                        Some(idx) => npc_movement::is_scripted_move_done(&npc_states[idx]),
+                        None => true,
+                    }
+                }
+            }
+            script_bridge::ScriptEffect::AwaitNpcMove { npc_id } => {
+                let npc_idx = resolve_npc_index(npc_id, npc_states, map_script_config);
+                match npc_idx {
+                    Some(idx) => npc_movement::is_scripted_move_done(&npc_states[idx]),
+                    None => true,
+                }
+            }
+            script_bridge::ScriptEffect::MovePlayer { path, started } => {
+                if !*started {
+                    scripted_player_path.clear();
+                    for &(x, y) in path.iter() {
+                        scripted_player_path.push_back((x as u16, y as u16));
+                    }
+                    *started = true;
+                    false
+                } else {
+                    scripted_player_path.is_empty()
+                        && player_state.movement_state == MovementState::Idle
+                }
+            }
             _ => true,
         }
     }
@@ -1072,28 +1205,9 @@ impl OverworldScreen {
                 script_bridge::ScriptEffect::ClearJoyIgnore => {
                     self.joy_ignore_mask = 0;
                 }
-                script_bridge::ScriptEffect::SetMapScript { state_name } => {
-                    if let Some(idx) = self.map_script_config.resolve_map_script_index(&state_name)
-                    {
-                        self.map_script_index = idx as u8;
-                        if let Some(fn_name) = self.map_script_config.map_script_fn_name(idx) {
-                            let fn_name = fn_name.to_string();
-                            if self.script_engine.has_function(&fn_name) {
-                                if let Ok(Some(cmd)) =
-                                    self.script_engine.call_function_no_args(&fn_name)
-                                {
-                                    self.active_script_effect =
-                                        Some(script_bridge::dispatch_command(&cmd));
-                                }
-                            }
-                        }
-                    } else {
-                        log::warn!("SetMapScript: unknown state '{}'", state_name);
-                    }
-                }
                 script_bridge::ScriptEffect::FaceNpc { npc_id, direction } => {
                     if let Some(idx) =
-                        script_bridge::find_npc_index_by_id(&self.npc_states, &npc_id)
+                        resolve_npc_index(&npc_id, &self.npc_states, &self.map_script_config)
                     {
                         self.npc_states[idx].facing = direction;
                     }
@@ -1152,7 +1266,6 @@ impl OverworldScreen {
             .cloned()
             .unwrap_or_default();
         self.active_script_effect = None;
-        self.map_script_index = 0;
 
         if let Some(fn_name) = self.map_script_config.on_load() {
             if self.script_engine.has_function(fn_name) {

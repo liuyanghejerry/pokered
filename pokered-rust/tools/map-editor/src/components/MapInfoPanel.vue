@@ -93,13 +93,6 @@ function isSelected(type: string, index: number): boolean {
         </p>
       </template>
 
-      <template v-if="store.currentScriptConfig?.mapScripts?.length">
-        <p class="my-0.5"><b>Map Scripts ({{ store.currentScriptConfig.mapScripts.length }}):</b></p>
-        <p v-for="(fn, i) in store.currentScriptConfig.mapScripts" :key="'ms-' + i" class="my-0.5 ml-2.5 font-mono text-accent cursor-pointer hover:underline" @click="store.jumpToFunction(fn)">
-          [{{ i }}] {{ fn }}
-        </p>
-      </template>
-
       <template v-if="store.currentScriptConfig?.coordEvents?.length || store.currentScriptConfig">
         <div class="flex items-center justify-between my-0.5">
           <b>Coord Events ({{ store.currentScriptConfig?.coordEvents?.length ?? 0 }}):</b>

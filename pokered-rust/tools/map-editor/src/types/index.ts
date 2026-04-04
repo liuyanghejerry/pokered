@@ -94,7 +94,6 @@ export interface MapJson {
 }
 
 export interface MapScriptConfig {
-  mapScripts: string[]
   npcs: { id: number; talk: string }[]
   signs: { id: number; talk: string }[]
   coordEvents: { position: [number, number]; trigger: string }[]

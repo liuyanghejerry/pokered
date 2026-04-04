@@ -400,6 +400,68 @@ fn register_game_api(context: &mut Context, bridge: Rc<RefCell<SharedBridge>>) {
         }
     );
 
+    // game.startNpcMove(npcId: string, path: [number, number][]) -> Promise<void>
+    // Fire-and-forget: starts NPC moving along path, resolves immediately.
+    register_async_command!(
+        "startNpcMove",
+        bridge,
+        context,
+        game_obj,
+        |args: &[JsValue], ctx: &mut Context| -> JsResult<ScriptCommand> {
+            let npc_id = args
+                .get_or_undefined(0)
+                .to_string(ctx)?
+                .to_std_string_lossy();
+            let arr = args.get_or_undefined(1).to_object(ctx)?;
+            let len = arr.get(js_string!("length"), ctx)?.to_u32(ctx)?;
+            let mut path = Vec::new();
+            for i in 0..len {
+                let point = arr.get(i, ctx)?.to_object(ctx)?;
+                let x = point.get(0, ctx)?.to_u32(ctx)? as u8;
+                let y = point.get(1, ctx)?.to_u32(ctx)? as u8;
+                path.push((x, y));
+            }
+            Ok(ScriptCommand::StartNpcMove { npc_id, path })
+        }
+    );
+
+    // game.awaitNpcMove(npcId: string) -> Promise<void>
+    // Blocks until the NPC's scripted path is complete.
+    register_async_command!(
+        "awaitNpcMove",
+        bridge,
+        context,
+        game_obj,
+        |args: &[JsValue], ctx: &mut Context| -> JsResult<ScriptCommand> {
+            let npc_id = args
+                .get_or_undefined(0)
+                .to_string(ctx)?
+                .to_std_string_lossy();
+            Ok(ScriptCommand::AwaitNpcMove { npc_id })
+        }
+    );
+
+    // game.movePlayer(path: [number, number][]) -> Promise<void>
+    // Blocks until the player finishes walking the path.
+    register_async_command!(
+        "movePlayer",
+        bridge,
+        context,
+        game_obj,
+        |args: &[JsValue], ctx: &mut Context| -> JsResult<ScriptCommand> {
+            let arr = args.get_or_undefined(0).to_object(ctx)?;
+            let len = arr.get(js_string!("length"), ctx)?.to_u32(ctx)?;
+            let mut path = Vec::new();
+            for i in 0..len {
+                let point = arr.get(i, ctx)?.to_object(ctx)?;
+                let x = point.get(0, ctx)?.to_u32(ctx)? as u8;
+                let y = point.get(1, ctx)?.to_u32(ctx)? as u8;
+                path.push((x, y));
+            }
+            Ok(ScriptCommand::MovePlayer { path })
+        }
+    );
+
     // game.faceNpc(npcId: string, direction: string) -> Promise<void>
     register_async_command!(
         "faceNpc",
@@ -631,21 +693,6 @@ fn register_game_api(context: &mut Context, bridge: Rc<RefCell<SharedBridge>>) {
                 let object_index = arg.to_u32(ctx)? as u8;
                 Ok(ScriptCommand::HideObject { object_index })
             }
-        }
-    );
-
-    // game.setMapScript(stateName: string) -> Promise<void>
-    register_async_command!(
-        "setMapScript",
-        bridge,
-        context,
-        game_obj,
-        |args: &[JsValue], ctx: &mut Context| -> JsResult<ScriptCommand> {
-            let state_name = args
-                .get_or_undefined(0)
-                .to_string(ctx)?
-                .to_std_string_lossy();
-            Ok(ScriptCommand::SetMapScript { state_name })
         }
     );
 

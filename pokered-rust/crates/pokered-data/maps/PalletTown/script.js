@@ -36,42 +36,63 @@ export async function palletTownOnLoad() {
   }
 }
 
-// ── Map Script States (bound via mapScripts[] in PalletTown.json) ────
+// ── Script Chain Functions ───────────────────────────────────────────
 
-export async function palletTownDefault() {}
-
-export async function palletTownOakHeyWait() {
+async function palletTownOakHeyWait() {
   await game.showText("OAK: Hey! Wait!\nDon't go out!");
   await game.delay(10);
   await game.facePlayer("down");
   await game.setJoyIgnore(PAD.BUTTONS | PAD.DPAD);
   await game.showObject(TOGGLE.PALLET_TOWN_OAK);
-  await game.setMapScript("palletTownOakWalksToPlayer");
+  await palletTownOakWalksToPlayer();
 }
 
-export async function palletTownOakWalksToPlayer() {
+async function palletTownOakWalksToPlayer() {
   await game.faceNpc(NPC.OAK, "up");
   await game.delay(3);
-  await game.moveNpc(NPC.OAK, [[3, 1]]);
+  await game.moveNpc(NPC.OAK, [[8, 2], [10, 2]]);
   await game.setJoyIgnore(PAD.BUTTONS | PAD.DPAD);
-  await game.setMapScript("palletTownOakNotSafe");
+  await palletTownOakNotSafe();
 }
 
-export async function palletTownOakNotSafe() {
+async function palletTownOakNotSafe() {
   await game.facePlayer("down");
   await game.setJoyIgnore(PAD.SELECT | PAD.START | PAD.DPAD);
   await game.showText(
     "OAK: It's unsafe!\nWild POKeMON live\nin tall grass!\nYou need your own\nPOKeMON for your\nprotection.\nI know!\nHere, come with\nme!"
   );
   await game.setJoyIgnore(PAD.BUTTONS | PAD.DPAD);
-  await game.setMapScript("palletTownPlayerFollowsOak");
+  await palletTownPlayerFollowsOak();
 }
 
-export async function palletTownPlayerFollowsOak() {
-  await game.setMapScript("palletTownDaisy");
+async function palletTownPlayerFollowsOak() {
+  // Oak walks to lab: down 5, left 1, down 5, right 3, up 1 (original RLE)
+  // Oak is at (10,2) after walking to the player.
+  const oakPath = [
+    [10, 3], [10, 4], [10, 5], [10, 6], [10, 7],
+    [9, 7],
+    [9, 8], [9, 9], [9, 10], [9, 11], [9, 12],
+    [10, 12], [11, 12], [12, 12],
+    [12, 11],
+  ];
+  // Player walks to lab: adapted from original RLE (up 1, right 3, down 7, left 1, down 4)
+  // Player is at (10,1) when the walk-to-lab sequence starts.
+  const playerPath = [
+    [10, 0],
+    [11, 0], [12, 0], [13, 0],
+    [13, 1], [13, 2], [13, 3], [13, 4], [13, 5], [13, 6], [13, 7],
+    [12, 7],
+    [12, 8], [12, 9], [12, 10], [12, 11],
+  ];
+  game.startNpcMove(NPC.OAK, oakPath);
+  await game.movePlayer(playerPath);
+  await game.awaitNpcMove(NPC.OAK);
+  await game.hideObject(TOGGLE.PALLET_TOWN_OAK);
+  game.setFlag(EVENT.FOLLOWED_OAK_INTO_LAB);
+  await palletTownDaisy();
 }
 
-export async function palletTownDaisy() {
+async function palletTownDaisy() {
   if (!game.getFlag(EVENT.DAISY_WALKING)) {
     if (game.getFlag(EVENT.GOT_TOWN_MAP) && game.getFlag(EVENT.ENTERED_BLUES_HOUSE)) {
       game.setFlag(EVENT.DAISY_WALKING);
@@ -82,10 +103,7 @@ export async function palletTownDaisy() {
   if (game.getFlag(EVENT.GOT_POKEBALLS_FROM_OAK)) {
     game.setFlag(EVENT.PALLET_AFTER_GETTING_POKEBALLS_2);
   }
-  await game.setMapScript("palletTownNoop");
 }
-
-export async function palletTownNoop() {}
 
 // ── NPC handlers (bound via npcs[] in PalletTown.json) ───────────────
 
@@ -142,5 +160,5 @@ export async function coordNorthExit() {
   await game.playMusic("MUSIC_MEET_PROF_OAK");
   await game.setJoyIgnore(PAD.SELECT | PAD.START | PAD.DPAD);
   game.setFlag(EVENT.OAK_APPEARED_IN_PALLET);
-  await game.setMapScript("palletTownOakHeyWait");
+  await palletTownOakHeyWait();
 }

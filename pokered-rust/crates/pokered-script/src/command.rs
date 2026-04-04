@@ -15,6 +15,9 @@ pub enum ScriptCommand {
     ShowObjectByName { toggle_id: String },
     HideObjectByName { toggle_id: String },
     MoveNpc { npc_id: String, path: Vec<(u8, u8)> },
+    StartNpcMove { npc_id: String, path: Vec<(u8, u8)> },
+    AwaitNpcMove { npc_id: String },
+    MovePlayer { path: Vec<(u8, u8)> },
     FaceNpc { npc_id: String, direction: String },
     FacePlayer { direction: String },
     PlayMusic { music_id: String },
@@ -26,7 +29,6 @@ pub enum ScriptCommand {
     WarpTo { map: String, x: u8, y: u8 },
     Heal,
     FadeScreen { fade_type: String },
-    SetMapScript { state_name: String },
     SetJoyIgnore { mask: u8 },
     ClearJoyIgnore,
 }

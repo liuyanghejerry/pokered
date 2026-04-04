@@ -1,5 +1,5 @@
 use pokered_data::maps::MapId;
-use pokered_script::{CommandResult, MapScriptConfig, ScriptCommand};
+use pokered_script::{CommandResult, ScriptCommand};
 
 use super::npc_movement::NpcRuntimeState;
 use super::{BedroomDialogue, DialoguePage, Direction};
@@ -41,6 +41,18 @@ pub enum ScriptEffect {
     MoveNpc {
         npc_id: String,
         path: Vec<(u8, u8)>,
+        started: bool,
+    },
+    StartNpcMove {
+        npc_id: String,
+        path: Vec<(u8, u8)>,
+    },
+    AwaitNpcMove {
+        npc_id: String,
+    },
+    MovePlayer {
+        path: Vec<(u8, u8)>,
+        started: bool,
     },
     FaceNpc {
         npc_id: String,
@@ -72,9 +84,6 @@ pub enum ScriptEffect {
     Heal,
     FadeScreen {
         fade_type: String,
-    },
-    SetMapScript {
-        state_name: String,
     },
     SetJoyIgnore {
         mask: u8,
@@ -128,6 +137,18 @@ pub fn dispatch_command(cmd: &ScriptCommand) -> ScriptEffect {
         ScriptCommand::MoveNpc { npc_id, path } => ScriptEffect::MoveNpc {
             npc_id: npc_id.clone(),
             path: path.clone(),
+            started: false,
+        },
+        ScriptCommand::StartNpcMove { npc_id, path } => ScriptEffect::StartNpcMove {
+            npc_id: npc_id.clone(),
+            path: path.clone(),
+        },
+        ScriptCommand::AwaitNpcMove { npc_id } => ScriptEffect::AwaitNpcMove {
+            npc_id: npc_id.clone(),
+        },
+        ScriptCommand::MovePlayer { path } => ScriptEffect::MovePlayer {
+            path: path.clone(),
+            started: false,
         },
         ScriptCommand::FaceNpc { npc_id, direction } => ScriptEffect::FaceNpc {
             npc_id: npc_id.clone(),
@@ -159,9 +180,6 @@ pub fn dispatch_command(cmd: &ScriptCommand) -> ScriptEffect {
         ScriptCommand::Heal => ScriptEffect::Heal,
         ScriptCommand::FadeScreen { fade_type } => ScriptEffect::FadeScreen {
             fade_type: fade_type.clone(),
-        },
-        ScriptCommand::SetMapScript { state_name } => ScriptEffect::SetMapScript {
-            state_name: state_name.clone(),
         },
         ScriptCommand::SetJoyIgnore { mask } => ScriptEffect::SetJoyIgnore { mask: *mask },
         ScriptCommand::ClearJoyIgnore => ScriptEffect::ClearJoyIgnore,

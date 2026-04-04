@@ -5,6 +5,7 @@ use pokered_data::maps::MapId;
 use pokered_data::npc_data::{get_map_npcs, NpcFacing, NpcMovement};
 use pokered_data::sign_data::get_map_signs;
 use pokered_data::tilesets::TilesetId;
+use std::collections::VecDeque;
 
 // ── Data Integrity Tests ───────────────────────────────────────────
 
@@ -235,6 +236,7 @@ fn make_test_npc(x: u16, y: u16, movement: NpcMovementType) -> NpcRuntimeState {
         item_id: 0,
         defeated: false,
         visible: true,
+        scripted_path: VecDeque::new(),
     }
 }
 
@@ -384,6 +386,7 @@ fn make_trainer_npc(x: u16, y: u16) -> NpcRuntimeState {
         item_id: 0,
         defeated: false,
         visible: true,
+        scripted_path: VecDeque::new(),
     }
 }
 
@@ -407,6 +410,7 @@ fn make_item_npc(x: u16, y: u16, item_id: u8) -> NpcRuntimeState {
         item_id,
         defeated: false,
         visible: true,
+        scripted_path: VecDeque::new(),
     }
 }
 

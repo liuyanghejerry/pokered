@@ -1,26 +1,5 @@
 {
   "onLoad": "oaksLabOnLoad",
-  "mapScripts": [
-    "scriptDefault",
-    "scriptOakEntersLab",
-    "scriptToggleOaks",
-    "scriptPlayerEntersLab",
-    "scriptFollowedOak",
-    "scriptOakChooseMonSpeech",
-    "scriptPlayerDontGoAway",
-    "scriptPlayerForcedWalkBack",
-    "scriptChoseStarter",
-    "scriptRivalChoosesStarter",
-    "scriptRivalChallengesPlayer",
-    "scriptRivalStartBattle",
-    "scriptRivalEndBattle",
-    "scriptRivalStartsExit",
-    "scriptPlayerWatchRivalExit",
-    "scriptRivalArrivesAtOaksRequest",
-    "scriptOakGivesPokedex",
-    "scriptRivalLeavesWithPokedex",
-    "scriptNoop"
-  ],
   "npcs": [
     {
       "id": 1,

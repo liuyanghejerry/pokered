@@ -10,6 +10,8 @@
 //! its current position, facing, walk counter, and movement pattern.
 //! The `update_npc_movement` function advances all NPCs one frame.
 
+use std::collections::VecDeque;
+
 use pokered_data::collision::is_tile_passable;
 use pokered_data::npc_data::{NpcEntry, NpcFacing, NpcMovement};
 use pokered_data::tilesets::TilesetId;
@@ -61,6 +63,10 @@ pub struct NpcRuntimeState {
     pub defeated: bool,
     /// Whether this NPC is currently visible (some NPCs are hidden by scripts).
     pub visible: bool,
+    /// Scripted movement path — queue of target (x, y) tile positions.
+    /// When non-empty, the NPC follows this path instead of its normal movement.
+    /// Each entry is consumed when the NPC reaches that tile.
+    pub scripted_path: VecDeque<(u16, u16)>,
 }
 
 /// Convert pokered-data NpcMovement to pokered-core NpcMovementType.
@@ -90,6 +96,38 @@ pub const NPC_WALK_FRAMES: u8 = 8;
 
 /// Maximum wander delay (NPCs wait 0..=63 frames between steps in the original game).
 pub const NPC_MAX_DELAY: u8 = 63;
+
+fn direction_toward(from_x: u16, from_y: u16, to_x: u16, to_y: u16) -> Option<Direction> {
+    let dx = to_x as i32 - from_x as i32;
+    let dy = to_y as i32 - from_y as i32;
+    if dx == 0 && dy == 0 {
+        return None;
+    }
+    if dx.abs() > dy.abs() {
+        Some(if dx > 0 {
+            Direction::Right
+        } else {
+            Direction::Left
+        })
+    } else {
+        Some(if dy > 0 {
+            Direction::Down
+        } else {
+            Direction::Up
+        })
+    }
+}
+
+pub fn start_scripted_move(npc: &mut NpcRuntimeState, path: &[(u8, u8)]) {
+    npc.scripted_path.clear();
+    for &(x, y) in path {
+        npc.scripted_path.push_back((x as u16, y as u16));
+    }
+}
+
+pub fn is_scripted_move_done(npc: &NpcRuntimeState) -> bool {
+    npc.scripted_path.is_empty() && npc.walk_counter == 0
+}
 
 /// Look up the tile ID at a tile position from raw block data.
 /// Same logic as `player_movement::get_tile_at_position` but operates on
@@ -142,6 +180,7 @@ pub fn load_map_npcs(npcs: &[NpcEntry]) -> Vec<NpcRuntimeState> {
             item_id: npc.item_id,
             defeated: false,
             visible: true,
+            scripted_path: VecDeque::new(),
         })
         .collect()
 }
@@ -219,6 +258,26 @@ pub fn update_npc_movement(
                 let (dx, dy) = direction_delta(npc.facing);
                 npc.x = (npc.x as i32 + dx as i32).max(0) as u16;
                 npc.y = (npc.y as i32 + dy as i32).max(0) as u16;
+            }
+            continue;
+        }
+
+        // Scripted path takes priority over normal movement patterns.
+        if !npc.scripted_path.is_empty() {
+            let &(tx, ty) = npc.scripted_path.front().unwrap();
+            if npc.x == tx && npc.y == ty {
+                npc.scripted_path.pop_front();
+                if npc.scripted_path.is_empty() {
+                    continue;
+                }
+                let &(tx, ty) = npc.scripted_path.front().unwrap();
+                if let Some(dir) = direction_toward(npc.x, npc.y, tx, ty) {
+                    npc.facing = dir;
+                    npc.walk_counter = NPC_WALK_FRAMES;
+                }
+            } else if let Some(dir) = direction_toward(npc.x, npc.y, tx, ty) {
+                npc.facing = dir;
+                npc.walk_counter = NPC_WALK_FRAMES;
             }
             continue;
         }

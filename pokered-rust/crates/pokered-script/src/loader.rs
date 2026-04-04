@@ -348,7 +348,6 @@ mod tests {
     fn test_register_config_json() {
         let mut loader = ScriptLoader::new();
         let json = r#"{
-            "mapScripts": ["stateDefault", "stateOak"],
             "npcs": [{"id": 1, "talk": "talkOak"}],
             "signs": [{"id": 1, "talk": "signLab"}],
             "coordEvents": [{"position": [4, 1], "trigger": "enterRoute1"}]
@@ -356,12 +355,10 @@ mod tests {
         loader.register_config_json("TestMap", json).unwrap();
         assert!(loader.has_config("TestMap"));
         let config = loader.get_config("TestMap").unwrap();
-        assert_eq!(config.map_scripts.len(), 2);
         assert_eq!(config.npcs.len(), 1);
         assert_eq!(config.npc_talk_fn(1), Some("talkOak"));
         assert_eq!(config.sign_talk_fn(1), Some("signLab"));
         assert_eq!(config.coord_event_fn(4, 1), Some("enterRoute1"));
-        assert_eq!(config.resolve_map_script_index("stateOak"), Some(1));
     }
 
     #[cfg(feature = "embedded-scripts")]

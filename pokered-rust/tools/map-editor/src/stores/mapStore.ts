@@ -282,14 +282,6 @@ export const useMapStore = defineStore('map', () => {
     }
   }
 
-  function updateMapScripts(scripts: string[]) {
-    const config = currentScriptConfig.value
-    if (config) {
-      config.mapScripts = scripts
-      hasUnsavedChanges.value = true
-    }
-  }
-
   async function saveCurrentMap() {
     const map = currentMap.value
     if (!map) return
@@ -438,7 +430,6 @@ export const useMapStore = defineStore('map', () => {
     addCoordEvent,
     removeCoordEvent,
     updateCoordEvent,
-    updateMapScripts,
     saveCurrentMap,
     updateStatus,
     scriptFiles,

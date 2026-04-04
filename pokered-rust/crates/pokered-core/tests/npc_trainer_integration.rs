@@ -11,6 +11,7 @@ use pokered_core::overworld::trainer_engine::{
 use pokered_core::overworld::Direction;
 use pokered_data::maps::MapId;
 use pokered_data::npc_data::get_map_npcs;
+use std::collections::VecDeque;
 
 fn make_npc(
     index: u8,
@@ -41,6 +42,7 @@ fn make_npc(
         item_id,
         defeated: false,
         visible: true,
+        scripted_path: VecDeque::new(),
     }
 }
 

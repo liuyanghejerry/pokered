@@ -31,46 +31,44 @@ const PAD = { SELECT: 0x04, START: 0x08, DPAD: 0xF0, BUTTONS: 0x0F };
 const STARTER = { CHARMANDER: "CHARMANDER", SQUIRTLE: "SQUIRTLE", BULBASAUR: "BULBASAUR" };
 
 
-// ── Script State Functions (named for JSON binding) ──────────────────
+// ── Script Chain Functions ────────────────────────────────────────────
 
 export async function oaksLabOnLoad() {
   if (!game.getFlag(EVENT.OAK_APPEARED_IN_PALLET)) {
     return;
   }
   await game.showObject(TOGGLE.OAK2);
-  await game.setMapScript("scriptOakEntersLab");
+  await scriptOakEntersLab();
 }
 
-export async function scriptDefault() {}
-
-export async function scriptOakEntersLab() {
+async function scriptOakEntersLab() {
   await game.moveNpc(NPC.OAK2, ["up", "up", "up"]);
-  await game.setMapScript("scriptToggleOaks");
+  await scriptToggleOaks();
 }
 
-export async function scriptToggleOaks() {
+async function scriptToggleOaks() {
   await game.hideObject(TOGGLE.OAK2);
   await game.showObject(TOGGLE.OAK1);
-  await game.setMapScript("scriptPlayerEntersLab");
+  await scriptPlayerEntersLab();
 }
 
-export async function scriptPlayerEntersLab() {
+async function scriptPlayerEntersLab() {
   await game.delay(3);
   await game.moveNpc("PLAYER", ["up", "up", "up", "up", "up", "up", "up", "up"]);
   await game.faceNpc(NPC.RIVAL, "down");
   await game.faceNpc(NPC.OAK1, "down");
-  await game.setMapScript("scriptFollowedOak");
+  await scriptFollowedOak();
 }
 
-export async function scriptFollowedOak() {
+async function scriptFollowedOak() {
   game.setFlag(EVENT.FOLLOWED_OAK_INTO_LAB);
   game.setFlag(EVENT.FOLLOWED_OAK_INTO_LAB_2);
   await game.faceNpc(NPC.RIVAL, "up");
   await game.playMusic("MUSIC_PALLET_TOWN");
-  await game.setMapScript("scriptOakChooseMonSpeech");
+  await scriptOakChooseMonSpeech();
 }
 
-export async function scriptOakChooseMonSpeech() {
+async function scriptOakChooseMonSpeech() {
   await game.setJoyIgnore(PAD.SELECT | PAD.START | PAD.DPAD);
 
   await game.showText("<RIVAL>: Gramps!\nI'm fed up with\nwaiting!");
@@ -83,25 +81,17 @@ export async function scriptOakChooseMonSpeech() {
 
   game.setFlag(EVENT.OAK_ASKED_TO_CHOOSE_MON);
   await game.clearJoyIgnore();
-
-  await game.setMapScript("scriptPlayerDontGoAway");
 }
 
-export async function scriptPlayerDontGoAway() {
+async function scriptPlayerDontGoAway() {
   await game.faceNpc(NPC.OAK1, "down");
   await game.faceNpc(NPC.RIVAL, "down");
   await game.showText("OAK: Hey! Don't\ngo away yet!");
   await game.moveNpc("PLAYER", ["up"]);
   await game.facePlayer("up");
-  await game.setMapScript("scriptPlayerForcedWalkBack");
 }
 
-export async function scriptPlayerForcedWalkBack() {
-  await game.delay(3);
-  await game.setMapScript("scriptPlayerDontGoAway");
-}
-
-export async function scriptChoseStarter() {
+async function scriptChoseStarter() {
   const starter = game.getVar ? game.getVar("wPlayerStarter") : STARTER.CHARMANDER;
   const playerPos = game.getPlayerPos ? game.getPlayerPos() : { x: 0, y: 3 };
 
@@ -121,10 +111,10 @@ export async function scriptChoseStarter() {
     await game.moveNpc(NPC.RIVAL, ["down", "right", "right"]);
   }
 
-  await game.setMapScript("scriptRivalChoosesStarter");
+  await scriptRivalChoosesStarter();
 }
 
-export async function scriptRivalChoosesStarter() {
+async function scriptRivalChoosesStarter() {
   await game.setJoyIgnore(PAD.SELECT | PAD.START | PAD.DPAD);
   await game.faceNpc(NPC.RIVAL, "up");
   await game.showText("<RIVAL>: I'll\ntake this one\nthen!");
@@ -144,34 +134,34 @@ export async function scriptRivalChoosesStarter() {
   game.setFlag(EVENT.GOT_STARTER);
   await game.clearJoyIgnore();
 
-  await game.setMapScript("scriptRivalChallengesPlayer");
+  await scriptRivalChallengesPlayer();
 }
 
-export async function scriptRivalChallengesPlayer() {
+async function scriptRivalChallengesPlayer() {
   await game.faceNpc(NPC.RIVAL, "down");
   await game.facePlayer("up");
   await game.playMusic("MUSIC_MEET_RIVAL");
   await game.showText("<RIVAL>: Wait\n<PLAYER>!\nLet's check out\nour POKeMON!\nCome on, I'll\ntake you on!");
   await game.moveNpc(NPC.RIVAL, ["find_player"]);
-  await game.setMapScript("scriptRivalStartBattle");
+  await scriptRivalStartBattle();
 }
 
-export async function scriptRivalStartBattle() {
+async function scriptRivalStartBattle() {
   await game.facePlayer("up");
   const result = await game.startBattle("OPP_RIVAL1");
-  await game.setMapScript("scriptRivalEndBattle");
+  await scriptRivalEndBattle();
 }
 
-export async function scriptRivalEndBattle() {
+async function scriptRivalEndBattle() {
   await game.setJoyIgnore(PAD.DPAD);
   await game.facePlayer("up");
   await game.faceNpc(NPC.RIVAL, "down");
   await game.heal();
   game.setFlag(EVENT.BATTLED_RIVAL_IN_OAKS_LAB);
-  await game.setMapScript("scriptRivalStartsExit");
+  await scriptRivalStartsExit();
 }
 
-export async function scriptRivalStartsExit() {
+async function scriptRivalStartsExit() {
   await game.delay(20);
   await game.showText("<RIVAL>: Smell\nyou later!");
   await game.playMusic("MUSIC_MEET_RIVAL");
@@ -180,17 +170,16 @@ export async function scriptRivalStartsExit() {
   const sideStep = playerPos.x <= 4 ? "right" : "left";
   await game.moveNpc(NPC.RIVAL, [sideStep, "down", "down", "down", "down", "down"]);
 
-  await game.setMapScript("scriptPlayerWatchRivalExit");
+  await scriptPlayerWatchRivalExit();
 }
 
-export async function scriptPlayerWatchRivalExit() {
+async function scriptPlayerWatchRivalExit() {
   await game.hideObject(TOGGLE.RIVAL);
   await game.clearJoyIgnore();
   await game.playMusic("MUSIC_PALLET_TOWN");
-  await game.setMapScript("scriptNoop");
 }
 
-export async function scriptRivalArrivesAtOaksRequest() {
+async function scriptRivalArrivesAtOaksRequest() {
   await game.playSound("SFX_STOP_ALL_MUSIC");
   await game.playMusic("MUSIC_MEET_RIVAL");
   await game.showText("<RIVAL>: Gramps!");
@@ -201,10 +190,10 @@ export async function scriptRivalArrivesAtOaksRequest() {
   for (let i = 0; i < numSteps; i++) path.push("up");
   await game.moveNpc(NPC.RIVAL, path);
 
-  await game.setMapScript("scriptOakGivesPokedex");
+  await scriptOakGivesPokedex();
 }
 
-export async function scriptOakGivesPokedex() {
+async function scriptOakGivesPokedex() {
   await game.playMusic("MUSIC_PALLET_TOWN");
   await game.setJoyIgnore(PAD.SELECT | PAD.START | PAD.DPAD);
 
@@ -250,10 +239,10 @@ export async function scriptOakGivesPokedex() {
   for (let i = 0; i < stepsDown; i++) exitPath.push("down");
   await game.moveNpc(NPC.RIVAL, exitPath);
 
-  await game.setMapScript("scriptRivalLeavesWithPokedex");
+  await scriptRivalLeavesWithPokedex();
 }
 
-export async function scriptRivalLeavesWithPokedex() {
+async function scriptRivalLeavesWithPokedex() {
   await game.playMusic("MUSIC_PALLET_TOWN");
   await game.hideObject(TOGGLE.RIVAL);
 
@@ -264,11 +253,6 @@ export async function scriptRivalLeavesWithPokedex() {
   await game.showObject(TOGGLE.ROUTE_22_RIVAL);
 
   await game.clearJoyIgnore();
-  await game.setMapScript("scriptNoop");
-}
-
-export async function scriptNoop() {
-  // Do nothing
 }
 
 
@@ -276,11 +260,11 @@ export async function scriptNoop() {
 
 export async function coordExitRow() {
   if (game.getFlag(EVENT.OAK_ASKED_TO_CHOOSE_MON) && !game.getFlag(EVENT.GOT_STARTER)) {
-    await game.setMapScript("scriptPlayerDontGoAway");
+    await scriptPlayerDontGoAway();
     return;
   }
   if (game.getFlag(EVENT.GOT_STARTER) && !game.getFlag(EVENT.BATTLED_RIVAL_IN_OAKS_LAB)) {
-    await game.setMapScript("scriptRivalChallengesPlayer");
+    await scriptRivalChallengesPlayer();
     return;
   }
 }
@@ -344,7 +328,7 @@ async function handlePokeBallInteraction(starterSpecies, playerBallId, rivalStar
   }
 
   await game.setJoyIgnore(PAD.SELECT | PAD.START | PAD.DPAD);
-  await game.setMapScript("scriptChoseStarter");
+  await scriptChoseStarter();
 }
 
 function getStarterTypeName(species) {
@@ -388,7 +372,7 @@ export async function talkOak1() {
     if (game.getFlag("HAS_OAKS_PARCEL")) {
       await game.showText("OAK: Oh, <PLAYER>!\nWhat's this?\nA parcel for me?\nThank you!");
       await game.takeItem("OAKS_PARCEL", 1);
-      await game.setMapScript("scriptRivalArrivesAtOaksRequest");
+      await scriptRivalArrivesAtOaksRequest();
       return;
     }
     await game.showText("OAK: Raise your\nyoung POKeMON by\nmaking it fight!");

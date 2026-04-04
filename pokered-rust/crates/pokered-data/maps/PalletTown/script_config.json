@@ -1,19 +1,11 @@
 {
   "onLoad": "palletTownOnLoad",
-  "mapScripts": [
-    "palletTownDefault",
-    "palletTownOakHeyWait",
-    "palletTownOakWalksToPlayer",
-    "palletTownOakNotSafe",
-    "palletTownPlayerFollowsOak",
-    "palletTownDaisy",
-    "palletTownNoop"
-  ],
   "npcs": [
     {
       "id": 1,
       "talk": "talkOak",
       "toggleId": "PALLET_TOWN_OBJ_1",
+      "scriptId": "PALLETTOWN_OAK",
       "defaultHidden": true
     },
     {
