@@ -2479,6 +2479,7 @@ dependencies = [
  "pixels",
  "pokered-audio",
  "pokered-core",
+ "pokered-data",
  "pokered-renderer",
  "pollster 0.3.0",
  "wasm-bindgen",
