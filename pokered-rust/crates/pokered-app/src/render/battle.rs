@@ -226,35 +226,26 @@ impl BattleVisualEffects {
     }
 
     fn run_applying_attack_feedback(&mut self, anim_type: AnimationType, attacker_is_player: bool) {
-        let target_is_player = !attacker_is_player;
+        // Match PlayApplyingAttackAnimation in engine/battle/animations.asm:
+        // 1/2/3/5/6 are shake variants, only 4 is blink-target-sprite.
         match anim_type {
             AnimationType::None => {}
             AnimationType::ShakeScreenVertically => {
                 self.apply_anim_effect(AnimEffect::ShakeScreenV {
-                    pixels: 4,
-                    frames: 8,
-                });
-                self.hit_flash = Some(HitFlash {
-                    target_is_player,
-                    frame: 0,
-                    duration: 8,
+                    pixels: 1,
+                    frames: 16,
                 });
             }
             AnimationType::ShakeScreenHorizontallyHeavy => {
                 self.apply_anim_effect(AnimEffect::ShakeScreenH {
-                    pixels: 4,
-                    frames: 10,
-                });
-                self.hit_flash = Some(HitFlash {
-                    target_is_player,
-                    frame: 0,
-                    duration: 8,
+                    pixels: 1,
+                    frames: 16,
                 });
             }
             AnimationType::ShakeScreenHorizontallySlow => {
                 self.apply_anim_effect(AnimEffect::ShakeScreenH {
-                    pixels: 2,
-                    frames: 12,
+                    pixels: 1,
+                    frames: 48,
                 });
             }
             AnimationType::BlinkEnemyMonSprite => {
@@ -266,25 +257,16 @@ impl BattleVisualEffects {
             }
             AnimationType::ShakeScreenHorizontallyLight => {
                 self.apply_anim_effect(AnimEffect::ShakeScreenH {
-                    pixels: 2,
-                    frames: 8,
+                    pixels: 1,
+                    frames: 4,
                 });
-                if attacker_is_player {
-                    self.apply_anim_effect(AnimEffect::BlinkEnemyMon { times: 3 });
-                } else {
-                    self.apply_anim_effect(AnimEffect::BlinkPlayerMon { times: 3 });
-                }
             }
             AnimationType::ShakeScreenHorizontallySlow2 => {
                 self.apply_anim_effect(AnimEffect::ShakeScreenH {
                     pixels: 1,
-                    frames: 10,
+                    frames: 24,
                 });
             }
-        }
-
-        if !attacker_is_player && matches!(anim_type, AnimationType::BlinkEnemyMonSprite) {
-            self.apply_anim_effect(AnimEffect::BlinkPlayerMon { times: 4 });
         }
     }
 
