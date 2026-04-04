@@ -122,17 +122,8 @@ pub fn calculate_connection_transition(
     }
 }
 
-/// Apply a connection offset (in blocks) to a tile coordinate.
-///
-/// The offset represents how many blocks the connected map is shifted.
-/// In the original game:
-/// - Positive offset: the connected map starts further along the axis
-/// - Negative offset: the connected map starts before the current map's edge
-///
-/// The formula: new_coord = current_coord + offset * 2
-/// (offset is in blocks, coordinates are in tiles, 2 tiles per block)
 fn apply_offset(coord: u16, offset: i8) -> u16 {
-    let adjusted = coord as i32 + (offset as i32 * 2);
+    let adjusted = coord as i32 - (offset as i32 * 2);
     adjusted.max(0) as u16
 }
 

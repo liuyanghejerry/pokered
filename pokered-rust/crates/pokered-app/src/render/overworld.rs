@@ -1,5 +1,5 @@
 use pokered_core::data::blockset_data;
-use pokered_core::data::map_data_loader::{get_block_data, get_map_json};
+use pokered_core::data::map_data_loader::{get_block_data, get_map_json, resolve_map_id};
 use pokered_core::data::maps::MapId;
 use pokered_core::data::sprites::SpriteId;
 use pokered_core::data::tilesets::TilesetId;
@@ -10,6 +10,111 @@ use pokered_renderer::resource::ResourceManager;
 use pokered_renderer::{FrameBuffer, Rgba, SCREEN_HEIGHT, SCREEN_WIDTH, TILE_SIZE};
 
 use super::{blit_single_tile, blit_single_tile_flipped, draw_text_box};
+
+fn resolve_block_with_connections(
+    current_map: MapId,
+    map_w: u8,
+    map_h: u8,
+    blk: &[u8],
+    border_block: u8,
+    bx: i32,
+    by: i32,
+) -> u8 {
+    if bx >= 0 && by >= 0 && (bx as u8) < map_w && (by as u8) < map_h && !blk.is_empty() {
+        return blk[by as usize * map_w as usize + bx as usize];
+    }
+
+    let map_json = match get_map_json(current_map) {
+        Some(j) => j,
+        None => return border_block,
+    };
+    let conns = &map_json.connections;
+
+    if by < 0 {
+        if let Some(conn) = conns.north.as_ref() {
+            if let Some(target) = resolve_map_id(&conn.target_map) {
+                let (tw, th) = target.dimensions();
+                let target_blk = get_block_data(target);
+                let target_bx = bx - conn.offset as i32;
+                let target_by = th as i32 + by;
+                if target_bx >= 0
+                    && (target_bx as u8) < tw
+                    && target_by >= 0
+                    && (target_by as u8) < th
+                    && !target_blk.is_empty()
+                {
+                    return target_blk[target_by as usize * tw as usize + target_bx as usize];
+                }
+            }
+        }
+        return border_block;
+    }
+
+    if by >= map_h as i32 {
+        if let Some(conn) = conns.south.as_ref() {
+            if let Some(target) = resolve_map_id(&conn.target_map) {
+                let (tw, th) = target.dimensions();
+                let target_blk = get_block_data(target);
+                let target_bx = bx - conn.offset as i32;
+                let target_by = by - map_h as i32;
+                if target_bx >= 0
+                    && (target_bx as u8) < tw
+                    && target_by >= 0
+                    && (target_by as u8) < th
+                    && !target_blk.is_empty()
+                {
+                    let idx = target_by as usize * tw as usize + target_bx as usize;
+                    if idx < target_blk.len() {
+                        return target_blk[idx];
+                    }
+                }
+            }
+        }
+        return border_block;
+    }
+
+    if bx < 0 {
+        if let Some(conn) = conns.west.as_ref() {
+            if let Some(target) = resolve_map_id(&conn.target_map) {
+                let (tw, th) = target.dimensions();
+                let target_blk = get_block_data(target);
+                let target_bx = tw as i32 + bx;
+                let target_by = by - conn.offset as i32;
+                if target_bx >= 0
+                    && (target_bx as u8) < tw
+                    && target_by >= 0
+                    && (target_by as u8) < th
+                    && !target_blk.is_empty()
+                {
+                    return target_blk[target_by as usize * tw as usize + target_bx as usize];
+                }
+            }
+        }
+        return border_block;
+    }
+
+    if bx >= map_w as i32 {
+        if let Some(conn) = conns.east.as_ref() {
+            if let Some(target) = resolve_map_id(&conn.target_map) {
+                let (tw, th) = target.dimensions();
+                let target_blk = get_block_data(target);
+                let target_bx = bx - map_w as i32;
+                let target_by = by - conn.offset as i32;
+                if target_bx >= 0
+                    && (target_bx as u8) < tw
+                    && target_by >= 0
+                    && (target_by as u8) < th
+                    && !target_blk.is_empty()
+                {
+                    return target_blk[target_by as usize * tw as usize + target_bx as usize];
+                }
+            }
+        }
+        return border_block;
+    }
+
+    border_block
+}
 
 pub fn draw_overworld(
     screen: &OverworldScreen,
@@ -62,16 +167,15 @@ pub fn draw_overworld(
                     let sub_x = world_tx.rem_euclid(4) as usize;
                     let sub_y = world_ty.rem_euclid(4) as usize;
 
-                    let block_id = if bx >= 0
-                        && by >= 0
-                        && (bx as u8) < map_w
-                        && (by as u8) < map_h
-                        && !blk.is_empty()
-                    {
-                        blk[(by as usize) * (map_w as usize) + (bx as usize)]
-                    } else {
-                        border_block
-                    };
+                    let block_id = resolve_block_with_connections(
+                        current_map,
+                        map_w,
+                        map_h,
+                        blk,
+                        border_block,
+                        bx,
+                        by,
+                    );
 
                     let tile_idx = blockset_data::block_tiles(tileset_id, block_id)
                         .map(|t| t[sub_y * 4 + sub_x] as usize)
