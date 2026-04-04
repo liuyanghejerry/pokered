@@ -692,6 +692,20 @@ impl OverworldScreen {
             return ScreenAction::Continue;
         }
 
+        // Per-frame map script dispatch (mirrors CallFunctionInTable in the original).
+        if let Some(fn_name) = self
+            .map_script_config
+            .map_script_fn_name(self.map_script_index as usize)
+        {
+            let fn_name = fn_name.to_string();
+            if self.script_engine.has_function(&fn_name) {
+                if let Ok(Some(cmd)) = self.script_engine.call_function_no_args(&fn_name) {
+                    self.active_script_effect = Some(script_bridge::dispatch_command(&cmd));
+                    return ScreenAction::Continue;
+                }
+            }
+        }
+
         // Door exit auto-step (PlayerStepOutFromDoor / BIT_EXITING_DOOR).
         // When exiting_door is active, advance the walk animation ignoring real input.
         if self.state.exiting_door {
@@ -836,6 +850,9 @@ impl OverworldScreen {
             };
 
         if let Some(map) = &self.map_data {
+            let prev_x = self.state.player.x;
+            let prev_y = self.state.player.y;
+
             let standing_tile = get_tile_id_at_position(
                 &map.blocks,
                 map.width,
@@ -870,8 +887,11 @@ impl OverworldScreen {
                 &npc_positions,
             );
 
+            let mut warped_or_edge = false;
+
             match result {
                 MoveResult::Warped { warp_index: _ } => {
+                    warped_or_edge = true;
                     if let Some((dest_map, warp_x, warp_y)) = map_transitions::execute_warp(
                         self.state.current_map,
                         self.state.player.x as u8,
@@ -897,6 +917,7 @@ impl OverworldScreen {
                     }
                 }
                 MoveResult::ReachedMapEdge => {
+                    warped_or_edge = true;
                     if let Some(dir) = movement_input.direction_pressed() {
                         if let Some(transition) = map_transitions::calculate_connection_transition(
                             self.state.current_map,
@@ -936,6 +957,23 @@ impl OverworldScreen {
                 }
                 _ => {
                     self.bump_anim_counter = 0;
+                }
+            }
+
+            if !warped_or_edge
+                && self.active_script_effect.is_none()
+                && (self.state.player.x != prev_x || self.state.player.y != prev_y)
+            {
+                if let Some(fn_name) = self
+                    .map_script_config
+                    .coord_event_fn(self.state.player.x, self.state.player.y)
+                {
+                    let fn_name = fn_name.to_string();
+                    if self.script_engine.has_function(&fn_name) {
+                        if let Ok(Some(cmd)) = self.script_engine.call_function_no_args(&fn_name) {
+                            self.active_script_effect = Some(script_bridge::dispatch_command(&cmd));
+                        }
+                    }
                 }
             }
 
