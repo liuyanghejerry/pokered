@@ -1,10 +1,15 @@
 //! Battle menu state machines.
 //!
-//! Replicates `engine/battle/core.asm` DisplayBattleMenu + MoveSelectionMenu:
+//! Replicates `engine/battle/core.asm` DisplayBattleMenu + MoveSelectionMenu.
 //!
-//! **Main battle menu** — 2×2 grid navigated with D-pad:
+//! **Main battle menu** — 2×2 grid navigated with D-pad.
+//! Display layout (English version, text_boxes.asm):
 //!   FIGHT   | POKeMON
-//!   BAG     | RUN
+//!   ITEM    | RUN
+//!
+//! Grid positions map to internal IDs with swap (core.asm 2140-2151):
+//!   (0,0)=FIGHT  (0,1)=POKeMON
+//!   (1,0)=ITEM   (1,1)=RUN
 //!
 //! **Safari battle menu** — 2×2 grid:
 //!   BALL | BAIT

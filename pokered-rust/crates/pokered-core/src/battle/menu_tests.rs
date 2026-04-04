@@ -99,17 +99,17 @@ fn battle_menu_initial_position_is_top_left() {
 }
 
 #[test]
-fn battle_menu_navigate_right_to_bag() {
+fn battle_menu_navigate_right_to_pokemon() {
     let mut menu = BattleMenuState::new();
     assert!(menu.update_frame(input_right()).is_none());
-    assert_eq!(menu.current_action(), BattleMenuAction::Bag);
+    assert_eq!(menu.current_action(), BattleMenuAction::Pokemon);
 }
 
 #[test]
-fn battle_menu_navigate_down_to_pokemon() {
+fn battle_menu_navigate_down_to_item() {
     let mut menu = BattleMenuState::new();
     assert!(menu.update_frame(input_down()).is_none());
-    assert_eq!(menu.current_action(), BattleMenuAction::Pokemon);
+    assert_eq!(menu.current_action(), BattleMenuAction::Bag);
 }
 
 #[test]
@@ -188,10 +188,13 @@ fn battle_menu_saved_position_persists() {
 
 #[test]
 fn battle_menu_all_four_actions() {
+    // Grid layout matches original game display:
+    //   FIGHT   | POKeMON
+    //   ITEM    | RUN
     let positions: [(usize, usize, BattleMenuAction); 4] = [
         (0, 0, BattleMenuAction::Fight),
-        (0, 1, BattleMenuAction::Bag),
-        (1, 0, BattleMenuAction::Pokemon),
+        (0, 1, BattleMenuAction::Pokemon),
+        (1, 0, BattleMenuAction::Bag),
         (1, 1, BattleMenuAction::Run),
     ];
     for (row, col, expected) in &positions {
