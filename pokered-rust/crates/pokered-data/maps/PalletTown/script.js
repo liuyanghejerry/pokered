@@ -31,20 +31,12 @@ const PAD = {
 // ── Map Script States (bound via mapScripts[] in PalletTown.json) ────
 
 export async function palletTownDefault() {
+  // Per-frame housekeeping only (mirrors PalletTown_Script preamble).
+  // The cutscene trigger lives in coordNorthExit(), fired by the coord
+  // event at (0,1) when the player walks to the north exit.
   if (game.getFlag(EVENT.GOT_POKEBALLS_FROM_OAK)) {
     game.setFlag(EVENT.PALLET_AFTER_GETTING_POKEBALLS);
   }
-
-  if (game.getFlag(EVENT.FOLLOWED_OAK_INTO_LAB)) {
-    return;
-  }
-
-  await game.facePlayer("down");
-  await game.playSound("SFX_STOP_ALL_MUSIC");
-  await game.playMusic("MUSIC_MEET_PROF_OAK");
-  await game.setJoyIgnore(PAD.SELECT | PAD.START | PAD.DPAD);
-  game.setFlag(EVENT.OAK_APPEARED_IN_PALLET);
-  await game.setMapScript("palletTownOakHeyWait");
 }
 
 export async function palletTownOakHeyWait() {
@@ -141,7 +133,13 @@ export async function signRivalsHouse() {
 // ── Coord event handlers (bound via coordEvents[] in PalletTown.json) ─
 
 export async function coordNorthExit() {
-  if (!game.getFlag(EVENT.FOLLOWED_OAK_INTO_LAB)) {
-    await palletTownDefault();
+  if (game.getFlag(EVENT.FOLLOWED_OAK_INTO_LAB)) {
+    return;
   }
+  await game.facePlayer("down");
+  await game.playSound("SFX_STOP_ALL_MUSIC");
+  await game.playMusic("MUSIC_MEET_PROF_OAK");
+  await game.setJoyIgnore(PAD.SELECT | PAD.START | PAD.DPAD);
+  game.setFlag(EVENT.OAK_APPEARED_IN_PALLET);
+  await game.setMapScript("palletTownOakHeyWait");
 }
