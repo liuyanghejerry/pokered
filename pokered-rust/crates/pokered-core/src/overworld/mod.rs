@@ -836,6 +836,7 @@ impl OverworldScreen {
             // the standalone path-following block (below) is unreachable while
             // active_script_effect is Some — causing a deadlock.
             self.advance_scripted_player_path();
+            self.try_trigger_warp_at_player_position();
 
             return ScreenAction::Continue;
         }
@@ -871,6 +872,7 @@ impl OverworldScreen {
         // Scripted player movement — follow path ignoring real input.
         if !self.scripted_player_path.is_empty() {
             self.advance_scripted_player_path();
+            self.try_trigger_warp_at_player_position();
             self.run_npc_movement_tick();
             return ScreenAction::Continue;
         }
@@ -1208,6 +1210,51 @@ impl OverworldScreen {
         } else {
             player_movement::advance_step(&mut self.state);
         }
+    }
+
+    fn try_trigger_warp_at_player_position(&mut self) -> bool {
+        if self.pending_warp.is_some() || !matches!(self.warp_fade_state, WarpFadeState::Idle) {
+            return false;
+        }
+
+        let Some(map) = self.map_data.as_ref() else {
+            return false;
+        };
+
+        let Some(_warp_idx) =
+            collision::check_warp_at_position(self.state.player.x, self.state.player.y, map)
+        else {
+            return false;
+        };
+
+        let Some((dest_map, warp_x, warp_y)) = map_transitions::execute_warp(
+            self.state.current_map,
+            self.state.player.x as u8,
+            self.state.player.y as u8,
+            self.last_map,
+        ) else {
+            return false;
+        };
+
+        let standing_tile =
+            player_movement::get_tile_at_position(map, self.state.player.x, self.state.player.y);
+        if doors_elevators::is_standing_on_door(map.tileset, standing_tile) {
+            self.sfx_event = OverworldSfxEvent::GoInside;
+        } else {
+            self.sfx_event = OverworldSfxEvent::GoOutside;
+        }
+
+        let save_last_map = tileset_data::is_outside_tileset(map.tileset);
+        self.pending_warp = Some(PendingWarp {
+            dest_map,
+            dest_x: warp_x,
+            dest_y: warp_y,
+            save_last_map,
+        });
+        self.warp_fade_state = WarpFadeState::FadingOut {
+            frames_remaining: WARP_FADE_OUT_FRAMES,
+        };
+        true
     }
 
     fn tick_active_effect(
