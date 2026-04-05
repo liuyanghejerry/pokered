@@ -1,6 +1,7 @@
 use super::collision::*;
 use super::player_movement::*;
 use super::*;
+use pokered_data::blockset_data;
 use pokered_data::collision;
 use pokered_data::maps::MapId;
 use pokered_data::music::MusicId;
@@ -373,6 +374,79 @@ fn test_process_frame_warp_on_step_complete() {
     let input = InputState {
         down: true,
         ..Default::default()
+    };
+    let result = process_frame(&mut state, &input, &map, 0x00, 0x00, &[]);
+    assert_eq!(result, MoveResult::Warped { warp_index: 0 });
+}
+
+#[test]
+fn test_process_frame_warp_tile_triggers_even_when_entered_sideways() {
+    // Entering a warp tile from the side should still warp immediately.
+    // This is important for stairs and similar warp tiles that are not always
+    // approached from the map edge direction expected by ExtraWarpCheck.
+    let mut state = OverworldState::new(MapId::RedsHouse1F);
+    state.player.x = 0;
+    state.player.y = 0;
+    state.player.movement_state = MovementState::Walking;
+    state.player.facing = Direction::Right;
+    state.walk_counter = 1;
+
+    // Find a block/quadrant whose collision tile is a RedsHouse warp tile.
+    // get_tile_at_position reads indices [4, 6, 12, 14] for (sub_x, sub_y)=
+    // (0,0), (1,0), (0,1), (1,1).
+    let candidate_indices = [
+        (4usize, 0u16, 0u16),
+        (6usize, 1u16, 0u16),
+        (12usize, 0u16, 1u16),
+        (14usize, 1u16, 1u16),
+    ];
+
+    let (block_id, target_x, target_y) = (0u8..=u8::MAX)
+        .find_map(|id| {
+            let tiles = blockset_data::block_tiles(TilesetId::RedsHouse1, id)?;
+            for (idx, x, y) in candidate_indices {
+                if matches!(tiles[idx], 0x1A | 0x1C) {
+                    return Some((id, x, y));
+                }
+            }
+            None
+        })
+        .expect("expected a RedsHouse1 block with a warp tile in any collision quadrant");
+
+    let map = MapData {
+        id: MapId::RedsHouse1F,
+        width: 2,
+        height: 2,
+        tileset: TilesetId::RedsHouse1,
+        music: MusicId::PalletTown,
+        blocks: vec![block_id; 4],
+        warps: vec![WarpPoint {
+            x: target_x as u8,
+            y: target_y as u8,
+            target_map: MapId::PalletTown,
+            target_warp_id: 0,
+        }],
+        npcs: vec![],
+        signs: vec![],
+        connections: MapConnections::default(),
+    };
+
+    let input = if target_x > 0 {
+        state.player.x = target_x - 1;
+        state.player.y = target_y;
+        state.player.facing = Direction::Right;
+        InputState {
+            right: true,
+            ..Default::default()
+        }
+    } else {
+        state.player.x = target_x + 1;
+        state.player.y = target_y;
+        state.player.facing = Direction::Left;
+        InputState {
+            left: true,
+            ..Default::default()
+        }
     };
     let result = process_frame(&mut state, &input, &map, 0x00, 0x00, &[]);
     assert_eq!(result, MoveResult::Warped { warp_index: 0 });

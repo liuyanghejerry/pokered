@@ -310,7 +310,7 @@ fn extra_warp_check(map: &MapData, player_x: u16, player_y: u16, facing: Directi
 /// Ported from home/overworld.asm CheckWarpsNoCollision (line 391).
 /// Phase 1: position matches warp → set BIT_STANDING_ON_WARP →
 ///   check IsPlayerStandingOnDoorTileOrWarpTile → if door → immediate warp.
-///   If warp tile → clear standing_on_warp, fall through to ExtraWarpCheck.
+///   If warp tile → immediate warp.
 ///   If neither → fall through to ExtraWarpCheck.
 /// Phase 2 (ExtraWarpCheck): if passes AND direction held → warp.
 ///   Otherwise → don't warp (standing_on_warp remains set for collision path).
@@ -331,7 +331,7 @@ fn check_warps_no_collision(
 
     if tileset_data::is_warp_tile(map.tileset, standing_tile) {
         state.standing_on_warp = false;
-        // Fall through to ExtraWarpCheck
+        return Some(warp_idx);
     }
     // If neither door nor warp tile, also fall through to ExtraWarpCheck
 
