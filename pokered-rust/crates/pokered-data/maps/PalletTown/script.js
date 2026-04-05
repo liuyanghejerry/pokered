@@ -115,6 +115,7 @@ async function palletTownPlayerFollowsOak() {
   game.startNpcMove(NPC.OAK, oakPath);
   await game.movePlayer(playerPath);
   await game.awaitNpcMove(NPC.OAK);
+  await game.clearJoyIgnore();
   await game.hideObject(TOGGLE.PALLET_TOWN_OAK);
   game.setFlag(EVENT.FOLLOWED_OAK_INTO_LAB);
   await palletTownDaisy();

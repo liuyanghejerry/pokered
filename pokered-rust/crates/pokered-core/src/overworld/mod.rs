@@ -734,6 +734,14 @@ impl OverworldScreen {
             // NPC movement must continue during script effects so that
             // MoveNpc / StartNpcMove / AwaitNpcMove effects can complete.
             self.run_npc_movement_tick();
+
+            // Scripted player path must also advance during script effects so
+            // that MovePlayer can observe the path draining. Without this, the
+            // MovePlayer effect waits for scripted_player_path to empty, but
+            // the standalone path-following block (below) is unreachable while
+            // active_script_effect is Some — causing a deadlock.
+            self.advance_scripted_player_path();
+
             return ScreenAction::Continue;
         }
         if let Some(cmd) = self.script_engine.tick() {
@@ -767,32 +775,7 @@ impl OverworldScreen {
 
         // Scripted player movement — follow path ignoring real input.
         if !self.scripted_player_path.is_empty() {
-            if self.state.player.movement_state == MovementState::Idle {
-                let &(tx, ty) = self.scripted_player_path.front().unwrap();
-                if self.state.player.x == tx && self.state.player.y == ty {
-                    self.scripted_player_path.pop_front();
-                    if self.scripted_player_path.is_empty() {
-                        self.run_npc_movement_tick();
-                        return ScreenAction::Continue;
-                    }
-                    let &(tx, ty) = self.scripted_player_path.front().unwrap();
-                    if let Some(dir) =
-                        direction_toward_player(self.state.player.x, self.state.player.y, tx, ty)
-                    {
-                        self.state.player.facing = dir;
-                        self.state.player.movement_state = MovementState::Walking;
-                        self.state.walk_counter = player_movement::WALK_COUNTER_INIT;
-                    }
-                } else if let Some(dir) =
-                    direction_toward_player(self.state.player.x, self.state.player.y, tx, ty)
-                {
-                    self.state.player.facing = dir;
-                    self.state.player.movement_state = MovementState::Walking;
-                    self.state.walk_counter = player_movement::WALK_COUNTER_INIT;
-                }
-            } else {
-                player_movement::advance_step(&mut self.state);
-            }
+            self.advance_scripted_player_path();
             self.run_npc_movement_tick();
             return ScreenAction::Continue;
         }
@@ -1098,6 +1081,37 @@ impl OverworldScreen {
                 &map.blocks,
                 map.tileset,
             );
+        }
+    }
+
+    fn advance_scripted_player_path(&mut self) {
+        if self.scripted_player_path.is_empty() {
+            return;
+        }
+        if self.state.player.movement_state == MovementState::Idle {
+            let &(tx, ty) = self.scripted_player_path.front().unwrap();
+            if self.state.player.x == tx && self.state.player.y == ty {
+                self.scripted_player_path.pop_front();
+                if self.scripted_player_path.is_empty() {
+                    return;
+                }
+                let &(tx, ty) = self.scripted_player_path.front().unwrap();
+                if let Some(dir) =
+                    direction_toward_player(self.state.player.x, self.state.player.y, tx, ty)
+                {
+                    self.state.player.facing = dir;
+                    self.state.player.movement_state = MovementState::Walking;
+                    self.state.walk_counter = player_movement::WALK_COUNTER_INIT;
+                }
+            } else if let Some(dir) =
+                direction_toward_player(self.state.player.x, self.state.player.y, tx, ty)
+            {
+                self.state.player.facing = dir;
+                self.state.player.movement_state = MovementState::Walking;
+                self.state.walk_counter = player_movement::WALK_COUNTER_INIT;
+            }
+        } else {
+            player_movement::advance_step(&mut self.state);
         }
     }
 
