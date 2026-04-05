@@ -54,6 +54,22 @@ pub enum ScriptEffect {
         path: Vec<(u8, u8)>,
         started: bool,
     },
+    MoveNpcTo {
+        npc_id: String,
+        x: u8,
+        y: u8,
+        started: bool,
+    },
+    StartNpcMoveTo {
+        npc_id: String,
+        x: u8,
+        y: u8,
+    },
+    MovePlayerTo {
+        x: u8,
+        y: u8,
+        started: bool,
+    },
     FaceNpc {
         npc_id: String,
         direction: Direction,
@@ -148,6 +164,22 @@ pub fn dispatch_command(cmd: &ScriptCommand) -> ScriptEffect {
         },
         ScriptCommand::MovePlayer { path } => ScriptEffect::MovePlayer {
             path: path.clone(),
+            started: false,
+        },
+        ScriptCommand::MoveNpcTo { npc_id, x, y } => ScriptEffect::MoveNpcTo {
+            npc_id: npc_id.clone(),
+            x: *x,
+            y: *y,
+            started: false,
+        },
+        ScriptCommand::StartNpcMoveTo { npc_id, x, y } => ScriptEffect::StartNpcMoveTo {
+            npc_id: npc_id.clone(),
+            x: *x,
+            y: *y,
+        },
+        ScriptCommand::MovePlayerTo { x, y } => ScriptEffect::MovePlayerTo {
+            x: *x,
+            y: *y,
             started: false,
         },
         ScriptCommand::FaceNpc { npc_id, direction } => ScriptEffect::FaceNpc {

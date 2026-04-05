@@ -472,6 +472,56 @@ fn register_game_api(context: &mut Context, bridge: Rc<RefCell<SharedBridge>>) {
         }
     );
 
+    // game.moveNpcTo(npcId: string, x: number, y: number) -> Promise<void>
+    // Plans a terrain-aware path and resolves when movement is done.
+    register_async_command!(
+        "moveNpcTo",
+        bridge,
+        context,
+        game_obj,
+        |args: &[JsValue], ctx: &mut Context| -> JsResult<ScriptCommand> {
+            let npc_id = args
+                .get_or_undefined(0)
+                .to_string(ctx)?
+                .to_std_string_lossy();
+            let x = args.get_or_undefined(1).to_u32(ctx)? as u8;
+            let y = args.get_or_undefined(2).to_u32(ctx)? as u8;
+            Ok(ScriptCommand::MoveNpcTo { npc_id, x, y })
+        }
+    );
+
+    // game.startNpcMoveTo(npcId: string, x: number, y: number) -> Promise<void>
+    // Plans a terrain-aware path, starts movement immediately and resolves at once.
+    register_async_command!(
+        "startNpcMoveTo",
+        bridge,
+        context,
+        game_obj,
+        |args: &[JsValue], ctx: &mut Context| -> JsResult<ScriptCommand> {
+            let npc_id = args
+                .get_or_undefined(0)
+                .to_string(ctx)?
+                .to_std_string_lossy();
+            let x = args.get_or_undefined(1).to_u32(ctx)? as u8;
+            let y = args.get_or_undefined(2).to_u32(ctx)? as u8;
+            Ok(ScriptCommand::StartNpcMoveTo { npc_id, x, y })
+        }
+    );
+
+    // game.movePlayerTo(x: number, y: number) -> Promise<void>
+    // Plans a terrain-aware path and resolves when movement is done.
+    register_async_command!(
+        "movePlayerTo",
+        bridge,
+        context,
+        game_obj,
+        |args: &[JsValue], ctx: &mut Context| -> JsResult<ScriptCommand> {
+            let x = args.get_or_undefined(0).to_u32(ctx)? as u8;
+            let y = args.get_or_undefined(1).to_u32(ctx)? as u8;
+            Ok(ScriptCommand::MovePlayerTo { x, y })
+        }
+    );
+
     // game.faceNpc(npcId: string, direction: string) -> Promise<void>
     register_async_command!(
         "faceNpc",

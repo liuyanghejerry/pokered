@@ -76,44 +76,8 @@ async function palletTownOakNotSafe() {
 }
 
 async function palletTownPlayerFollowsOak() {
-  const pos = game.getPlayerPosition();
-  const playerX = pos.x;
-  const playerY = pos.y;
-  const oakX = playerX;
-  const oakY = playerY + 1;
-
-  const oakPath = [];
-  for (let y = oakY + 1; y <= 7; y++) {
-    oakPath.push([oakX, y]);
-  }
-  if (oakX > 9) {
-    for (let x = oakX - 1; x >= 9; x--) {
-      oakPath.push([x, 7]);
-    }
-  }
-  for (let y = 8; y <= 12; y++) {
-    oakPath.push([9, y]);
-  }
-  for (let x = 10; x <= LAB_ENTRANCE_X; x++) {
-    oakPath.push([x, 12]);
-  }
-  oakPath.push([LAB_ENTRANCE_X, LAB_ENTRANCE_Y]);
-
-  const playerPath = [];
-  playerPath.push([playerX, playerY - 1]);
-  for (let x = playerX + 1; x <= 13; x++) {
-    playerPath.push([x, 0]);
-  }
-  for (let y = 1; y <= 7; y++) {
-    playerPath.push([13, y]);
-  }
-  playerPath.push([12, 7]);
-  for (let y = 8; y <= LAB_ENTRANCE_Y; y++) {
-    playerPath.push([12, y]);
-  }
-
-  game.startNpcMove(NPC.OAK, oakPath);
-  await game.movePlayer(playerPath);
+  game.startNpcMoveTo(NPC.OAK, LAB_ENTRANCE_X, LAB_ENTRANCE_Y);
+  await game.movePlayerTo(LAB_ENTRANCE_X, LAB_ENTRANCE_Y);
   await game.awaitNpcMove(NPC.OAK);
   await game.clearJoyIgnore();
   await game.hideObject(TOGGLE.PALLET_TOWN_OAK);

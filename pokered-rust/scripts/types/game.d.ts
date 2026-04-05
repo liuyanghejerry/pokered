@@ -137,6 +137,41 @@ interface GameAPI {
   moveNpc(npcId: string, path: [number, number][]): Promise<void>;
 
   /**
+   * Start moving an NPC along a path and resolve immediately.
+   * Use `awaitNpcMove` to wait for completion.
+   */
+  startNpcMove(npcId: string, path: [number, number][]): Promise<void>;
+
+  /** Wait until an NPC started by `startNpcMove` / `startNpcMoveTo` finishes moving. */
+  awaitNpcMove(npcId: string): Promise<void>;
+
+  /** Move the player along an explicit path of waypoints. */
+  movePlayer(path: [number, number][]): Promise<void>;
+
+  /**
+   * Plan a terrain-aware path for an NPC and move there.
+   *
+   * @param npcId - NPC identifier string.
+   * @param x     - Target tile X coordinate.
+   * @param y     - Target tile Y coordinate.
+   */
+  moveNpcTo(npcId: string, x: number, y: number): Promise<void>;
+
+  /**
+   * Plan a terrain-aware path for an NPC, start movement immediately, and
+   * resolve without waiting.
+   */
+  startNpcMoveTo(npcId: string, x: number, y: number): Promise<void>;
+
+  /**
+   * Plan a terrain-aware path for the player and move there.
+   *
+   * @param x - Target tile X coordinate.
+   * @param y - Target tile Y coordinate.
+   */
+  movePlayerTo(x: number, y: number): Promise<void>;
+
+  /**
    * Turn an NPC to face a direction.
    *
    * @param npcId     - NPC identifier string.

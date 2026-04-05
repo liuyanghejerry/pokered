@@ -43,6 +43,7 @@ mod tests_special_terrain;
 mod tests_wild_encounters;
 
 use pokered_data::blockset_data;
+use pokered_data::collision::is_tile_passable;
 use pokered_data::maps::MapId;
 use pokered_data::music::MusicId;
 use pokered_data::tileset_data;
@@ -497,6 +498,99 @@ fn resolve_npc_index(
     None
 }
 
+fn is_in_tile_bounds(map: &MapData, x: u16, y: u16) -> bool {
+    let width_tiles = (map.width as u16) * 2;
+    let height_tiles = (map.height as u16) * 2;
+    x < width_tiles && y < height_tiles
+}
+
+fn is_script_walkable_tile(map: &MapData, x: u16, y: u16) -> bool {
+    if !is_in_tile_bounds(map, x, y) {
+        return false;
+    }
+    let tile = player_movement::get_tile_at_position(map, x, y);
+    let header = tileset_data::get_tileset_header(map.tileset);
+    !header.is_counter_tile(tile) && is_tile_passable(map.tileset, tile)
+}
+
+fn plan_terrain_path(map: &MapData, start: (u16, u16), target: (u16, u16)) -> Option<Vec<(u16, u16)>> {
+    if start == target {
+        return Some(Vec::new());
+    }
+    if !is_in_tile_bounds(map, start.0, start.1) || !is_in_tile_bounds(map, target.0, target.1) {
+        return None;
+    }
+    if !is_script_walkable_tile(map, target.0, target.1) {
+        return None;
+    }
+
+    let width_tiles = (map.width as usize) * 2;
+    let height_tiles = (map.height as usize) * 2;
+    let total = width_tiles * height_tiles;
+    let mut visited = vec![false; total];
+    let mut prev: Vec<Option<(u16, u16)>> = vec![None; total];
+    let mut queue = VecDeque::new();
+
+    let index_of = |x: u16, y: u16| -> usize { (y as usize) * width_tiles + x as usize };
+
+    let start_idx = index_of(start.0, start.1);
+    visited[start_idx] = true;
+    queue.push_back(start);
+
+    while let Some((x, y)) = queue.pop_front() {
+        if (x, y) == target {
+            break;
+        }
+
+        for dir in [Direction::Down, Direction::Up, Direction::Left, Direction::Right] {
+            let (dx, dy) = player_movement::direction_delta(dir);
+            let nx_i = x as i32 + dx as i32;
+            let ny_i = y as i32 + dy as i32;
+            if nx_i < 0 || ny_i < 0 {
+                continue;
+            }
+            let nx = nx_i as u16;
+            let ny = ny_i as u16;
+            if !is_in_tile_bounds(map, nx, ny) {
+                continue;
+            }
+            if !is_script_walkable_tile(map, nx, ny) {
+                continue;
+            }
+
+            let nidx = index_of(nx, ny);
+            if visited[nidx] {
+                continue;
+            }
+
+            visited[nidx] = true;
+            prev[nidx] = Some((x, y));
+            queue.push_back((nx, ny));
+        }
+    }
+
+    let target_idx = index_of(target.0, target.1);
+    if !visited[target_idx] {
+        return None;
+    }
+
+    let mut rev_path = Vec::new();
+    let mut cur = target;
+    while cur != start {
+        rev_path.push(cur);
+        let idx = index_of(cur.0, cur.1);
+        cur = prev[idx]?;
+    }
+    rev_path.reverse();
+    Some(rev_path)
+}
+
+fn path_u16_to_u8(path: &[(u16, u16)]) -> Option<Vec<(u8, u8)>> {
+    path.iter()
+        .map(|&(x, y)| Some((u8::try_from(x).ok()?, u8::try_from(y).ok()?)))
+        .collect()
+}
+
 fn direction_toward_player(from_x: u16, from_y: u16, to_x: u16, to_y: u16) -> Option<Direction> {
     let dx = to_x as i32 - from_x as i32;
     let dy = to_y as i32 - from_y as i32;
@@ -721,6 +815,7 @@ impl OverworldScreen {
                 &mut self.npc_states,
                 &self.state.player,
                 &mut self.scripted_player_path,
+                self.map_data.as_ref(),
                 &self.map_script_config,
             );
             if done {
@@ -1122,6 +1217,7 @@ impl OverworldScreen {
         npc_states: &mut [npc_movement::NpcRuntimeState],
         player_state: &PlayerState,
         scripted_player_path: &mut VecDeque<(u16, u16)>,
+        map_data: Option<&MapData>,
         map_script_config: &MapScriptConfig,
     ) -> bool {
         match effect {
@@ -1194,6 +1290,67 @@ impl OverworldScreen {
                     scripted_player_path.clear();
                     for &(x, y) in path.iter() {
                         scripted_player_path.push_back((x as u16, y as u16));
+                    }
+                    *started = true;
+                    false
+                } else {
+                    scripted_player_path.is_empty()
+                        && player_state.movement_state == MovementState::Idle
+                }
+            }
+            script_bridge::ScriptEffect::StartNpcMoveTo { npc_id, x, y } => {
+                if let Some(map) = map_data {
+                    if let Some(idx) = resolve_npc_index(npc_id, npc_states, map_script_config) {
+                        let start = (npc_states[idx].x, npc_states[idx].y);
+                        let target = (*x as u16, *y as u16);
+                        if let Some(path) = plan_terrain_path(map, start, target) {
+                            if let Some(path_u8) = path_u16_to_u8(&path) {
+                                npc_movement::start_scripted_move(&mut npc_states[idx], &path_u8);
+                            }
+                        }
+                    }
+                }
+                true
+            }
+            script_bridge::ScriptEffect::MoveNpcTo {
+                npc_id,
+                x,
+                y,
+                started,
+            } => {
+                if !*started {
+                    if let Some(map) = map_data {
+                        if let Some(idx) = resolve_npc_index(npc_id, npc_states, map_script_config) {
+                            let start = (npc_states[idx].x, npc_states[idx].y);
+                            let target = (*x as u16, *y as u16);
+                            if let Some(path) = plan_terrain_path(map, start, target) {
+                                if let Some(path_u8) = path_u16_to_u8(&path) {
+                                    npc_movement::start_scripted_move(&mut npc_states[idx], &path_u8);
+                                }
+                            }
+                        }
+                    }
+                    *started = true;
+                    false
+                } else {
+                    let npc_idx = resolve_npc_index(npc_id, npc_states, map_script_config);
+                    match npc_idx {
+                        Some(idx) => npc_movement::is_scripted_move_done(&npc_states[idx]),
+                        None => true,
+                    }
+                }
+            }
+            script_bridge::ScriptEffect::MovePlayerTo { x, y, started } => {
+                if !*started {
+                    scripted_player_path.clear();
+                    if let Some(map) = map_data {
+                        let start = (player_state.x, player_state.y);
+                        let target = (*x as u16, *y as u16);
+                        if let Some(path) = plan_terrain_path(map, start, target) {
+                            for (px, py) in path {
+                                scripted_player_path.push_back((px, py));
+                            }
+                        }
                     }
                     *started = true;
                     false

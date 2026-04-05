@@ -213,6 +213,45 @@ fn test_move_npc_command() {
 }
 
 #[test]
+fn test_auto_path_commands() {
+    let mut engine = ScriptEngine::new();
+    engine
+        .load_script(
+            r#"
+        export async function onEnter() {
+            await game.startNpcMoveTo("oak", 12, 11);
+            await game.movePlayerTo(12, 11);
+            await game.moveNpcTo("oak", 8, 8);
+        }
+    "#,
+        )
+        .unwrap();
+
+    let cmd = engine.call_function("onEnter", &[]).unwrap();
+    assert_eq!(
+        cmd,
+        Some(ScriptCommand::StartNpcMoveTo {
+            npc_id: "oak".to_string(),
+            x: 12,
+            y: 11,
+        })
+    );
+
+    let cmd = engine.signal_done(CommandResult::Void).unwrap();
+    assert_eq!(cmd, Some(ScriptCommand::MovePlayerTo { x: 12, y: 11 }));
+
+    let cmd = engine.signal_done(CommandResult::Void).unwrap();
+    assert_eq!(
+        cmd,
+        Some(ScriptCommand::MoveNpcTo {
+            npc_id: "oak".to_string(),
+            x: 8,
+            y: 8,
+        })
+    );
+}
+
+#[test]
 fn test_multiple_commands_sequence() {
     let mut engine = ScriptEngine::new();
     engine
