@@ -8,16 +8,16 @@
       }
     },
     "hephaestus": {
-      "model": "bailian-coding-plan/qwen3-max"
+      "model": "bailian-coding-plan/qwen3-max-2026-01-23"
     },
     "oracle": {
       "model": "bailian-coding-plan/qwen3.5-plus"
     },
     "librarian": {
-      "model": "bailian-coding-plan/qwen3-max"
+      "model": "bailian-coding-plan/qwen3-max-2026-01-23"
     },
     "explore": {
-      "model": "bailian-coding-plan/qwen3-max"
+      "model": "bailian-coding-plan/qwen3-max-2026-01-23"
     },
     "multimodal-looker": {
       "model": "bailian-coding-plan/qwen3.5-plus"
@@ -29,10 +29,10 @@
       "model": "bailian-coding-plan/glm-5"
     },
     "momus": {
-      "model": "bailian-coding-plan/qwen3-max"
+      "model": "bailian-coding-plan/qwen3-max-2026-01-23"
     },
     "atlas": {
-      "model": "bailian-coding-plan/qwen3-max"
+      "model": "bailian-coding-plan/qwen3-max-2026-01-23"
     }
   },
   "categories": {
@@ -40,16 +40,16 @@
       "model": "bailian-coding-plan/qwen3.5-plus"
     },
     "ultrabrain": {
-      "model": "bailian-coding-plan/qwen3-max"
+      "model": "bailian-coding-plan/qwen3-max-2026-01-23"
     },
     "deep": {
-      "model": "bailian-coding-plan/qwen3-max"
+      "model": "bailian-coding-plan/qwen3-max-2026-01-23"
     },
     "artistry": {
       "model": "bailian-coding-plan/qwen3.5-plus"
     },
     "quick": {
-      "model": "bailian-coding-plan/qwen3-max"
+      "model": "bailian-coding-plan/qwen3-max-2026-01-23"
     },
     "unspecified-low": {
       "model": "bailian-coding-plan/kimi-2.5"
