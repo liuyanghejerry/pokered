@@ -729,6 +729,14 @@ impl OverworldScreen {
 
     fn commit_pending_warp(&mut self) {
         if let Some(warp) = self.pending_warp.take() {
+            // Clear movement/script carry-over from the previous map to avoid
+            // retriggering stale scripted paths or collision-side warp checks.
+            self.scripted_player_path.clear();
+            self.state.player.movement_state = MovementState::Idle;
+            self.state.walk_counter = 0;
+            self.state.exiting_door = false;
+            self.state.standing_on_warp = false;
+
             if warp.save_last_map {
                 self.last_map = Some(self.state.current_map);
             }
@@ -835,8 +843,11 @@ impl OverworldScreen {
             // MovePlayer effect waits for scripted_player_path to empty, but
             // the standalone path-following block (below) is unreachable while
             // active_script_effect is Some — causing a deadlock.
+            let had_scripted_path = !self.scripted_player_path.is_empty();
             self.advance_scripted_player_path();
-            self.try_trigger_warp_at_player_position();
+            if had_scripted_path {
+                self.try_trigger_warp_at_player_position();
+            }
 
             return ScreenAction::Continue;
         }
@@ -871,8 +882,11 @@ impl OverworldScreen {
 
         // Scripted player movement — follow path ignoring real input.
         if !self.scripted_player_path.is_empty() {
+            let had_scripted_path = !self.scripted_player_path.is_empty();
             self.advance_scripted_player_path();
-            self.try_trigger_warp_at_player_position();
+            if had_scripted_path {
+                self.try_trigger_warp_at_player_position();
+            }
             self.run_npc_movement_tick();
             return ScreenAction::Continue;
         }
