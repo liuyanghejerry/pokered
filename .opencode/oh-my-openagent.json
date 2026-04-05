@@ -2,63 +2,60 @@
   "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-opencode/master/assets/oh-my-opencode.schema.json",
   "agents": {
     "sisyphus": {
-      "model": "bailian-coding-plan/glm-5",
-      "ultrawork": {
-        "model": "bailian-coding-plan/glm-5"
-      }
+      "model": "github-copilot/claude-opus-4.6"
     },
     "hephaestus": {
-      "model": "bailian-coding-plan/qwen3-max-2026-01-23"
+      "model": "github-copilot/gpt-5.3-codex"
     },
     "oracle": {
-      "model": "bailian-coding-plan/qwen3.5-plus"
+      "model": "github-copilot/claude-opus-4.6"
     },
     "librarian": {
-      "model": "bailian-coding-plan/qwen3-max-2026-01-23"
+      "model": "github-copilot/claude-sonnet-4.6"
     },
     "explore": {
-      "model": "bailian-coding-plan/qwen3-max-2026-01-23"
+      "model": "github-copilot/gpt-5-mini"
     },
     "multimodal-looker": {
-      "model": "bailian-coding-plan/qwen3.5-plus"
+      "model": "github-copilot/gpt-4o"
     },
     "prometheus": {
-      "model": "bailian-coding-plan/glm-5"
+      "model": "github-copilot/claude-sonnet-4.6"
     },
     "metis": {
-      "model": "bailian-coding-plan/glm-5"
+      "model": "github-copilot/claude-sonnet-4.6"
     },
     "momus": {
-      "model": "bailian-coding-plan/qwen3-max-2026-01-23"
+      "model": "github-copilot/claude-sonnet-4.6"
     },
     "atlas": {
-      "model": "bailian-coding-plan/qwen3-max-2026-01-23"
+      "model": "github-copilot/claude-sonnet-4.6"
     }
   },
   "categories": {
     "visual-engineering": {
-      "model": "bailian-coding-plan/qwen3.5-plus"
+      "model": "github-copilot/gpt-4o"
     },
     "ultrabrain": {
-      "model": "bailian-coding-plan/qwen3-max-2026-01-23"
+      "model": "github-copilot/gpt-5"
     },
     "deep": {
-      "model": "bailian-coding-plan/qwen3-max-2026-01-23"
+      "model": "github-copilot/gpt-5"
     },
     "artistry": {
-      "model": "bailian-coding-plan/qwen3.5-plus"
+      "model": "github-copilot/gpt-4o"
     },
     "quick": {
-      "model": "bailian-coding-plan/qwen3-max-2026-01-23"
+      "model": "github-copilot/gpt-5-mini"
     },
     "unspecified-low": {
-      "model": "bailian-coding-plan/kimi-2.5"
+      "model": "github-copilot/gpt-4o"
     },
     "unspecified-high": {
-      "model": "bailian-coding-plan/qwen3.5-plus"
+      "model": "github-copilot/gpt-5"
     },
     "writing": {
-      "model": "bailian-coding-plan/glm-5"
+      "model": "github-copilot/gpt-4o"
     }
   }
 }
