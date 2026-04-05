@@ -76,7 +76,14 @@ async function palletTownOakNotSafe() {
 }
 
 async function palletTownPlayerFollowsOak() {
-  game.startNpcMoveTo(NPC.OAK, LAB_ENTRANCE_X, LAB_ENTRANCE_Y);
+  const pos = game.getPlayerPosition();
+  const oakStartX = pos.x;
+  const oakStartY = pos.y + 1;
+
+  // Kick Oak out of the cutscene start tile first; then switch to auto-path.
+  await game.moveNpc(NPC.OAK, [[oakStartX, oakStartY + 1]]);
+  await game.startNpcMoveTo(NPC.OAK, LAB_ENTRANCE_X, LAB_ENTRANCE_Y);
+  await game.delay(4);
   await game.movePlayerTo(LAB_ENTRANCE_X, LAB_ENTRANCE_Y);
   await game.awaitNpcMove(NPC.OAK);
   await game.clearJoyIgnore();
