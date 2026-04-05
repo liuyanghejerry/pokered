@@ -56,11 +56,11 @@ async function palletTownOakWalksToPlayer() {
   const oakTargetX = pos.x;
   const oakTargetY = pos.y + 1;
 
-  await game.faceNpc(NPC.OAK, "up");
   await game.delay(3);
   const oakSpawnX = 8;
   const oakSpawnY = 2;
   await game.moveNpc(NPC.OAK, [[oakSpawnX, oakSpawnY], [oakTargetX, oakTargetY]]);
+  await game.faceNpc(NPC.OAK, "up");
   await game.setJoyIgnore(PAD.BUTTONS | PAD.DPAD);
   await palletTownOakNotSafe();
 }
